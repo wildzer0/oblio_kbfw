@@ -251,6 +251,7 @@ void vial_receive(XDATA uint8_t *data, uint8_t length)
             memset(data, 0, length);
             put_u32_le(&data[0], VIAL_PROTOCOL_VERSION);
             memcpy(&data[4], vial_keyboard_uid, 8);
+            data[12] = 1; // the app may use the per-key lighting (core/vialrgb.c)
             break;
 
         case vial_get_size:

@@ -4,6 +4,7 @@
 #include "keymap.h"
 #include "matrix.h"
 #include "vial.h"
+#include "vialrgb.h"
 #include <string.h>
 
 #define VIA_PROTOCOL_VERSION 0x0009u
@@ -16,6 +17,9 @@ enum {
     id_dynamic_keymap_get_keycode           = 0x04,
     id_dynamic_keymap_set_keycode           = 0x05,
     id_dynamic_keymap_reset                 = 0x06,
+    id_lighting_set_value                   = 0x07,
+    id_lighting_get_value                   = 0x08,
+    id_lighting_save                        = 0x09,
     id_bootloader_jump                      = 0x0B,
     id_dynamic_keymap_macro_get_count       = 0x0C,
     id_dynamic_keymap_macro_get_buffer_size = 0x0D,
@@ -332,6 +336,18 @@ void via_receive(XDATA uint8_t *data, uint8_t length)
             if (vial_is_unlocked()) {
                 bootloader_requested = true;
             }
+            break;
+
+        case id_lighting_get_value: // the per-key lighting of the Vial app (core/vialrgb.c)
+            vialrgb_get_value(data);
+            break;
+
+        case id_lighting_set_value:
+            vialrgb_set_value(data);
+            break;
+
+        case id_lighting_save:
+            vialrgb_save();
             break;
 
         case id_vial_prefix:

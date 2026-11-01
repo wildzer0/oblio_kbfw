@@ -65,7 +65,7 @@ Recupero: Esc+1+2 mentre si inserisce l'USB.
   con le sue due copie a **0xDC00–0xEBFF** e il codice può arrivare a **0xDC00 (56.320 B)**: +12,3 KB. Flash 43528/56320, XDATA 3772/4096.
   La keymap salvata è ripartita dai default una volta (cambia l'indirizzo del deposito) e i tasti `Fn+Z/X/C/V` non esistono più.
 - **Switch Win/Mac**: è **P0.5** (ingresso con pull-up, **alto = Mac**, basso = Windows — misurato sulla tastiera). Non è un semplice swap:
-  Windows usa i layer 0/1, Mac i layer **7/6** (base con Alt↔GUI scambiati e **Fn suo**), tutti e quattro editabili da Vial.
+  Windows usa i layer 0/1, Mac i layer **5/4** (base con Alt↔GUI scambiati e **Fn suo**), tutti e quattro editabili da Vial.
 - **Prossimo passo deciso dall'utente**: batteria + Caps Lock wireless dal frame `08` della radio (mai decodificato), poi combos/key overrides,
   mouse dall'encoder, Vial RGB. Serve la misura: `diag.py --radio` a carica piena / uso normale / quasi scarica.
   **Fatto il 2026-11-02**: mouse dall'encoder (`core/mouse.c`, report ID 7, solo USB). Flash 44945/56320, XDATA 3788/4096, test host 23.

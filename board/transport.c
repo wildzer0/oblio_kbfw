@@ -1,6 +1,7 @@
 #include "link.h"
 #include "radio.h"
 #include "report.h"
+#include "store.h"
 #include "usb_reports.h"
 
 // keyboard.c says a report changed. In the wireless modes it goes to the radio, otherwise to the USB queue.
@@ -20,4 +21,10 @@ void report_hook_send(report_kind_t kind)
         radio_send_consumer(report_consumer());
     }
     // the system keys (power, sleep) and the mouse are not mapped on the radio: REPORT_MOUSE goes nowhere in the wireless modes
+}
+
+// The Vial app paints keys and asks for them to be written: the colours are in the keymap, so this is a save.
+void vialrgb_hook_save(void)
+{
+    store_flush();
 }

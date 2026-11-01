@@ -6,6 +6,7 @@ static uint16_t encoder_keys[KEYMAP_LAYERS][ENCODER_COUNT][2];
 static uint16_t tap_dances[KEYMAP_TAP_DANCE_COUNT][TD_FIELDS];
 static uint16_t combos[KEYMAP_COMBO_COUNT][COMBO_FIELDS];
 static uint16_t overrides[KEYMAP_KEY_OVERRIDE_COUNT][KO_FIELDS];
+static uint16_t leds[KEYMAP_LED_COUNT];
 static uint16_t cfg[KEYMAP_CFG_COUNT];
 static uint8_t  macros[KEYMAP_MACRO_BYTES];
 static uint8_t  version;
@@ -41,6 +42,10 @@ static void load_defaults(void)
         for (uint8_t field = 0; field < KO_FIELDS; field++) {
             overrides[index][field] = keymap_default_override(index, field);
         }
+    }
+
+    for (uint16_t index = 0; index < KEYMAP_LED_COUNT; index++) {
+        leds[index] = keymap_default_led(index);
     }
 
     for (uint8_t field = 0; field < KEYMAP_CFG_COUNT; field++) {
@@ -166,6 +171,22 @@ bool keymap_override_set(uint8_t index, uint8_t field, uint16_t value)
     }
 
     overrides[index][field] = value;
+    version++;
+    return true;
+}
+
+uint16_t keymap_led_get(uint16_t index)
+{
+    return (index < KEYMAP_LED_COUNT) ? leds[index] : 0;
+}
+
+bool keymap_led_set(uint16_t index, uint16_t rgb565)
+{
+    if (index >= KEYMAP_LED_COUNT) {
+        return false;
+    }
+
+    leds[index] = rgb565;
     version++;
     return true;
 }

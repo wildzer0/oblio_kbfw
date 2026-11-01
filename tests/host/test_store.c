@@ -37,6 +37,12 @@ uint16_t keymap_default_override(uint8_t index, uint8_t field)
     return 0;
 }
 
+uint16_t keymap_default_led(uint16_t index)
+{
+    (void)index;
+    return 0;
+}
+
 uint16_t keymap_default_cfg(uint8_t field)
 {
     return (uint16_t)(100 + field);
@@ -164,7 +170,7 @@ static void test_blank_flash_gives_the_defaults(void)
     blank_flash();
     boot();
     CHECK(keymap_get(0, 0, 0) == KC_A);
-    CHECK(keymap_get(7, 4, 15) == KC_A + ((7 + 4 + 15) & 7));
+    CHECK(keymap_get(KEYMAP_LAYERS - 1, 4, 15) == KC_A + ((KEYMAP_LAYERS - 1 + 4 + 15) & 7));
     CHECK(keymap_tap_dance_get(2, 3) == 23);
     CHECK(keymap_cfg_get(CFG_LED_BRIGHT) == 101);
     CHECK(!store_dirty());
@@ -176,9 +182,9 @@ static void edit_everything(uint16_t value)
     const uint8_t macro[] = {'h', 'e', 'l', 'l', 'o', 0};
 
     keymap_set(0, 0, 0, value);
-    keymap_set(7, 4, 15, (uint16_t)(value + 1));
+    keymap_set(KEYMAP_LAYERS - 1, 4, 15, (uint16_t)(value + 1));
     keymap_set_encoder(3, 0, true, (uint16_t)(value + 2));
-    keymap_tap_dance_set(7, 4, (uint16_t)(value + 3));
+    keymap_tap_dance_set(KEYMAP_TAP_DANCE_COUNT - 1, 4, (uint16_t)(value + 3));
     keymap_cfg_set(CFG_LED_SPEED, (uint16_t)(value + 4));
     keymap_macro_write(0, sizeof macro, macro);
     keymap_macro_write(KEYMAP_MACRO_BYTES - 2, 1, (const uint8_t *)&value);
@@ -187,9 +193,9 @@ static void edit_everything(uint16_t value)
 static void check_everything(uint16_t value)
 {
     CHECK(keymap_get(0, 0, 0) == value);
-    CHECK(keymap_get(7, 4, 15) == (uint16_t)(value + 1));
+    CHECK(keymap_get(KEYMAP_LAYERS - 1, 4, 15) == (uint16_t)(value + 1));
     CHECK(keymap_get_encoder(3, 0, true) == (uint16_t)(value + 2));
-    CHECK(keymap_tap_dance_get(7, 4) == (uint16_t)(value + 3));
+    CHECK(keymap_tap_dance_get(KEYMAP_TAP_DANCE_COUNT - 1, 4) == (uint16_t)(value + 3));
     CHECK(keymap_cfg_get(CFG_LED_SPEED) == (uint16_t)(value + 4));
     CHECK(keymap_macro_byte(0) == 'h' && keymap_macro_byte(4) == 'o' && keymap_macro_byte(5) == 0);
     CHECK(keymap_macro_byte(KEYMAP_MACRO_BYTES - 2) == (uint8_t)(value & 0xFF));

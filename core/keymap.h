@@ -8,15 +8,15 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-#define KEYMAP_LAYERS 8
+#define KEYMAP_LAYERS 6
 #define ENCODER_COUNT 1
 
 // The two layers of the Mac side of the Win/Mac switch (board/os_switch.c): KEYMAP_MAC_LAYER is the base one (a copy of the base layer
 // with Alt and GUI swapped) and KEYMAP_MAC_FN_LAYER is its own Fn layer, so the switch picks between two complete keyboards, each with a
 // Fn layer, instead of just swapping two keys. Both are compiled in by the board's keymap_default() and editable in Vial like any other
 // layer. Switching changes which layer the lookups fall back to; it does not touch what is stored.
-#define KEYMAP_MAC_LAYER    7
-#define KEYMAP_MAC_FN_LAYER 6
+#define KEYMAP_MAC_LAYER    5
+#define KEYMAP_MAC_FN_LAYER 4
 
 // Provided by the board (or a test): the compiled-in keymap. A layer it does not define answers KC_TRANSPARENT.
 uint16_t keymap_default(uint8_t layer, uint8_t row, uint8_t col);
@@ -83,6 +83,16 @@ uint16_t keymap_default_override(uint8_t index, uint8_t field);
 
 uint16_t keymap_override_get(uint8_t index, uint8_t field);
 bool     keymap_override_set(uint8_t index, uint8_t field, uint16_t value);
+
+// ---- the per-key colours Vial paints (its Lighting tab): one RGB565 word per cell of the matrix ----
+// They are part of the keymap so that they survive power-off; core/vialrgb.c writes them and FX_VIAL shows them.
+#define KEYMAP_LED_COUNT ((uint16_t)(MATRIX_ROWS * MATRIX_COLS))
+
+// Provided by the board (or a test): the compiled-in colours (all dark).
+uint16_t keymap_default_led(uint16_t index);
+
+uint16_t keymap_led_get(uint16_t index);
+bool     keymap_led_set(uint16_t index, uint16_t rgb565);
 
 // ---- settings that belong to a profile, as words ----
 #define KEYMAP_CFG_COUNT 5

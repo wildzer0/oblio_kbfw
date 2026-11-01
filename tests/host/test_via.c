@@ -39,6 +39,14 @@ uint16_t keymap_default_override(uint8_t index, uint8_t field)
     return 0;
 }
 
+void vialrgb_hook_save(void) {} // the board writes the keymap; here there is no flash
+
+uint16_t keymap_default_led(uint16_t index)
+{
+    (void)index;
+    return 0;
+}
+
 uint8_t hud_hook_host_leds(void) { return 0; }
 void layer_hook_mods_add(uint8_t m) { (void)m; }
 void layer_hook_mods_del(uint8_t m) { (void)m; }
@@ -185,7 +193,9 @@ static void test_keymap_buffer(void)
     const unsigned total = KEYMAP_LAYERS * MATRIX_ROWS * MATRIX_COLS * 2;
 
     REQUEST(0x12, (uint8_t)((total - 4) >> 8), (uint8_t)(total - 4), 8); // runs past the end: zeros
-    CHECK(buf[4] == 0x08 && buf[5] == 0x4E && buf[6] == 0x08 && buf[7] == 0x4F); // the last two cells of layer 7 (0x0800 + 78, 79)
+    const uint8_t top = (uint8_t)(0x0100 * KEYMAP_LAYERS >> 8); // the keymap_default of the last layer
+
+    CHECK(buf[4] == top && buf[5] == 0x4E && buf[6] == top && buf[7] == 0x4F); // its last two cells
     CHECK(buf[8] == 0 && buf[9] == 0 && buf[10] == 0 && buf[11] == 0);
 
     REQUEST(0x12, 0, 0, 29); // more than a report holds: the request comes back as it is
@@ -200,7 +210,7 @@ static void test_keymap_buffer(void)
     CHECK(keymap_get(2, 0, 3) == 0xAA11);
 
     REQUEST(0x13, (uint8_t)(total >> 8), (uint8_t)total, 2, 1, 2); // past the end: nothing
-    CHECK(keymap_get(7, 4, 15) == 0x084F);
+    CHECK(keymap_get(KEYMAP_LAYERS - 1, 4, 15) == (uint16_t)(0x0100 * KEYMAP_LAYERS + 4 * 16 + 15));
 }
 
 static void test_encoders(void)
@@ -225,7 +235,7 @@ static void test_keyboard_id_and_definition(void)
     reset();
     REQUEST(0xFE, vial_get_keyboard_id);
     CHECK(buf[0] == 6 && buf[1] == 0 && buf[2] == 0 && buf[3] == 0);
-    CHECK(memcmp(&buf[4], vial_keyboard_uid, 8) == 0 && buf[12] == 0);
+    CHECK(memcmp(&buf[4], vial_keyboard_uid, 8) == 0 && buf[12] == 1); // 1: the app may use the per-key lighting
 
     REQUEST(0xFE, vial_get_size);
     CHECK(buf[0] == 70 && buf[1] == 0 && buf[2] == 0 && buf[3] == 0);

@@ -45,6 +45,21 @@ uint16_t keymap_default_override(uint8_t index, uint8_t field)
     return 0;
 }
 
+// core/led.c chiede le celle all'effetto FX_VIAL: qui sono buie, se ne occupa test_vialrgb
+bool vialrgb_colour(uint8_t row, uint8_t col, uint8_t out[3])
+{
+    (void)row;
+    (void)col;
+    (void)out;
+    return false;
+}
+
+uint16_t keymap_default_led(uint16_t index)
+{
+    (void)index;
+    return 0;
+}
+
 uint16_t keymap_default_cfg(uint8_t field) { return cfg_defaults[field]; }
 
 static bool caps;

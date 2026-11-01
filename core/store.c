@@ -8,9 +8,10 @@
 #define TD_WORDS      ((uint16_t)(KEYMAP_TAP_DANCE_COUNT * TD_FIELDS))
 #define COMBO_WORDS   ((uint16_t)(KEYMAP_COMBO_COUNT * COMBO_FIELDS))
 #define KO_WORDS      ((uint16_t)(KEYMAP_KEY_OVERRIDE_COUNT * KO_FIELDS))
+#define LED_WORDS     ((uint16_t)KEYMAP_LED_COUNT)
 #define CFG_WORDS     ((uint16_t)KEYMAP_CFG_COUNT)
 
-#define WORDS      ((uint16_t)(KEY_WORDS + ENCODER_WORDS + MACRO_WORDS + TD_WORDS + COMBO_WORDS + KO_WORDS + CFG_WORDS))
+#define WORDS      ((uint16_t)(KEY_WORDS + ENCODER_WORDS + MACRO_WORDS + TD_WORDS + COMBO_WORDS + KO_WORDS + LED_WORDS + CFG_WORDS))
 #define PAYLOAD    ((uint16_t)(WORDS * 2u))
 #define HEADER     15u
 #define SLOT_BYTES ((uint16_t)(STORE_SLOT_SECTORS * STORE_SECTOR_BYTES))
@@ -62,9 +63,10 @@ static uint16_t crc16_byte(uint16_t crc, uint8_t byte)
 // ---- the payload as a run of words ----
 // In order: the keys (layer, row, column), the encoders (layer, encoder, direction), the macros (two bytes a word, little-endian), the
 // tap dances (index, field), the settings. A cursor walks it by counting, so no word needs a division to find its place.
-typedef enum { SEC_KEYS, SEC_ENCODERS, SEC_MACROS, SEC_TAP_DANCES, SEC_COMBOS, SEC_OVERRIDES, SEC_CFG, SEC_END } section_t;
+typedef enum { SEC_KEYS, SEC_ENCODERS, SEC_MACROS, SEC_TAP_DANCES, SEC_COMBOS, SEC_OVERRIDES, SEC_LEDS, SEC_CFG, SEC_END } section_t;
 
 static section_t sec;
+static uint16_t  led;         // the position in the per-key colours
 static uint8_t   ca, cb, cc;  // the position in the section
 static uint16_t  cm;          // the position in the macro buffer, in words
 
@@ -73,6 +75,7 @@ static void cursor_start(void)
     sec = SEC_KEYS;
     ca = cb = cc = 0;
     cm = 0;
+    led = 0;
 }
 
 static void cursor_advance(void)
@@ -130,9 +133,16 @@ static void cursor_advance(void)
             if (++cb >= KO_FIELDS) {
                 cb = 0;
                 if (++ca >= KEYMAP_KEY_OVERRIDE_COUNT) {
-                    sec = SEC_CFG;
+                    sec = SEC_LEDS;
                     ca = 0;
+                    led = 0;
                 }
+            }
+            break;
+        case SEC_LEDS:
+            if (++led >= KEYMAP_LED_COUNT) {
+                sec = SEC_CFG;
+                ca = 0;
             }
             break;
         case SEC_CFG:
@@ -155,6 +165,7 @@ static uint16_t cursor_get(void)
         case SEC_TAP_DANCES: return keymap_tap_dance_get(ca, cb);
         case SEC_COMBOS:     return keymap_combo_get(ca, cb);
         case SEC_OVERRIDES:  return keymap_override_get(ca, cb);
+        case SEC_LEDS:       return keymap_led_get(led);
         case SEC_CFG:        return keymap_cfg_get(ca);
         default:             return 0;
     }
@@ -169,6 +180,7 @@ static uint16_t cursor_default(void)
         case SEC_TAP_DANCES: return keymap_default_tap_dance(ca, cb);
         case SEC_COMBOS:     return keymap_default_combo(ca, cb);
         case SEC_OVERRIDES:  return keymap_default_override(ca, cb);
+        case SEC_LEDS:       return keymap_default_led(led);
         case SEC_CFG:        return keymap_default_cfg(ca);
         default:             return 0;
     }
@@ -197,6 +209,9 @@ static void cursor_set(uint16_t value)
             break;
         case SEC_OVERRIDES:
             keymap_override_set(ca, cb, value);
+            break;
+        case SEC_LEDS:
+            keymap_led_set(led, value);
             break;
         case SEC_CFG:
             keymap_cfg_set(ca, value);

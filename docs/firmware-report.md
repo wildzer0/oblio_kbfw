@@ -32,7 +32,7 @@ The USB device enumerates as `258a:dead`, product name "Oblio B68", with a keybo
 ## 3. What the firmware does
 
 - **Win/Mac switch:** `board/os_switch.c` reads `P0.5` (debounced 50 ms) and makes layer 7 the default on Mac, layer 0 on Windows. That is not just
-  a modifier swap: the two sides are **two complete keyboards**, each with its own Fn layer (Windows: layers 0 and 1, Mac: layers 7 and 6, the Fn
+  a modifier swap: the two sides are **two complete keyboards**, each with its own Fn layer (Windows: layers 0 and 1, Mac: layers 5 and 4, the Fn
   key of the Mac side going to 6), both fully editable in Vial. The Mac base is a copy of the Windows base with Alt and GUI swapped; its Fn layer
   starts as a copy of the Windows one, and changing it changes nothing on the Windows side. This is what the stock firmware does with its second
   set of keymap tables. Switching does not write to flash: the switch is the source of truth.
@@ -40,7 +40,7 @@ The USB device enumerates as `258a:dead`, product name "Oblio B68", with a keybo
   accelerates, `MS_ACCEL1/2` make the step longer, the wheel scrolls and buttons 1-5 hold their bit. That is what makes the encoder a scroll wheel:
   assign `MS_WH_UP` / `MS_WH_DOWN` to its two directions in Vial. **USB only**: the radio protocol has no mouse frame, so in 2.4G and Bluetooth
   those keycodes do nothing (the report is dropped in `board/transport.c`).
-- **Keys:** matrix scan + debounce (3 scans in a row), 8 layers in RAM (`KEYMAP_LAYERS`), layer keys, tap-hold (LT/MT/OSM/OSL), tap dance, macros, encoder.
+- **Keys:** matrix scan + debounce (3 scans in a row), 6 layers in RAM (`KEYMAP_LAYERS`), layer keys, tap-hold (LT/MT/OSM/OSL), tap dance, macros, encoder.
 - **Key overrides** (`core/override.c`, Vial's Key Overrides tab): up to 4. A trigger keycode under the modifiers it requires becomes a
   replacement (Shift+Backspace = Delete, say), optionally on a set of layers only, with modifiers that must not be held and modifiers to take
   away while it acts; the trigger itself never reaches the host and its release releases the replacement. The "when does it activate" options
@@ -53,15 +53,15 @@ The USB device enumerates as `258a:dead`, product name "Oblio B68", with a keybo
 - **Fn layer (hold Fn):** F1–F12 on the number row; lighting on Q…Y (effect −/+, brightness −/+, speed −/+), plain colour −/+ on U I; sleep time −/+ on O P;
   sleep now on Tab (`B68_SLEEP`); Bluetooth slots 1–3 on B N M (tap selects, hold 3 s pairs); battery level on Backspace;
   media on the arrows. Custom keycodes live in `board/b68_keys.h` (0x7E00…0x7E13, same numbers as the SMK port so saved layouts keep their meaning).
-- **Vial / VIA over raw HID:** live keymap, macros, tap dances, combos, **key overrides**, encoder; Vial unlock = hold Esc+Enter. The protocol as
-  the app speaks it is written down in `docs/vial.md` (per-key RGB is the Vial tab still missing). Definition from `board/vial.json` (generated into the
+- **Vial / VIA over raw HID:** live keymap, macros, tap dances, combos, key overrides, **per-key RGB** (Vial RGB: "off" and "direct", the painter),
+  encoder; Vial unlock = hold Esc+Enter. The protocol as the app speaks it is written down in `docs/vial.md`. Definition from `board/vial.json` (generated into the
   firmware by `tools/vial_gen.py`, checked by `tools/check_vial.py`).
 - **HUD protocol v2** (`docs/hud-protocol-v2.md`, command `0xF0`): another app of the user's reads layers, pressed keys and the keymap. `B68_HUD_TOG`
   (0x7E00) bumps a counter the app watches.
 - **The keymap in flash:** one keyboard (keys, encoders, macros, tap dances, lighting settings) in two copies with a CRC; it survives power-off and
   a power cut during a save. There were four switchable profiles until 2026-11-01: they cost 16 KB of the chip's flash for layouts nobody used, and
   with one keyboard the store moved to the end of the flash and the code got those 12 KB back (43935 → 43528 B used, 56320 B available).
-- **Backlight:** effects, brightness, speed, colour, all driven from the main loop into a framebuffer; the timer interrupt only copies pre-computed PWM widths
+- **Backlight:** effects, brightness, speed, colour, **or the per-key picture painted in Vial** (`FX_VIAL`), all driven from the main loop into a framebuffer; the timer interrupt only copies pre-computed PWM widths
   (`core/led.c` keeps a ready-made `duty2` table, `board/led_hw.c` writes it with constant-address code). **Battery gauge** (Fn+Backspace, number keys
   green/red for 3 s): the level comes from the radio's status answer, seven steps in three bits (`core/radio.h`), shown as even steps of a
   percentage; the radio's "critically low" flag turns it red. In USB mode there is no radio reading and the gauge says "unknown" (white blinking).
@@ -109,8 +109,8 @@ nix develop --command make sim               # ~50 s: the real hex in the chip s
 nix develop --command make stages            # staged builds, see below
 ```
 
-Current budget: **flash 48897 / 56320 (7.4 KB of margin), XDATA 3960 / 4096 (136 B free — the tight one), and the keymap slot is 19 bytes
-from full**; the stack is the other tight one (internal RAM, 223 B
+Current budget: **flash 52655 / 56320 (3.7 KB of margin), XDATA 3794 / 4096 (302 B free), keymap slot 2034 of 2048 bytes.** Six layers since
+2026-11-02 (8 → 6 freed 320 B of XDATA and 320 B of slot for the per-key colours); the Mac pair moved from 7/6 to 5/4.; the stack is the other tight one (internal RAM, 223 B
 from 0x21 up; the USB interrupt used to keep 48 B of buffers on it, now static in XDATA). Check the `flash` line before every commit; a failed link
 leaves no stale `.ihx` any more (`.DELETE_ON_ERROR`). SDCC pitfalls seen here: `%`, `/` and loops with a variable count are very costly; use typed `XDATA` pointers
 (`core/platform.h`), constant addresses in interrupts, `--std-c23 --Werror` (an empty `if` body is an error 110).

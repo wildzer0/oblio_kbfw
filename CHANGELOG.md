@@ -12,6 +12,23 @@
 
 Il controllo di recupero Esc+1+2 va all'inizio del `main`, prima di USB e radio.
 
+## 2026-11-03 — 8 → 6 layer, e Vial RGB per tasto
+
+- **Layer 8 → 6** (decisione dell'utente): libera **320 B di XDATA e 320 B del deposito**, che era il muro per il colore per tasto. La coppia Mac
+  passa da 7/6 a **5/4** (Windows resta 0/1); il tasto Fn del lato Mac usa `MO(4)`. Vial mostra 6 layer.
+- **Vial RGB per tasto** (`core/vialrgb.[ch]`, `docs/vial.md`): il comando VIA di illuminazione (0x07/0x08/0x09) con i sottocomandi 0x40–0x44.
+  Si offrono **due soli effetti**: 0 = spento e 1 = **diretto** (il pittore per tasto). `get_supported` dice la verità, quindi l'app mostra solo
+  quelli; gli altri id sono di `rgb_matrix` di QMK, che qui non c'è (i nostri effetti stanno sui tasti Fn).
+- I colori arrivano in HSV, vengono convertiti in RGB565 e tenuti **nella keymap** (una parola per cella, 80 celle = 160 B), quindi sopravvivono
+  allo spegnimento; `lighting_save` scrive subito. L'effetto che li mostra è **`FX_VIAL`** (in fondo alla lista, raggiungibile anche con Fn+W).
+  `get_number_leds` = 80 celle e `get_led_info` marca con 0xFF le celle che non sono tasti, così l'app non le dipinge.
+- **`core/via.c`**: i tre comandi di illuminazione; **`core/vial.c`**: byte `[12] = 1` nella risposta con l'id, che dice all'app "qui c'è vialrgb".
+- **`tests/host/test_vialrgb.c`** (26° test): info, effetti offerti, modo legato all'effetto del profilo, numero di LED e posizioni, pittura di due
+  LED con verifica dei colori, salvataggio. Aggiornati test_via, test_hud, test_store, test_led, test_sim (6 layer).
+
+Budget: flash **52655/56320** (3,7 KB liberi), XDATA **3794/4096** (302 B), deposito 2034/2048. `make test` 26/26, `make sim` 24/24,
+`make stages` 1–3 ok, vettori ok.
+
 ## 2026-11-02 (tarda notte) — key overrides (Vial), e il deposito quasi pieno
 
 - **`core/override.[ch]`**: fino a 4 voci nel formato di Vial (10 byte: trigger, replacement, layer, modificatori richiesti, modificatori che

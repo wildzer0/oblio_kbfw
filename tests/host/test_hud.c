@@ -42,6 +42,12 @@ uint16_t keymap_default_override(uint8_t index, uint8_t field)
     return 0;
 }
 
+uint16_t keymap_default_led(uint16_t index)
+{
+    (void)index;
+    return 0;
+}
+
 uint16_t keymap_default_cfg(uint8_t field)
 {
     (void)field;
@@ -107,12 +113,12 @@ static void test_info_as_in_the_protocol_document(void)
     reset();
     no_args(0x01, 0x05);
 
-    // f0 01 00 05 | 02 05 10 08 | 08 00 | 00 7e | 0c | VV | 02
+    // f0 01 00 05 | 02 05 10 06 | 08 00 | 00 7e | 0c | VV | 02
     CHECK(packet[0] == 0xF0 && packet[1] == 0x01 && packet[2] == 0x00 && packet[3] == 0x05);
     CHECK(packet[4] == 2);     // protocol 2
     CHECK(packet[5] == 5);     // rows
     CHECK(packet[6] == 16);    // columns
-    CHECK(packet[7] == 8);     // layers
+    CHECK(packet[7] == KEYMAP_LAYERS); // layers
     CHECK(packet[8] == 0x08 && packet[9] == 0x00);   // capabilities: bit 3 = the HUD_TOG key exists
     CHECK(packet[10] == 0x00 && packet[11] == 0x7E); // its keycode, 0x7E00
     CHECK(packet[12] == 12);   // keycodes per GET_KEYMAP
