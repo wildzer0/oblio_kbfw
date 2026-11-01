@@ -66,6 +66,21 @@ bool radio_idle(void); // nothing in flight and nothing waiting to go out
 // The last answer to the status request (bytes after the command byte), zeros until one has come.
 const uint8_t *radio_status(void);
 
+// What the status answer says. The layout is the one the same radio uses on the keyboards the reference driver was written for (NuPhy, over
+// SPI): one byte carries the battery level in its low three bits and an "awake" bit in bit 7, another carries the host's LEDs (num, caps,
+// scroll), whether a host is connected, whether the link is paired and whether the battery is critically low. On this board the answer has six
+// bytes; which of them is which comes from docs/keyboards/yunzii-b68-radio.md plus one measured answer (00 01 00 03 ff 03 at full charge, in
+// 2.4G): byte 4 read 0xff (awake, level 7 of 7) and byte 1 carried the LEDs. If the gauge ever sticks at 0 or never moves, those two offsets
+// are the one line to change.
+#define RADIO_STATUS_FLAGS_AT   1u // LEDs in bits 0-2, connected bit 3, paired bit 4, low power bit 7
+#define RADIO_STATUS_BATTERY_AT 4u // level in bits 0-2, "awake" in bit 7
+
+#define RADIO_BATTERY_NONE 0xFFu // no answer has come yet
+
+uint8_t radio_battery_level(void); // 0..7, or RADIO_BATTERY_NONE
+bool    radio_low_power(void);     // the radio says the battery is critically low
+uint8_t radio_host_leds(void);     // bit 0 num lock, bit 1 caps lock, bit 2 scroll lock
+
 // The last 08 frame from the radio, whole (22 bytes, zeros until one has come): its content is not decoded yet.
 const uint8_t *radio_last_info(void);
 

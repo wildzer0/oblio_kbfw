@@ -12,6 +12,26 @@
 
 Il controllo di recupero Esc+1+2 va all'inizio del `main`, prima di USB e radio.
 
+## 2026-11-02 (notte) — batteria e Caps Lock wireless: la fonte era il driver di riferimento
+
+- **Trovato senza misurare**: il driver dello **stesso radio** per le NuPhy (`src/peripherals/bk3632/rf_controller.c` del porting) decodifica già i
+  byte di stato — `battery_level = status[0] & 0x07` (tre bit, 0–7 livelli), `led_state = status[1] & 0x07` (num/caps/scroll), `connected` bit 3,
+  `paired` bit 4, `low_power` bit 7, e il bit 7 dell'altro byte è "radio sveglia". La B68 fa la stessa cosa: nel dump stock, a `0x06B6`, il byte
+  `b1` della risposta `02 06` viene copiato nella cella dei LED dell'host quando il selettore è su Bluetooth.
+- **`core/radio.[ch]`**: `radio_battery_level()` (0–7, `RADIO_BATTERY_NONE` finché non arriva una risposta), `radio_low_power()`,
+  `radio_host_leds()`. Gli offset sono due `#define` con il ragionamento scritto accanto: dalla risposta misurata (`00 01 00 03 ff 03`, carica
+  piena, 2.4G) il byte 4 leggeva `0xff` (sveglia + livello 7 di 7) e il byte 1 portava i LED, coerente con quanto fa lo stock.
+- **`board/battery.c`**: la percentuale è `livello × 100 / 7` (passi pari, perché il radio non dice a che tensione corrispondono), e il flag di
+  batteria critica del radio rende la ghiera rossa qualunque sia il livello. In modalità USB senza radio la ghiera dice "sconosciuta" invece di
+  inventare un numero.
+- **`board/led_app.c`**: il **Caps Lock dell'host** in wireless ora arriva dalla radio (`radio_host_leds()`), dal cavo dal report dei LED: il tasto
+  Caps si illumina anche in 2.4G e Bluetooth.
+- **`tests/host/test_radio.c`**: risposta di stato costruita a mano → livello 5, caps lock, batteria critica, num lock: la decodifica è coperta.
+- Resta un dubbio dichiarato: se la ghiera resta a 0 o ferma a 7 per giorni, l'offset del byte batteria è un altro — è una riga sola in
+  `core/radio.h`. Un'occhiata a Fn+Backspace in wireless lo dice subito.
+
+Budget: flash **47163/56320**, XDATA **3908/4096**. `make test` 24/24, `make sim` 24/24, `make stages` 1–3 ok, vettori ok.
+
 ## 2026-11-02 — combos (Vial), e la CI che falliva
 
 ### Combos: più tasti insieme danno un altro tasto

@@ -417,6 +417,43 @@ static void test_status_is_polled_every_200_ms_and_kept(void)
     CHECK(radio_status()[0] == 0x00 && radio_status()[1] == 0x01 && radio_status()[3] == 0x03 && radio_status()[4] == 0xFF);
 }
 
+// The battery and the host's LEDs come out of the status answer: one byte carries the level in its low three bits (and "awake" in bit 7),
+// another the LEDs in bits 0-2, "connected" in 3, "paired" in 4 and "critically low" in 7 (see core/radio.h)
+static void test_the_status_answer_carries_the_battery_and_the_host_leds(void)
+{
+    uint8_t f[10];
+
+    reset();
+    settle_in_mode(0);
+
+    CHECK(radio_battery_level() == RADIO_BATTERY_NONE); // nothing has come yet
+    CHECK(radio_host_leds() == 0 && !radio_low_power());
+
+    // battery 5 of 7, awake, and caps lock + a connected host down the flag byte
+    const uint8_t status[10] = {0x02, 0x06, 0x00, 0x02, 0x00, 0x03, 0x85, 0x00, 0x01, 0};
+
+    memcpy(f, status, 10);
+    f[9] = radio_checksum(f, 9);
+    inject(f, 10);
+    run(2);
+
+    CHECK(radio_battery_level() == 5);
+    CHECK(radio_host_leds() == 2); // bit 1: caps lock
+    CHECK(!radio_low_power());
+
+    // the radio says the battery is critically low, and the cable gives us num lock instead of caps
+    const uint8_t low[10] = {0x02, 0x06, 0x00, 0x81, 0x00, 0x03, 0x81, 0x00, 0x01, 0};
+
+    memcpy(f, low, 10);
+    f[9] = radio_checksum(f, 9);
+    inject(f, 10);
+    run(2);
+
+    CHECK(radio_battery_level() == 1);
+    CHECK(radio_low_power());
+    CHECK(radio_host_leds() == 1);
+}
+
 static void test_the_queue_keeps_eight_and_replaces_the_newest(void)
 {
     reset();
@@ -540,6 +577,7 @@ int main(void)
     test_a_refusal_of_the_mode_counts_as_an_answer();
     test_bluetooth_names_are_set_once_after_the_first_answer();
     test_status_is_polled_every_200_ms_and_kept();
+    test_the_status_answer_carries_the_battery_and_the_host_leds();
     test_the_queue_keeps_eight_and_replaces_the_newest();
     test_garbage_before_a_frame_is_skipped();
     test_a_frame_that_never_ends_is_given_up_after_50_ms();

@@ -3,13 +3,17 @@
 #include "usb_app.h"
 #include "led_hw.h"
 #include "link.h"
+#include "radio.h"
 #include "usb.h"
 #include "usb_device.h"
 
-// The caps lock of the host, from the LED report (bit 1)
+// The caps lock of the host. On the cable it comes from the LED report (bit 1); in the wireless modes the radio brings it in its status
+// answer, which is what the stock firmware does too (it copies that byte into the host-LED state when the selector is on Bluetooth).
 bool led_hook_caps_lock(void)
 {
-    return (usb_host_leds() & 0x02u) != 0;
+    const uint8_t leds = link_wireless() ? radio_host_leds() : usb_host_leds();
+
+    return (leds & 0x02u) != 0;
 }
 
 // The backlight may light once the host has configured the keyboard (a bus-powered device stays within 100 mA until then), not while the

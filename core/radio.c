@@ -162,6 +162,7 @@ static uint16_t consumer_queue[CONSUMER_QUEUE];
 static uint8_t  consumer_head;
 static uint8_t  consumer_count;
 
+static bool     status_valid; // an answer to the status request has come since power-on
 static uint8_t  rx_frame[INFO_LEN];
 static uint8_t  rx_length;
 static uint8_t  status[6];
@@ -230,6 +231,21 @@ const uint8_t *radio_status(void)
     return status;
 }
 
+uint8_t radio_battery_level(void)
+{
+    return status_valid ? (uint8_t)(status[RADIO_STATUS_BATTERY_AT] & 0x07u) : RADIO_BATTERY_NONE;
+}
+
+bool radio_low_power(void)
+{
+    return status_valid && (status[RADIO_STATUS_FLAGS_AT] & 0x80u) != 0;
+}
+
+uint8_t radio_host_leds(void)
+{
+    return status_valid ? (uint8_t)(status[RADIO_STATUS_FLAGS_AT] & 0x07u) : 0u;
+}
+
 const uint8_t *radio_last_info(void)
 {
     return last_info;
@@ -261,6 +277,7 @@ void radio_init(void)
     t_sent            = 0;
     t_status          = 0;
     clear_queues();
+    status_valid = false;
     memset(status, 0, sizeof status);
     memset(last_info, 0, sizeof last_info);
     radio_hook_select(false);
@@ -404,6 +421,7 @@ static void rx_frame_done(void)
         case HEADER_RADIO:
             if (rx_frame[1] == CMD_STATUS && rx_length == STATUS_LEN) {
                 memcpy(status, &rx_frame[2], sizeof status);
+                status_valid = true;
             } else if (rx_frame[1] == 0x00u && rx_frame[2] == 0x01u) {
                 refused();
             } else if (rx_frame[1] == CMD_MODE) {

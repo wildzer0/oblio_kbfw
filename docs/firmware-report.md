@@ -58,8 +58,10 @@ The USB device enumerates as `258a:dead`, product name "Oblio B68", with a keybo
   a power cut during a save. There were four switchable profiles until 2026-11-01: they cost 16 KB of the chip's flash for layouts nobody used, and
   with one keyboard the store moved to the end of the flash and the code got those 12 KB back (43935 → 43528 B used, 56320 B available).
 - **Backlight:** effects, brightness, speed, colour, all driven from the main loop into a framebuffer; the timer interrupt only copies pre-computed PWM widths
-  (`core/led.c` keeps a ready-made `duty2` table, `board/led_hw.c` writes it with constant-address code). Battery gauge: Fn+Backspace lights the number keys
-  green/red for 3 s — **the percentage source is unknown**, so today it shows "unknown" (white blinking) in every mode.
+  (`core/led.c` keeps a ready-made `duty2` table, `board/led_hw.c` writes it with constant-address code). **Battery gauge** (Fn+Backspace, number keys
+  green/red for 3 s): the level comes from the radio's status answer, seven steps in three bits (`core/radio.h`), shown as even steps of a
+  percentage; the radio's "critically low" flag turns it red. In USB mode there is no radio reading and the gauge says "unknown" (white blinking).
+  **The host Caps Lock is shown on its key in the wireless modes too**, from the same status byte.
 - **Wireless:** 2.4G and Bluetooth through the BK3632 (`core/radio.c`, `core/link.c`, `board/radio_hw.c`): frames, flow control, mode, slots, pairing.
   The mode selector is read with a 50 ms stability filter. Keys go to the radio queues when `link_wireless()`, otherwise to the USB queue.
 - **Sleep:** in wireless modes only, after 1/5/10/30 min or never (default 10), or on demand; power-down with INT4 wake-up. Never sleeps on USB.
@@ -160,8 +162,11 @@ adding one means dropping one.
    Mac, which is a copy of the base with Alt and GUI swapped. **To be tried on the keyboard**: on Mac the key labelled Win must send Command
    and the one labelled Alt must send Option, and Vial must show layer 7 editable. `P7.0` stays unused (the stock reads it with the rows but it
    is not a row and it does not follow the switch).
-3. **Battery percentage source unknown.** The stock firmware only clears `LPDCON/LPDSEL` (low-voltage detector); the BK3632's `08` frame may carry it. Needs data
-   from `diag.py --radio` while the battery discharges/charges. The gauge UI is done and reads `battery_hook_percent()`; do not invent a scale.
+3. **Battery percentage — from the radio (2026-11-02), to be checked on the keyboard.** The reference driver for the same radio (NuPhy,
+   `src/peripherals/bk3632/rf_controller.c` of the port) already decodes it: level in the low three bits of one status byte, "awake" in its bit 7,
+   and the LEDs/connected/paired/low-power flags in another — the stock firmware of this board copies that flag byte into the host-LED state at
+   `0x06B6`. Which of the six bytes of this board's answer is the battery one is a documented hypothesis (byte 4, which read `0xff` at full
+   charge); if the gauge sticks at 0 or never moves, that offset in `core/radio.h` is the one line to change.
 4. **The scan takes ~610 µs instead of the ~440 estimated** (32 busy-waits of 10 µs are 320 µs of it). Unexplained, harmless now; the clock check says the
    timer is right. If it were found, the backlight frame would go from ~9.6 to ~8 ms.
 5. **The main loop is slow**: 0–5 passes per scan period; a pass is ~1170 instructions in the simulator, 37 % of it `matrix_any_pressed()` called twice per pass
