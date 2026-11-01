@@ -11,8 +11,11 @@ SDCC      ?= sdcc
 SDCCFLAGS := --std-c23 --Werror -mmcs51 --model-large --stack-auto \
              --xram-loc 0x0000 --xram-size $(XRAM_SIZE) --code-size $(CODE_LIMIT) \
              --opt-code-speed --out-fmt-ihx
-FW_SRC    := $(wildcard core/*.c hal/*.c board/*.c)
+# Compiled to check them with SDCC, linked once the chip driver (step 2 of phase 4) provides their hooks
+USB_NOT_YET := core/usb_desc.c core/usb_device.c
+FW_SRC    := $(filter-out $(USB_NOT_YET),$(wildcard core/*.c hal/*.c board/*.c))
 FW_REL    := $(patsubst %.c,build/%.rel,$(FW_SRC))
+USB_REL   := $(patsubst %.c,build/%.rel,$(USB_NOT_YET))
 
 .PHONY: test fw size clean
 test: $(HOST_TESTS)
@@ -32,6 +35,10 @@ FORCE:
 tests/host/test_%: tests/host/test_%.c core/%.c FORCE
 	$(CC) -std=c11 -Wall -Wextra -Werror -Icore -Itests/host -o $@ $< core/$*.c $(LINK_$*)
 
+# includes core/usb_device.c itself, to reach its static functions
+tests/host/test_usb_device: tests/host/test_usb_device.c core/usb_desc.c FORCE
+	$(CC) -std=c11 -Wall -Wextra -Werror -Icore -Itests/host -o $@ $(filter %.c,$^)
+
 # the default keymap is board data, but plain C: checked against the matrix measured on the board
 tests/host/test_default_keymap: tests/host/test_default_keymap.c board/keymap_default.c core/keymap.c FORCE
 	$(CC) -std=c11 -Wall -Wextra -Werror -Icore -Iboard -Itests/host -o $@ $(filter %.c,$^)
@@ -42,7 +49,7 @@ build/%.rel: %.c
 	@mkdir -p $(dir $@)
 	$(SDCC) $(SDCCFLAGS) -Icore -Ihal -Iboard -c $< -o $@
 
-build/oblio.ihx: $(FW_REL)
+build/oblio.ihx: $(FW_REL) $(USB_REL)
 	$(SDCC) $(SDCCFLAGS) $(FW_REL) -o $@
 
 build/oblio.hex: build/oblio.ihx
