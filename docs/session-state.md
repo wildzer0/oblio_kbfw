@@ -1,7 +1,11 @@
 # Stato della sessione — dove riprendere
 
-Ultimo commit: **`38ed7a8`** (branch `main`, CI verde). Questo file dice dove siamo, cosa aspetta una prova sulla tastiera e cosa
+Ultimo commit: **`45732e0`** (branch `main`, CI verde). Questo file dice dove siamo, cosa aspetta una prova sulla tastiera e cosa
 resta da decidere. Non sostituisce `CHANGELOG.md` (la storia) né `docs/firmware-report.md` (il quadro tecnico).
+
+**Da dove riprendere, in una riga**: la tastiera ha un firmware completo e non provato — si flasha `build/oblio.hex`, si prova la lista qui
+sotto, e le due cose che aspettano una misura sono la **scala della batteria** (registro a bordo, `diag.py --blog`) e la **causa del flicker**
+(contatori, `diag.py --watch 1`).
 
 ## Dove siamo
 
@@ -27,7 +31,7 @@ key overrides, tab Lighting), NKRO, Caps Word, Leader, mouse dall'encoder, switc
 | `26816ae` | **Colore giusto**: la ruota è quella HSV standard (era rosso→blu→verde, l'arancione usciva viola) |
 | `8088c75` | **Tinta + saturazione** in una parola da 16 bit: colore completo, **0 byte di memoria**, +333 B di flash |
 | `38ed7a8` | **Batteria**: `0xFF` col cavo è una sentinella (non 100%), e lo stato letto **a batteria** ora si legge con `diag.py --radio` |
-| — | **Logger di batteria a bordo** (`core/blog.c`): il registro si scrive da solo mentre la tastiera è a batteria e si legge con `diag.py --blog`; `diag.py --daemon N file.csv` per lasciare un demone sul cavo |
+| `45732e0` | **Logger di batteria a bordo** (`core/blog.c`, 192 B di XDATA): il registro si scrive da solo mentre la tastiera è a batteria e si legge con `diag.py --blog`; `diag.py --daemon N file.csv` per lasciare un demone sul cavo |
 
 ## Da provare sulla tastiera (in quest'ordine)
 
@@ -55,13 +59,20 @@ key overrides, tab Lighting), NKRO, Caps Word, Leader, mouse dall'encoder, switc
 ## Domande aperte
 
 1. **Scala della batteria.** Il byte è quello giusto (byte 4 dello stato radio), ma i valori visti non sono una carica che scende:
-   `0xFF` col cavo (sentinella, ora ignorata), `0x03` in uso, `0x01` appena accesa. Servono 2–3 righe `on battery` a cariche note.
-   Se la scala è un'altra, si cambia una riga: `RADIO_STATUS_BATTERY_AT` e il calcolo in `board/battery.c`.
+   `0xFF` col cavo (sentinella, ora ignorata), `0x03` in uso, `0x01` appena accesa. Il registro a bordo raccoglie i punti che servono
+   (`diag.py --blog`, con la carica reale annotata accanto). Se la scala è un'altra si cambiano due punti: `RADIO_STATUS_BATTERY_AT` in
+   `core/radio.h` e il calcolo in `board/battery.c`.
 2. **Causa del flicker**: la correzione riduce il buio, ma la conferma arriva dai contatori (punto 7 sopra).
 3. **Sequenze del Leader**: oggi ci sono due esempi (Esc, mute). Le sequenze vere le decide l'utente: si scrivono in `board/leader.c`.
 4. **Saturazione sugli effetti animati** (arcobaleni che sbiadiscono verso il bianco con lo slider): oggi vale solo per la tinta unita,
    costa ~30 B perché la conversione esiste già.
 5. **Bluetooth con il PC**: il telefono vede `OBLIO`, il PC no (sospetto un legame vecchio su Windows, non il firmware).
+
+## Cosa non è ancora stato provato
+
+Tutto quello che è entrato dopo l'ultima prova dell'utente: tab Lighting con colore completo, NKRO, Caps Word, Leader, la pausa del flash
+accorciata, lo switch Win/Mac nella polarità corretta, il registro della batteria. Il resto (digitazione, backlight, radio, Vial, encoder,
+mouse) è già stato visto funzionare su build precedenti.
 
 ## Fatti verificati sulla tastiera
 
@@ -78,13 +89,14 @@ key overrides, tab Lighting), NKRO, Caps Word, Leader, mouse dall'encoder, switc
 ## Comandi
 
 ```
-nix develop --command make test              # 27 test host + definizione Vial
+nix develop --command make test              # 28 test host + definizione Vial
 nix develop --command make fw size           # build/oblio.hex, flash e XDATA contro il budget
 nix develop --command make check-interrupts  # i quattro vettori, nessun overlay statico
 nix develop --command make sim               # ~50 s, il firmware vero nel simulatore (24 test)
 nix develop --command make stages            # build a gradini 1-3
-py tools\diag.py [--watch 1] [--radio] [--ports] [--monitor]   # Windows
-python3 tools/diag.py [...]                                    # Linux
+py tools\diag.py [--watch 1] [--radio] [--ports] [--blog] [--monitor]         # Windows
+py tools\diag.py --daemon 60 oblio-log.csv      # contatori in CSV, uno ogni 60 s
+python3 tools/diag.py [...]                                                   # Linux
 ```
 
 Recupero, se qualcosa va storto: **Esc+1+2 mentre si inserisce il cavo** → bootloader ISP (nessun ICP, è l'unica via).
