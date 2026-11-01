@@ -79,5 +79,16 @@ SBIT(ET2, 0xa8, 0);
 SBIT(TF2, 0xc8, 7);
 SBIT(TR2, 0xc8, 2);
 
+// Self-programming of the flash (see flash.c)
+SFR(IB_OFFSET, 0xfb);
+SFR(IB_DATA, 0xfc);
+SFR(IB_CON1, 0xf2);
+SFR(IB_CON2, 0xf3);
+SFR(IB_CON3, 0xf4);
+SFR(IB_CON4, 0xf5);
+SFR(IB_CON5, 0xf6);
+SFR(XPAGE, 0xf7);
+SFR(FLASHCON, 0xa7);
+
 // Interrupt numbers, as SDCC's __interrupt(n) wants them: vector 0x0003 + 8 * n. On this chip Timer 2 sits on vector 0.
 #define INT_TIMER2 0

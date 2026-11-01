@@ -90,6 +90,17 @@ bool matrix_is_pressed(uint8_t col, uint8_t row)
     return (stable[col] & (1u << row)) != 0;
 }
 
+bool matrix_any_pressed(void)
+{
+    for (uint8_t col = 0; col < MATRIX_COLS; col++) {
+        if (stable[col]) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
 uint8_t matrix_deferred(void)
 {
     return deferred;

@@ -72,3 +72,11 @@ uint16_t keymap_default_tap_dance(uint8_t index, uint8_t field)
 
     return (index == 0) ? td0[field] : 0;
 }
+
+// Settings of a profile: LED effect (0 = radial), brightness, speed, tapping term in ms, plain colour (0 = white)
+uint16_t keymap_default_cfg(uint8_t field)
+{
+    static const ROM uint16_t cfg[KEYMAP_CFG_COUNT] = {0, 160, 4, 200, 0};
+
+    return (field < KEYMAP_CFG_COUNT) ? cfg[field] : 0;
+}

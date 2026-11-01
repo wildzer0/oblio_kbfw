@@ -45,10 +45,27 @@ uint16_t keymap_default_tap_dance(uint8_t index, uint8_t field);
 uint16_t keymap_tap_dance_get(uint8_t index, uint8_t field);
 bool     keymap_tap_dance_set(uint8_t index, uint8_t field, uint16_t value);
 
+// ---- settings that belong to a profile, as words ----
+#define KEYMAP_CFG_COUNT 5
+#define CFG_LED_EFFECT   0
+#define CFG_LED_BRIGHT   1
+#define CFG_LED_SPEED    2
+#define CFG_TAP_TERM     3 // ms, 0 = KEYMAP_TAPPING_TERM_DEFAULT
+#define CFG_LED_COLOR    4 // colour of the plain (solid) effect: 0 white, 1-16 the colour wheel in steps of 16
+
+// Provided by the board (or a test): the compiled-in value of a setting.
+uint16_t keymap_default_cfg(uint8_t field);
+
+uint16_t keymap_cfg_get(uint8_t field);
+bool     keymap_cfg_set(uint8_t field, uint16_t value);
+
 // The general tapping term (ms) of tap-or-hold keys: how long a key is held to count as a hold.
 #define KEYMAP_TAPPING_TERM_DEFAULT 200u
 uint16_t keymap_tapping_term(void);
 void     keymap_set_tapping_term(uint16_t ms);
+
+// Back to the compiled-in keys, encoders, tap dances and settings. The macros stay as they are.
+void keymap_reset(void);
 
 // ---- macros: the buffer Vial reads and writes ----
 // Macros back to back, each ended by a 0 byte; the interpreter is in macro.h.

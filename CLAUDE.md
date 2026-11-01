@@ -33,7 +33,8 @@ programmatore ICP**, Arduino Nano, per non rischiare di aprire la tastiera) → 
   Il vecchio repo ha quelle modifiche non committate (build OK: flash 41953/44032, XDATA 3957/4096).
 - Fase 1 fatta (build SDCC, `make size`, CI con artifact e Release al tag; CI remota non ancora vista girare). Fase 2 scritta (HAL, tick, matrice con debounce, recupero): build e test host OK, **non provata sull'hardware**.
 - Decisione dell'utente: **non si aspetta l'ICP**; si riscrive tutto ciò che c'è nel porting SMK (`~/dev/smk`, branch `port/yunzii-b68`) e si prova sulla tastiera quando il progetto è stabile e completo.
-- Prossimo passo: fase 3 (logica pura con test host: layer, tapping, report, macro, profili). In ogni sessione aggiornare CHANGELOG.md con le modifiche.
+- Fase 3 fatta (keycodes, layer, report, tapping, macro, profili/store con flash finta nei test), commit e push a ogni passo (richiesta dell'utente). La CI remota è passata sui commit delle fasi 1–2.
+- Prossimo passo: fase 4 (USB e raw HID: descrittori, endpoint, trasporto dei report; `report_hook_send` è già il punto d'ingresso). In ogni sessione aggiornare CHANGELOG.md con le modifiche.
 
 ## Come lavora l'utente (preferenze confermate)
 - Scrivo **io** tutto il codice e la documentazione; l'utente fa solo le prove sull'hardware. Ogni modifica va spiegata in modo che possa rivederla.

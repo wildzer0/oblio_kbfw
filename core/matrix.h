@@ -33,6 +33,9 @@ bool matrix_event_pop(matrix_event_t *event);
 // Debounced state of one key, as the events have reported it so far.
 bool matrix_is_pressed(uint8_t col, uint8_t row);
 
+// True while any key is down, as the events have reported it.
+bool matrix_any_pressed(void);
+
 // Times a change was held back because the event queue was full. The change is not lost: it is accepted on a
 // later scan, once the queue has room.
 uint8_t matrix_deferred(void);

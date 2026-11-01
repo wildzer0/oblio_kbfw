@@ -4,7 +4,7 @@
 0. Bootstrap (repo, flake, CI, docs) — **fatto**
 1. CI: build del firmware, budget flash/XDATA, hex come artifact, Release al tag — **fatto** (CI remota non ancora vista girare)
 2. HAL minimo e matrice 5×16 — **scritta, non provata sull'hardware** (build e test host OK)
-3. Logica pura con test sull'host (layer, tapping, report, macro, profili)
+3. Logica pura con test sull'host (layer, tapping, report, macro, profili) — **fatta** (passi 1–5, 8 file di test)
 4. USB e raw HID (dopo l'arrivo del programmatore ICP)
 5. Vial/VIA
 6. Radio, LED, profili, sleep
@@ -71,3 +71,17 @@ Si procede senza aspettare l'ICP, riscrivendo ciò che il porting SMK già fa; l
 - `core/keyboard.c`: i tasti `QK_MACRO` avviano la macro alla pressione (e contano come tasto premuto/rilasciato per i one-shot); gli hook della macro usano lo stesso `send_keycode`; `keyboard_task` fa avanzare anche le macro.
 - Test `test_macro.c` (10 test: testo, ogni carattere stampabile ha un tasto, azioni a 8 e 16 bit, codici con byte zero, ritardo come scadenza anche oltre 255 ms, un passo per ms, scelta della macro, coda, buffer rovinato, azioni troncate) e un test d'integrazione in `test_keyboard.c` (tasto macro → report).
 - Verifica: `make test` 7 file OK; `make fw size` → flash 10555/44032, XDATA 2291/4096. Simulatore non usato; nessuna prova sull'hardware.
+
+### Fase 3, passo 5 — profili e store in flash
+- `core/store.[ch]`: 4 profili completi (tasti, encoder, macro, tap dance, impostazioni) in coppie di slot A/B da 4 settori da 512 B, 0xAC00–0xEBFF (poi le impostazioni a 0xEC00). Un salvataggio cancella lo slot *non* in uso, scrive il contenuto e per ultimo l'intestazione con numero di sequenza e CRC-16: lo slot vale solo se completo e al caricamento vince quello valido con la sequenza più recente (confronto sicuro al giro del contatore). Un taglio di corrente lascia la copia precedente intatta. Il contenuto è letto/scritto attraverso le funzioni del keymap, non da copie parallele.
+- **Differenze dal porting SMK:** magic `OB` versione 1 (gli slot scritti da SMK, `KM`, non vengono interpretati); la validità si controlla con la sola CRC prima di applicare (SMK applicava ogni slot mentre li validava); l'accesso alla flash passa da tre hook (`store_hook_read/erase/program`), sostituiti nei test da una flash finta.
+- Impronta della mappa predefinita nell'intestazione, come nel porting: se il firmware nuovo cambia i valori predefiniti, la copia salvata non si usa (le modifiche fatte da Vial vanno rifatte una volta). Da rivalutare in fase 7.
+- Salvataggio dopo 2 s senza modifiche e senza tasti premuti (`store_task`, tempo in ms); il cambio profilo (`store_request`) avviene a tasti tutti rilasciati e scrive prima il profilo che si lascia; `store_hook_loaded` avverte il firmware (la scheda azzera lo stato dei layer).
+- `core/keymap.[ch]`: impostazioni per profilo (5 parole: effetto LED, luminosità, velocità, tapping term, colore) con valori predefiniti dalla scheda (`0, 160, 4, 200, 0`), `keymap_reset()`; il tapping term ora è l'impostazione `CFG_TAP_TERM` (0 = 200 ms). `matrix_any_pressed()` nel core della matrice.
+- `hal/flash.[ch]`: scrittura della flash da applicazione (registri SSP). **Protezione:** cancella/programma solo tra 0xAC00 e 0xF000, qualunque indirizzo riceva (l'applicazione e il bootloader stock non si toccano). Interrupt spenti per ogni operazione, quindi qualche tick va perso durante un salvataggio (decine di ms). **Non provato sull'hardware.**
+- `core/keyboard.c`: i codici della fascia `QK_KB` passano da `keyboard_hook_custom`; `board/custom_keys.c` gestisce i tasti profilo 1–4 (`store_request`). `board/main.c` carica il profilo all'avvio e chiama `store_task`. Il profilo in uso *non* viene ancora ricordato dopo lo spegnimento: serve l'area impostazioni (fase 6); per ora si parte dal profilo 0.
+- Test `test_store.c` (14 test: flash vuota → default, modifiche dopo il riavvio, slot alternati e vince il più recente, slot più recente rovinato → quello precedente, impronta diversa, slot di SMK ignorato, **taglio di corrente a ogni 7ª operazione di un salvataggio** → sempre profilo vecchio o nuovo completo, mai misto (anche al primo salvataggio), profili indipendenti, cambio a tasti rilasciati, hook di caricamento, salvataggio solo dopo la quiete e senza tasti, giro dell'orologio, reset dei tasti che non tocca le macro). La flash finta segnala scritture che la vera non farebbe (bit riportato a 1 senza cancellare, accessi fuori dall'area). Verificato che falliscano: saltando l'ultimo settore da cancellare i test danno 9 errori.
+- Verifica: `make test` 8 file OK; `make fw size` → flash 14767/44032, XDATA 2378/4096. Simulatore non usato; nessuna prova sull'hardware.
+
+### Fine fase 3
+Logica pura completa: matrice, layer, report, tapping, macro, profili. Resta da collegare all'hardware: USB e raw HID (fase 4), Vial/VIA (5), LED/radio/sleep/impostazioni (6).

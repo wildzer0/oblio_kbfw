@@ -1,4 +1,5 @@
 #include "check.h"
+#include "stubs.h"
 #include "keyboard.h"
 #include "keycodes.h"
 #include "keymap.h"

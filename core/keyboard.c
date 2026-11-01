@@ -96,6 +96,19 @@ static void run_keycode(uint16_t keycode, bool pressed)
         return;
     }
 
+    if (IS_QK_KB(keycode)) {
+        if (pressed) {
+            layer_key_pressed();
+        }
+
+        keyboard_hook_custom(keycode, pressed);
+
+        if (!pressed) {
+            layer_key_released();
+        }
+        return;
+    }
+
     if (pressed) {
         // The key was looked up before this: a one-shot layer must still be on for the key it waits for.
         layer_key_pressed();

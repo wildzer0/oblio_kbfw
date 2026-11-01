@@ -1,5 +1,5 @@
 // Oblio entry point: clock, pins, recovery check, tick, the debounced key matrix and the key logic behind it.
-// The logic is being added step by step (phase 3): layers, report and tapping so far; macros and profiles follow.
+// The logic is being added step by step (phase 3): layers, report, tapping, macros and profiles.
 
 #include "clock.h"
 #include "tick.h" // declares the Timer 2 handler: SDCC wants it visible in the module that defines main()
@@ -8,6 +8,7 @@
 #include "matrix.h"
 #include "matrix_hw.h"
 #include "recovery.h"
+#include "store.h"
 #include "sh68f90.h"
 
 static void init(void)
@@ -19,6 +20,7 @@ static void init(void)
 
     matrix_init();
     keyboard_init();
+    store_init(); // the profile in flash, or the defaults
     tick_init();
 
     EA = 1;
@@ -46,5 +48,6 @@ void main(void)
         }
 
         keyboard_task(now_ms);
+        store_task(now_ms, matrix_any_pressed());
     }
 }
