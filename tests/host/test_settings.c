@@ -58,7 +58,7 @@ static void test_blank_flash_gives_the_defaults(void)
 {
     blank();
     settings_load();
-    CHECK(settings.profile == 0 && settings.sleep_level == SETTINGS_SLEEP_DEFAULT && settings.bt_slot == 1);
+    CHECK(settings.sleep_level == SETTINGS_SLEEP_DEFAULT && settings.bt_slot == 1);
     CHECK(!settings_dirty());
 }
 
@@ -66,25 +66,22 @@ static void test_changes_survive(void)
 {
     blank();
     settings_load();
-    settings_set_profile(3);
     settings_set_sleep_level(4);
     settings_set_bt_slot(2);
     CHECK(settings_dirty());
     settings_flush();
     CHECK(!settings_dirty() && erases == 0 && violations == 0); // appended in the erased sector: no erase
 
-    settings.profile = 0; // forget
-    settings.sleep_level = 0;
+    settings.sleep_level = 0; // forget
     settings.bt_slot = 1;
     settings_load();
-    CHECK(settings.profile == 3 && settings.sleep_level == 4 && settings.bt_slot == 2);
+    CHECK(settings.sleep_level == 4 && settings.bt_slot == 2);
 }
 
 static void test_nothing_is_written_when_nothing_changed(void)
 {
     blank();
     settings_load();
-    settings_set_profile(0);
     settings_set_sleep_level(SETTINGS_SLEEP_DEFAULT);
     settings_set_bt_slot(1);
     CHECK(!settings_dirty());
@@ -96,12 +93,11 @@ static void test_out_of_range_values_are_refused(void)
 {
     blank();
     settings_load();
-    settings_set_profile(STORE_PROFILES);
     settings_set_sleep_level(9);
     settings_set_bt_slot(0);
     settings_set_bt_slot(4);
     CHECK(!settings_dirty());
-    CHECK(settings.profile == 0 && settings.bt_slot == 1);
+    CHECK(settings.sleep_level == SETTINGS_SLEEP_DEFAULT && settings.bt_slot == 1);
 }
 
 // The record of a save, at slot `slot`
@@ -115,20 +111,20 @@ static void test_a_damaged_record_falls_back_to_the_one_before_it(void)
 {
     blank();
     settings_load();
-    settings_set_profile(2);
+    settings_set_bt_slot(2);
     settings_flush();
 
-    settings_set_profile(3);
+    settings_set_bt_slot(3);
     settings_flush();
 
-    flash[record_at(1) + 3] &= 0x01; // the last record changes, its CRC does not
+    flash[record_at(1) + 5] &= 0x01; // the last record changes, its CRC does not
     settings_load();
-    CHECK(settings.profile == 2); // the previous one
+    CHECK(settings.bt_slot == 2); // the previous one
 
     blank();
     flash[SETTINGS_ADDR] = 'X'; // not a record at all, and nothing else
     settings_load();
-    CHECK(settings.profile == 0);
+    CHECK(settings.sleep_level == SETTINGS_SLEEP_DEFAULT && settings.bt_slot == 1);
 }
 
 // A save appends: nothing is erased until the sector is full, and the newest record is the one read back
@@ -137,43 +133,43 @@ static void test_records_are_appended_and_the_sector_is_erased_only_when_full(vo
     blank();
     settings_load();
 
-    settings_set_profile(1);
+    settings_set_bt_slot(2);
     settings_flush();
     CHECK(flash[record_at(0)] == 'O' && flash[record_at(1)] == 0xFF && erases == 0);
 
-    settings_set_profile(2);
+    settings_set_sleep_level(4);
     settings_flush();
-    CHECK(flash[record_at(1)] == 'O' && flash[record_at(0) + 3] == 1); // the previous record is still there
+    CHECK(flash[record_at(1)] == 'O' && flash[record_at(0) + 5] == 2); // the previous record is still there
     CHECK(erases == 0);
 
-    settings.profile = 0;
+    settings.bt_slot = 1;
     settings_load();
-    CHECK(settings.profile == 2);
+    CHECK(settings.bt_slot == 2 && settings.sleep_level == 4);
     CHECK(violations == 0);
 
     // fill the sector: the save that finds it full erases it once
     for (uint8_t i = 0; i < SETTINGS_SLOTS - 2; i++) {
-        settings_set_profile((uint8_t)(i % STORE_PROFILES));
+        settings_set_sleep_level((uint8_t)(i % 5)); // the five levels
         settings_flush();
     }
     CHECK(erases == 0);
 
-    settings_set_profile(3);
+    settings_set_sleep_level(1);
     settings_flush();
     CHECK(erases == 1 && flash[record_at(0)] == 'O');
 
-    settings.profile = 0;
+    settings.sleep_level = 0;
     settings_load();
-    CHECK(settings.profile == 3);
+    CHECK(settings.sleep_level == 1);
 }
 
 static void test_values_from_a_record_are_put_in_range(void)
 {
     blank();
     settings_load();
-    settings_set_profile(1);
+    settings_set_sleep_level(2);
     settings_flush();
-    // a record whose CRC is right but whose values are not: written by hand through the same format
+    // a record whose CRC is right but whose values are not: written by hand through the same format (byte 3 is the old profile field)
     uint8_t record[9] = {'O', 'S', 1, 7, 9, 5, 0, 0, 0};
     uint16_t crc = 0xFFFF;
     for (unsigned i = 0; i < 6; i++) {
@@ -188,7 +184,7 @@ static void test_values_from_a_record_are_put_in_range(void)
     memcpy(&flash[SETTINGS_ADDR], record, sizeof record);
 
     settings_load();
-    CHECK(settings.profile == 0 && settings.sleep_level == SETTINGS_SLEEP_DEFAULT && settings.bt_slot == 1);
+    CHECK(settings.sleep_level == SETTINGS_SLEEP_DEFAULT && settings.bt_slot == 1);
 }
 
 static void test_written_after_the_quiet_time_with_no_key_down(void)
@@ -196,7 +192,7 @@ static void test_written_after_the_quiet_time_with_no_key_down(void)
     blank();
     settings_load();
     settings_task(1000, false);
-    settings_set_profile(1);
+    settings_set_bt_slot(2);
 
     settings_task(1100, false); // the change is first seen here
     settings_task(1100 + SETTINGS_QUIET_MS - 1, false);
@@ -212,7 +208,7 @@ static void test_the_clock_wrap(void)
     blank();
     settings_load();
     settings_task(65300, false);
-    settings_set_profile(1);
+    settings_set_bt_slot(2);
     settings_task(65400, false);
     settings_task(100, false); // 236 ms later
     CHECK(programs == 0);

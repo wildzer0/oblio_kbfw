@@ -27,7 +27,6 @@
 
 // Frames (about 8 ms each) per step of the animation, and the lengths of the key flashes, in frames
 #define LED_ANIM_FRAMES       9u
-#define LED_PROFILE_FLASH     60u   // ~0.5 s: the profile's key (Z X C V) is white
 #define LED_RADIO_FLASH       62u   // ~0.5 s
 #define LED_RADIO_PAIRING     1250u // ~10 s of blinking
 #define LED_RADIO_BLINK_HALF  30u   // half a period of that blink
@@ -38,8 +37,7 @@
 #define LED_COLORS 17u // plain effect: 0 = white, 1-16 = the wheel in steps of 16
 
 // Provided by the board (or a test).
-bool    led_hook_caps_lock(void); // the host's caps lock is on
-uint8_t led_hook_profile(void);   // the profile in use
+bool led_hook_caps_lock(void); // the host's caps lock is on
 
 void led_init(void);
 

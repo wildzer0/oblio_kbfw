@@ -1,6 +1,5 @@
 #include "diag.h"
 #include "led.h"
-#include "store.h"
 #include "usb_app.h"
 #include "led_hw.h"
 #include "link.h"
@@ -11,11 +10,6 @@
 bool led_hook_caps_lock(void)
 {
     return (usb_host_leds() & 0x02u) != 0;
-}
-
-uint8_t led_hook_profile(void)
-{
-    return store_profile();
 }
 
 // The backlight may light once the host has configured the keyboard (a bus-powered device stays within 100 mA until then), not while the

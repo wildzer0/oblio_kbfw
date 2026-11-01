@@ -20,8 +20,8 @@ credited in `NOTICE.md` and `README.md`. License GPL-2.0-or-later. Repo: github.
 | Matrix | 16 columns (strobes, active low) × 5 rows (inputs with pull-up). The column lines are **also the sinks of the RGB backlight**, so a key scan and a backlight subframe can never overlap |
 | Backlight | RGB under the keys, 15 PWM channels (3 colours × 5 key rows), one column lit at a time |
 | Other | encoder on `P0.6/P0.7`; mode selector near the USB-C port on `P0.4` (2.4G) / `P0.3` (Bluetooth), both high = USB; **Win/Mac switch on `P0.5`** (input with pull-up, **high = Mac**, low = Windows; measured on the keyboard 2026-11-01 and confirmed against the stock firmware, see §3), which selects the default layer; `P7.0` is read by the stock with the matrix rows but is not a row and does not change with the switch |
-| Flash map | application up to **0xAC00** (44032 B budget); profiles 0–3 (2 copies × 4 sectors) 0xAC00–0xEBFF; settings at 0xEC00 (a log of 56 records: a save appends, it does not erase); 0xEE00 is the
-bootloader's marker sector and is **not touched**; **stock bootloader at 0xF000, never written** (`hal/flash.c` refuses addresses outside 0xAC00–0xF000) |
+| Flash map | application up to **0xDC00** (56320 B budget); the keymap store (2 copies × 4 sectors) 0xDC00–0xEBFF; settings at 0xEC00 (a log of 56 records: a save appends, it does not erase); 0xEE00 is the
+bootloader's marker sector and is **not touched**; **stock bootloader at 0xF000, never written** (`hal/flash.c` refuses addresses outside 0xDC00–0xF000) |
 | Recovery | hold **Esc+1+2 while plugging the USB cable**: the firmware jumps to the stock ISP bootloader before USB or radio start. There is **no ICP programmer** — this is the only way back |
 | Flashing | `sinowisp write --platform sh68f90 --vendor_id 0x258a --product_id 0xdead --format ihex --isp_iface_num 0 -f build/oblio.hex` |
 
@@ -39,13 +39,15 @@ The USB device enumerates as `258a:dead`, product name "Oblio B68", with a keybo
   Default keymap in `board/keymap_default.c`: layer 0 = ANSI-ish B68 layout with the encoder push as tap dance 0 (tap mute, hold play/pause, double tap next
   track) and the encoder turning volume; layer 1 (Fn) as below.
 - **Fn layer (hold Fn):** F1–F12 on the number row; lighting on Q…Y (effect −/+, brightness −/+, speed −/+), plain colour −/+ on U I; sleep time −/+ on O P;
-  sleep now on Tab (`B68_SLEEP`); profiles 1–4 on Z X C V; Bluetooth slots 1–3 on B N M (tap selects, hold 3 s pairs); battery level on Backspace;
+  sleep now on Tab (`B68_SLEEP`); Bluetooth slots 1–3 on B N M (tap selects, hold 3 s pairs); battery level on Backspace;
   media on the arrows. Custom keycodes live in `board/b68_keys.h` (0x7E00…0x7E13, same numbers as the SMK port so saved layouts keep their meaning).
 - **Vial / VIA over raw HID:** live keymap, macros, tap dances, encoder; Vial unlock = hold Esc+Enter. Definition from `board/vial.json` (generated into the
   firmware by `tools/vial_gen.py`, checked by `tools/check_vial.py`).
 - **HUD protocol v2** (`docs/hud-protocol-v2.md`, command `0xF0`): another app of the user's reads layers, pressed keys and the keymap. `B68_HUD_TOG`
   (0x7E00) bumps a counter the app watches.
-- **Profiles:** 4 profiles (keymap + lighting) stored in flash with two copies and a CRC; the profile in use survives power-off (settings record).
+- **The keymap in flash:** one keyboard (keys, encoders, macros, tap dances, lighting settings) in two copies with a CRC; it survives power-off and
+  a power cut during a save. There were four switchable profiles until 2026-11-01: they cost 16 KB of the chip's flash for layouts nobody used, and
+  with one keyboard the store moved to the end of the flash and the code got those 12 KB back (43935 → 43528 B used, 56320 B available).
 - **Backlight:** effects, brightness, speed, colour, all driven from the main loop into a framebuffer; the timer interrupt only copies pre-computed PWM widths
   (`core/led.c` keeps a ready-made `duty2` table, `board/led_hw.c` writes it with constant-address code). Battery gauge: Fn+Backspace lights the number keys
   green/red for 3 s — **the percentage source is unknown**, so today it shows "unknown" (white blinking) in every mode.
@@ -54,7 +56,7 @@ The USB device enumerates as `258a:dead`, product name "Oblio B68", with a keybo
 - **Sleep:** in wireless modes only, after 1/5/10/30 min or never (default 10), or on demand; power-down with INT4 wake-up. Never sleeps on USB.
 - **Diagnostics** (`core/diag.c`, VIA command `0xF1`, `tools/diag.py`): counters readable **without** the Vial unlock (they are for when the keys do not work).
 - **Safety:** watchdog (kicked from the main loop and from `delay_us`, not from the scan wait), recovery chord at the start of `main`, flash writes confined to
-  0xAC00–0xF000.
+  0xDC00–0xF000.
 
 ## 4. Structure of the code
 
@@ -85,13 +87,13 @@ All inside `nix develop` (SDCC 4.5, gcc, python, `ucsim-sh68f90` from the flake)
 
 ```
 nix develop --command make test              # 22 host tests + Vial definition check
-nix develop --command make fw size           # build/oblio.hex ; flash and XDATA against 44032 / 4096
+nix develop --command make fw size           # build/oblio.hex ; flash and XDATA against 56320 / 4096
 nix develop --command make check-interrupts  # the four vectors, no static overlay
 nix develop --command make sim               # ~50 s: the real hex in the chip simulator (24 tests)
 nix develop --command make stages            # staged builds, see below
 ```
 
-Current budget: **flash 43935 / 44032 (97 B of margin — full), XDATA 3777 / 4096**; the stack is the other tight one (internal RAM, 223 B
+Current budget: **flash 43528 / 56320 (12.8 KB of margin), XDATA 3772 / 4096**; the stack is the other tight one (internal RAM, 223 B
 from 0x21 up; the USB interrupt used to keep 48 B of buffers on it, now static in XDATA). Check the `flash` line before every commit; a failed link
 leaves no stale `.ihx` any more (`.DELETE_ON_ERROR`). SDCC pitfalls seen here: `%`, `/` and loops with a variable count are very costly; use typed `XDATA` pointers
 (`core/platform.h`), constant addresses in interrupts, `--std-c23 --Werror` (an empty `if` body is an error 110).
@@ -111,7 +113,7 @@ durations. It has a guard on instructions per interrupt (backlight subframe < 12
 | Keyboard on USB: typing | **verified by the user**: responsive, no visible latency |
 | Keyboard on USB: backlight | **verified by the user**: stable after the timing fix (it flickered before) |
 | 2.4G and Bluetooth | user reported "everything works normally" without the cable, on a build before the final timing change; **re-check on the current hex** |
-| Vial app, HUD app, profiles survive power-off, encoder, tap-hold/macros on the keyboard | **not yet tested** on hardware |
+| Vial app, HUD app, the keymap surviving power-off, encoder, tap-hold/macros on the keyboard | **not yet tested** on hardware |
 | Win/Mac switch | **verified by the user**: the switch changes side, and the polarity is the one measured on the keyboard (Mac = `P0.5` high) |
 | Sleep | **tested by the user**: it sleeps and wakes, but the LEDs stayed dark until a power cycle (cause found and fixed on 2026-11-01: `led_hw_init()` dropped the backlight permission and `led_app_task()` compared it against its own copy). Re-test pending |
 | Battery gauge | **not tested**; the battery percentage source is unknown |
@@ -140,7 +142,7 @@ adding one means dropping one.
 
 ## 9. Open items, in priority order
 
-1. **Functional test on the keyboard** per `docs/first-boot.md`: Vial app connects and saves a change, HUD app connects, profiles, encoder, 2.4G/BT with the
+1. **Functional test on the keyboard** per `docs/first-boot.md`: Vial app connects and saves a change, HUD app connects, the keymap surviving power-off, the encoder, 2.4G/BT with the
    current hex, then sleep. Report any failure with `diag.py --watch 1` output.
 2. **Win/Mac switch — done (2026-11-01).** It is **`P0.5`**, an input with a pull-up, low on Mac: measured with `diag.py --ports` (one bit
    different between the two positions, no dependence on the columns) and confirmed in the stock dump (the debounce at `0xA9D9`, the state in
@@ -155,10 +157,8 @@ adding one means dropping one.
 5. **The main loop is slow**: 0–5 passes per scan period; a pass is ~1170 instructions in the simulator, 37 % of it `matrix_any_pressed()` called twice per pass
    (`store_task`, `settings_task`). Typing latency is not visible, so no action required; calling it once would save ~215 instructions. A counter of passes per
    second would give the real pass time.
-6. **Flash margin is 97 B.** Everything the firmware has fits, and nothing more does. Before the next feature something has to go; the candidates,
-   in order of what costs least to the user: the port readout of the diagnostics (kind 3, ~70 B, its question — where the switch is wired — is
-   answered); the three radio counters (~30 B, useful while Bluetooth is being shaken down); `DIAG_PASSES_LAST`, `DIAG_SCAN_LOST`, `DIAG_BACKOFF`
-   (answered); the HUD (a real feature, ~300 B, the user's app reads it); the Vial definition (876 B, not negotiable).
+6. **Flash margin is 12.8 KB** (2026-11-01: the four profiles went and the store moved to the end of the flash). The next features fit; the limit to
+   watch is now XDATA (324 B free) and the stack.
 7. **What is still missing, in the order a user would notice it:** the battery percentage (the gauge is there and always says "unknown"); the host
    Caps Lock on the radio (the `08` frame probably carries it, like the battery); more than six keys at once on USB (no NKRO report, the radio has
    one); per-key RGB from Vial (vialrgb) and combos/key overrides, which the Vial app would show as tabs; a mouse report (the stock firmware had a

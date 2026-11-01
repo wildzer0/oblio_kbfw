@@ -7,7 +7,7 @@ for other boards. Everything that does not need a register is plain C that also 
 
 | Directory | What it holds | Tested by |
 | --- | --- | --- |
-| `core/` | hardware-independent logic: matrix debounce, layers, tapping (LT/MT/tap dance), reports, macros, profile store, settings, VIA/Vial/HUD/diagnostics protocols, USB descriptors and control-endpoint state machine, radio protocol and link logic, backlight effects, sleep timing, encoder decoder, timer-slot sequence | `tests/host/` (`make test`, plain gcc, `-Wall -Wextra -Werror`) |
+| `core/` | hardware-independent logic: matrix debounce, layers, tapping (LT/MT/tap dance), reports, macros, keymap store, settings, VIA/Vial/HUD/diagnostics protocols, USB descriptors and control-endpoint state machine, radio protocol and link logic, backlight effects, sleep timing, encoder decoder, timer-slot sequence | `tests/host/` (`make test`, plain gcc, `-Wall -Wextra -Werror`) |
 | `hal/` | the SH68F90A's registers and drivers: GPIO, clock, delays, Timer 2 slot interrupt, USB controller, flash self-programming, PWM, power-down | the simulator (`make sim`) and the hardware |
 | `board/` | what is specific to the B68: pinout, matrix scan, LED PWM channels, radio serial port and pins, mode selector, Win/Mac switch (`os_switch`, which picks between two pairs of layers: 0/1 on Windows and 7/6 on Mac), sleep sequence, the default keymap, the custom keycodes, the Vial definition | `check_vial.py`, the simulator, the hardware |
 | `tools/` | build helpers (Vial definition generator, budget, interrupt and Vial checks) and `diag.py` | `make check` |
@@ -63,10 +63,10 @@ interrupt work by instructions (`make sim` has a guard) and by the durations the
 
 ## Memory
 
-Application flash ends at 0xAC00. After it: profiles 0–3 (two copies of four 512-byte sectors each) up to 0xEBFF, the settings record in two copies at
+Application flash ends at 0xDC00. After it: the keymap store (two copies of four 512-byte sectors) up to 0xEBFF, the settings log at
 0xEC00 as a log of 56 small records (a save appends to the first erased one, so a power cut during a save keeps the previous settings and the sector
 is erased once every 56 saves), the bootloader's marker sector at 0xEE00 **untouched**,
-the stock bootloader from 0xF000 (never written: `hal/flash.c` refuses any address outside 0xAC00–0xF000). `make size` reports flash and XDATA use against 44032 and 4096
+the stock bootloader from 0xF000 (never written: `hal/flash.c` refuses any address outside 0xDC00–0xF000). `make size` reports flash and XDATA use against 56320 and 4096
 bytes. Pointers into XDATA are typed (`XDATA uint8_t *`, `core/platform.h`) in the packet paths: a generic pointer costs three bytes and a slow access on this
 core and was worth 1.5 KB of flash. Constant tables are `ROM`.
 

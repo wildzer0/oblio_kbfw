@@ -8,7 +8,6 @@
 #include "sleep.h"
 #include "sleep_hw.h"
 #include "timebase.h"
-#include "store.h"
 
 // The keycodes of the B68 (b68_keys.h). The profile, lighting and Bluetooth keys are handled here; the sleep keys join them with their module.
 void keyboard_hook_custom(uint16_t keycode, bool pressed)
@@ -46,9 +45,6 @@ void keyboard_hook_custom(uint16_t keycode, bool pressed)
             sleep_hw_apply_level(settings.sleep_level, true);
             break;
         default:
-            if (keycode >= B68_PROF_1 && keycode <= B68_PROF_4) {
-                store_request((uint8_t)(keycode - B68_PROF_1));
-            }
             break;
     }
 }

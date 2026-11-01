@@ -33,11 +33,9 @@ uint16_t keymap_default_tap_dance(uint8_t index, uint8_t field)
 
 uint16_t keymap_default_cfg(uint8_t field) { return cfg_defaults[field]; }
 
-static bool    caps;
-static uint8_t profile;
+static bool caps;
 
 bool led_hook_caps_lock(void) { return caps; }
-uint8_t led_hook_profile(void) { return profile; }
 
 // ---- helpers ----
 // A full repaint: ask for it and let led_task() paint the 8 LEDs of a pass until it is done
@@ -54,8 +52,7 @@ static void reset(uint16_t effect)
 {
     cfg_defaults[CFG_LED_EFFECT] = effect;
     keymap_init();
-    caps    = false;
-    profile = 0;
+    caps = false;
     led_init();
     render_all();
 }
@@ -177,9 +174,7 @@ static void test_solid_white_fills_the_board(void)
 
     for (uint8_t row = 0; row < LED_ROWS; row++) {
         for (uint8_t col = 0; col < LED_COLS; col++) {
-            if (!(row == 3 && col == 1)) { // the profile's key is flashing
-                CHECK(is(row, col, 160, 160, 160));
-            }
+            CHECK(is(row, col, 160, 160, 160));
         }
     }
 
@@ -194,17 +189,11 @@ static void test_off_is_dark(void)
 
     for (uint8_t col = 0; col < LED_COLS; col++) {
         for (uint8_t ch = 0; ch < LED_CHANNELS; ch++) {
-            if (!(col == 1 && ch >= 9 && ch < 12)) { // except the profile's flash
-                CHECK(led_level(col, ch) == 0);
-            }
+            CHECK(led_level(col, ch) == 0);
         }
     }
 
-    CHECK(!led_column_lit(0) && !led_column_lit(5));
-    CHECK(led_column_lit(1)); // the profile's flash lights its column
-    frames(LED_PROFILE_FLASH + 2);
-    settle();
-    CHECK(!led_column_lit(1));
+    CHECK(!led_column_lit(0) && !led_column_lit(1) && !led_column_lit(5));
 }
 
 static void test_plain_effect_in_a_colour(void)
@@ -270,27 +259,10 @@ static void test_caps_lock_lights_its_key(void)
     CHECK(is(2, 0, 0, 0, 0));
 }
 
-static void test_the_profile_key_flashes_then_goes(void)
-{
-    reset(FX_OFF);
-    CHECK(is(3, 1, 255, 255, 255)); // profile 0 = the key in column 1 of the shift row (Z)
-
-    frames(LED_PROFILE_FLASH - 1);
-    settle();
-    CHECK(is(3, 1, 255, 255, 255));
-    frames(1);
-    settle();
-    CHECK(is(3, 1, 0, 0, 0));
-
-    profile = 2; // another profile: its key (column 3) shows
-    settle();
-    CHECK(is(3, 3, 255, 255, 255) && is(3, 1, 0, 0, 0));
-}
-
 static void test_the_radio_key_takes_the_inverse_colour(void)
 {
     reset(FX_SOLID);
-    frames(LED_PROFILE_FLASH + 1);
+    frames(LED_ANIM_FRAMES + 1);
     settle();
 
     led_flash_key(1, 2); // Bluetooth slot 2: the key 2, row 0 column 2
@@ -317,7 +289,7 @@ static void test_the_radio_key_takes_the_inverse_colour(void)
 static void test_pairing_blinks(void)
 {
     reset(FX_SOLID);
-    frames(LED_PROFILE_FLASH + 1);
+    frames(LED_ANIM_FRAMES + 1);
     settle();
 
     led_flash_key(2, 1);
@@ -357,7 +329,7 @@ static void test_the_battery_level_on_the_number_keys(void)
 
     for (unsigned i = 0; i < sizeof cases / sizeof cases[0]; i++) {
         reset(FX_SOLID);
-        frames(LED_PROFILE_FLASH + 1);
+        frames(LED_ANIM_FRAMES + 1);
         led_show_battery(cases[i].percent);
         settle();
 
@@ -376,7 +348,7 @@ static void test_the_battery_level_on_the_number_keys(void)
 static void test_the_battery_display_ends_after_three_seconds_and_is_renewed(void)
 {
     reset(FX_SOLID);
-    frames(LED_PROFILE_FLASH + 1);
+    frames(LED_ANIM_FRAMES + 1);
     led_show_battery(50);
     settle();
     CHECK(is_green(5));
@@ -398,7 +370,7 @@ static void test_the_battery_display_ends_after_three_seconds_and_is_renewed(voi
 static void test_no_reading_blinks_all_ten_in_white(void)
 {
     reset(FX_OFF);
-    frames(LED_PROFILE_FLASH + 1);
+    frames(LED_ANIM_FRAMES + 1);
     led_show_battery(LED_BATTERY_UNKNOWN);
 
     bool seen_on = false, seen_off = false;
@@ -426,7 +398,7 @@ static void test_no_reading_blinks_all_ten_in_white(void)
 static void test_a_value_over_100_counts_as_no_reading(void)
 {
     reset(FX_OFF);
-    frames(LED_PROFILE_FLASH + 1);
+    frames(LED_ANIM_FRAMES + 1);
     led_show_battery(101);
     CHECK(battery_keys_lit(true) == 0); // nothing painted yet
     frames(LED_RADIO_BLINK_HALF + 1);
@@ -515,7 +487,6 @@ int main(void)
     test_the_column_sequence_and_frames();
     test_the_animation_steps_every_nine_frames();
     test_caps_lock_lights_its_key();
-    test_the_profile_key_flashes_then_goes();
     test_the_radio_key_takes_the_inverse_colour();
     test_pairing_blinks();
     test_the_battery_level_on_the_number_keys();

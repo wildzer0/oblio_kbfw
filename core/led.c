@@ -22,8 +22,6 @@ static uint8_t paint_col;
 static uint8_t paint_left; // LEDs still to paint in the repaint in progress
 static bool    dirty;      // something changed: a repaint is due
 
-static uint8_t  profile_flash; // frames left of the profile's key being white
-static uint8_t  last_profile = 0xFF;
 static uint16_t radio_flash;   // frames left of the radio / sleep feedback
 static uint8_t  radio_col;     // its key: row 0, this column
 static bool     radio_blink;
@@ -52,8 +50,6 @@ void led_init(void)
     paint_row     = 0;
     paint_col     = 0;
     paint_left    = 0;
-    profile_flash = 0;
-    last_profile  = 0xFF; // the first profile seen is announced, as at power-on
     radio_flash   = 0;
     battery_frames = 0;
     last_caps     = false;
@@ -162,10 +158,6 @@ static void paint_one(void)
         rgb[2] = (uint8_t)(255u - rgb[2]);
     }
 
-    if (profile_flash && paint_row == 3 && paint_col == (uint8_t)(1 + led_hook_profile())) {
-        rgb[0] = rgb[1] = rgb[2] = 255;
-    }
-
     // The battery display is on top of everything else on the number keys
     if (battery_frames && paint_row == 0 && paint_col >= 1 && paint_col <= 10) {
         if (battery_keys == 0) { // no reading: all ten blink in white
@@ -203,10 +195,6 @@ static void paint_one(void)
 // One frame has gone by: the time of the animation and of the flashes
 static void frame_passed(void)
 {
-    if (profile_flash && --profile_flash == 0) {
-        dirty = true;
-    }
-
     if (radio_flash) {
         radio_flash--;
 
@@ -246,13 +234,6 @@ void led_task(void)
     if (caps != last_caps) {
         last_caps = caps;
         dirty     = true;
-    }
-
-    // another profile (or the first one, at start): its settings apply and its key shows
-    if (led_hook_profile() != last_profile) {
-        last_profile  = led_hook_profile();
-        profile_flash = LED_PROFILE_FLASH;
-        dirty         = true;
     }
 
     if (paint_left == 0) {

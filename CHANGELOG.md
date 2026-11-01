@@ -12,6 +12,21 @@
 
 Il controllo di recupero Esc+1+2 va all'inizio del `main`, prima di USB e radio.
 
+## 2026-11-02 — via i profili: 16 KB di flash tornano al codice
+
+- **La decisione**: i 4 profili occupavano 0xAC00–0xEBFF, cioè **16 KB di indirizzamento**, e nessuno li usava. Con **una sola keymap** (con le sue
+  due copie A/B, come una QMK normale) il deposito si sposta in fondo — **0xDC00–0xEBFF** — e il codice passa da 44.032 a **56.320 byte**: +12,3 KB.
+  Flash usata: **43528/56320** (era 43935/44032, 97 B liberi).
+- `core/store.[ch]`: via `STORE_PROFILES`, `store_request()`, `store_profile()`, `switch_profile()`, il profilo in uso e il suo campo nell'header;
+  `store_init()` non prende più il profilo. `hal/flash.h` e il Makefile: `FLASH_WRITE_MIN` e `CODE_LIMIT` a 0xDC00.
+- `core/settings.[ch]`: tolto `settings.profile` (il byte 3 del record resta, ignorato e riscritto a 0, così i record vecchi si leggono ancora).
+- `board/b68_keys.h`, `board/vial.json`, `board/keymap_default.c`: via i quattro tasti `B68_PROF_1..4`; i codici successivi si rinumerano
+  (0x7E07–0x7E0F) perché `check_vial.py` vuole la lista senza buchi, e la definizione Vial passa da 20 a **16 tasti personalizzati**. Sul layer Fn
+  le posizioni Z X C V tornano trasparenti.
+- `core/led.[ch]`, `board/led_app.c`: via il flash del tasto profilo (`led_hook_profile`, `LED_PROFILE_FLASH`).
+- Test host aggiornati (store, settings, led): 22/22. `make sim` 24/24, `make stages` 1–3 ok, vettori ok.
+- **Una tantum**: la keymap salvata riparte dai default (cambia l'indirizzo del deposito) e un layout Vial che usava i tasti profilo va rifatto.
+
 ## 2026-11-01 (notte fonda) — polarità dello switch corretta, e i due lati diventano due tastiere
 
 - **Polarità:** provato sulla tastiera, era al contrario. Adesso **Mac = P0.5 alto**, Windows = basso (`OS_SWITCH_IS_MAC` in

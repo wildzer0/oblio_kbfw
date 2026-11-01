@@ -37,12 +37,12 @@ static const ROM uint16_t keymaps[DEFAULT_LAYERS][MATRIX_ROWS][MATRIX_COLS] = {
         KC_LCTL, KC_LGUI, KC_LALT, KC_SPC, KC_RALT, MO(FN), KC_LEFT, KC_DOWN, KC_RGHT
     ),
     // Fn layer: F1-F12 on the number row, lighting on Q..Y (effect -/+, brightness -/+, speed -/+), plain colour on U I,
-    // sleep time on O P, profiles 1-4 on Z X C V, Bluetooth slots on B N M, battery level on Backspace, media on the arrows.
+    // sleep time on O P, Bluetooth slots on B N M, battery level on Backspace, media on the arrows.
     [FN] = LAYOUT_B68(
         KC_GRV,    KC_F1, KC_F2, KC_F3, KC_F4, KC_F5, KC_F6, KC_F7, KC_F8, KC_F9, KC_F10, KC_F11, KC_F12, B68_BATTERY, KC_TRNS,
         B68_SLEEP, B68_FX_PREV, B68_FX_NEXT, B68_BRI_DN, B68_BRI_UP, B68_SPD_DN, B68_SPD_UP, B68_COL_DN, B68_COL_UP, B68_SLP_DN, B68_SLP_UP, KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS,
         KC_TRNS,   KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS,
-        KC_TRNS,   B68_PROF_1, B68_PROF_2, B68_PROF_3, B68_PROF_4, B68_LK_1, B68_LK_2, B68_LK_3, KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS, KC_VOLU, KC_TRNS,
+        KC_TRNS,   KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS, B68_LK_1, B68_LK_2, B68_LK_3, KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS, KC_VOLU, KC_TRNS,
         KC_TRNS,   KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS, KC_MPRV, KC_VOLD, KC_MNXT
     ),
 };

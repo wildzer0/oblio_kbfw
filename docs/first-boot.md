@@ -31,7 +31,7 @@ Each stage is the same code with less of it started. Go on to the next only when
 Look for:
 1. The keyboard enumerates as `258a:dead`, product "Oblio B68", serial `vial:f64c2b3c` (`lsusb -v`), with two HID interfaces.
 2. Typing works over the cable; Fn gives the F-row; the knob changes the volume, and its press types mute (hold: play/pause, double tap: next).
-3. The Vial app lists the keyboard, loads its layout (the 66 keys + the knob), changes a key, a macro, a tap dance; the change survives unplugging. Fn+Z/X/C/V switch profile (nothing lights at this stage).
+3. The Vial app lists the keyboard, loads its layout (the 66 keys + the knob), changes a key, a macro, a tap dance; the change survives unplugging.
 4. Your HUD app connects and shows layers, pressed keys and the map.
 5. `tools/diag.py`: **reset cause** (a power-on value; anything repeating means resets), **stack used** (the simulator says 91–104 of 223), **LED and scan slots that ran late**: 0 (a scan that the main loop does not collect in time is overwritten by the next one and is not a fault: the matrix is a state, so no key is lost, it only takes a few more scans to debounce; on USB about a third of them are overwritten),
    **slowest main-loop pass**: a few ms (a flash save is the exception).
@@ -41,7 +41,7 @@ If it does not enumerate or the keys are wrong: hold Esc+1+2 on plugging in. If 
 ### Stage 2 — the backlight
 
 The LED slots and the PWM start once the host has configured the keyboard (or after half a second with no host). Look for: the backlight comes on without flicker, all keys still
-register at the same time, Fn+Q…Y change effect/brightness/speed, Fn+U/I the plain colour, caps lock lights its key, a profile key flashes white. In `diag.py`: **slots late must stay 0**; if the
+register at the same time, Fn+Q…Y change effect/brightness/speed, Fn+U/I the plain colour, caps lock lights its key. In `diag.py`: **slots late must stay 0**; if the
 backlight flickers or keys miss, the scan slot (450 µs) does not hold its work: report the counters.
 
 ### Stage 3 — the radio

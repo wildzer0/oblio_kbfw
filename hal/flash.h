@@ -8,7 +8,7 @@
 #include <stdint.h>
 
 #define FLASH_SECTOR_SIZE 512u
-#define FLASH_WRITE_MIN   0xAC00u // the application ends here: profiles, settings and marker follow
+#define FLASH_WRITE_MIN   0xDC00u // the application ends here: the keymap store, the settings and the bootloader's marker follow
 #define FLASH_WRITE_MAX   0xF000u // the stock bootloader starts here
 
 void flash_read(uint16_t addr, uint8_t *dst, uint8_t len);

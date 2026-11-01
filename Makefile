@@ -9,8 +9,8 @@ B     ?= build
 
 HOST_TESTS := $(patsubst %.c,%,$(wildcard tests/host/test_*.c))
 
-# Memory map: application code up to 0xAC00 (profiles start there), 4 KB of XDATA.
-CODE_LIMIT := 0xAC00
+# Memory map: application code up to 0xDC00 (the keymap store starts there), 4 KB of XDATA.
+CODE_LIMIT := 0xDC00
 XRAM_SIZE  := 4096
 
 SDCC      ?= sdcc

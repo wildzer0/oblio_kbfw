@@ -142,7 +142,7 @@ static void blank_flash(void)
 static void boot(void)
 {
     keymap_init();
-    store_init(0);
+    store_init();
 }
 
 static void test_blank_flash_gives_the_defaults(void)
@@ -154,7 +154,6 @@ static void test_blank_flash_gives_the_defaults(void)
     CHECK(keymap_tap_dance_get(2, 3) == 23);
     CHECK(keymap_cfg_get(CFG_LED_BRIGHT) == 101);
     CHECK(!store_dirty());
-    CHECK(store_profile() == 0);
     CHECK(violations == 0);
 }
 
@@ -260,7 +259,7 @@ static void test_a_slot_of_the_smk_port_is_ignored(void)
     CHECK(violations == 0);
 }
 
-static void test_power_cut_leaves_the_old_or_the_new_profile_never_a_mix(void)
+static void test_power_cut_leaves_the_old_or_the_new_copy_never_a_mix(void)
 {
     unsigned old_seen = 0;
     unsigned new_seen = 0;
@@ -312,76 +311,21 @@ static void test_power_cut_during_the_very_first_save(void)
     }
 }
 
-static void test_profiles_are_independent(void)
-{
-    blank_flash();
-    boot();
-    edit_everything(0x100); // profile 0
-
-    CHECK(store_request(1));
-    store_task(0, false); // switching saves the profile being left
-    CHECK(store_profile() == 1);
-    CHECK(keymap_get(0, 0, 0) == KC_A); // a profile never used starts from the defaults
-    CHECK(keymap_macro_byte(0) == 0);
-
-    edit_everything(0x400); // profile 1
-    CHECK(store_request(3));
-    store_task(0, false);
-    CHECK(store_profile() == 3);
-    CHECK(keymap_get(0, 0, 0) == KC_A);
-
-    CHECK(store_request(0));
-    store_task(0, false);
-    check_everything(0x100);
-    CHECK(store_request(1));
-    store_task(0, false);
-    check_everything(0x400);
-
-    boot(); // power on lands on profile 0 whatever was in use
-    check_everything(0x100);
-    CHECK(violations == 0);
-    CHECK(!store_request(STORE_PROFILES));
-}
-
-static void test_the_first_profile_can_be_chosen(void)
-{
-    blank_flash();
-    boot();
-    store_request(2);
-    store_task(0, false);
-    edit_everything(0x500); // profile 2
-    store_flush();
-
-    keymap_init();
-    store_init(2);
-    CHECK(store_profile() == 2);
-    check_everything(0x500);
-
-    keymap_init();
-    store_init(9); // no such profile: the first
-    CHECK(store_profile() == 0);
-}
-
-static void test_a_switch_waits_for_all_keys_up(void)
-{
-    blank_flash();
-    boot();
-    store_request(2);
-    store_task(0, true); // a key is down
-    CHECK(store_profile() == 0);
-    store_task(10, false);
-    CHECK(store_profile() == 2);
-}
-
+// Loading the stored keymap tells the rest of the firmware, once
 static void test_loading_tells_the_firmware(void)
 {
     blank_flash();
     loaded = 0;
     boot();
     CHECK(loaded == 1);
-    store_request(1);
-    store_task(0, false);
-    CHECK(loaded == 2);
+    edit_everything(0x700);
+    store_flush();
+
+    keymap_init();
+    loaded = 0;
+    store_init();
+    CHECK(loaded == 1);
+    check_everything(0x700);
 }
 
 static void test_save_after_the_quiet_time_only(void)
@@ -449,11 +393,8 @@ int main(void)
     test_damaged_newest_slot_falls_back_to_the_previous();
     test_a_slot_of_another_build_is_ignored();
     test_a_slot_of_the_smk_port_is_ignored();
-    test_power_cut_leaves_the_old_or_the_new_profile_never_a_mix();
+    test_power_cut_leaves_the_old_or_the_new_copy_never_a_mix();
     test_power_cut_during_the_very_first_save();
-    test_profiles_are_independent();
-    test_the_first_profile_can_be_chosen();
-    test_a_switch_waits_for_all_keys_up();
     test_loading_tells_the_firmware();
     test_save_after_the_quiet_time_only();
     test_the_clock_wrap_does_not_save_early();

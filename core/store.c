@@ -19,18 +19,15 @@
 #define MAGIC1  'B'
 #define VERSION 1u
 
-#define NO_SLOT    0xFFu
-#define NO_PROFILE 0xFFu
+#define NO_SLOT 0xFFu
 
 _Static_assert(KEYMAP_MACRO_BYTES % 2 == 0 && KEYMAP_MACRO_BYTES / 8 < 256, "the macro buffer is a whole number of words, its size in 8-byte units fits a header byte");
-_Static_assert((uint32_t)HEADER + PAYLOAD <= SLOT_BYTES, "the profile does not fit in a slot");
-_Static_assert(STORE_END == 0xEC00u, "the profiles must end where the settings sector starts");
+_Static_assert((uint32_t)HEADER + PAYLOAD <= SLOT_BYTES, "the keymap does not fit in a slot");
+_Static_assert(STORE_END == 0xEC00u, "the store must end where the settings sector starts");
 
 static uint8_t chunk[CHUNK];
 
-static uint8_t  profile;
-static uint8_t  pending_profile = NO_PROFILE;
-static uint8_t  active_slot     = NO_SLOT;
+static uint8_t  active_slot = NO_SLOT;
 static uint16_t active_seq;
 static bool     dirty;
 static uint8_t  seen_version; // keymap_version() at the last look
@@ -39,13 +36,13 @@ static uint16_t last_edit;
 static uint16_t header_seq; // the header just read by slot_header()
 static uint16_t header_crc;
 
-// Fingerprint of the compiled-in profile, kept in the header: a copy saved by a firmware whose defaults were different (a new
-// key on the Fn layer, say) is not used, because it would hide what the new firmware adds.
+// Fingerprint of the compiled-in keymap, kept in the header: a copy saved by a firmware whose defaults were different (a new key on
+// the Fn layer, say) is not used, because it would hide what the new firmware adds.
 static uint16_t defaults_print;
 
 static uint16_t slot_addr(uint8_t slot)
 {
-    return (uint16_t)(STORE_BASE + (uint16_t)(profile * 2u + slot) * SLOT_BYTES);
+    return (uint16_t)(STORE_BASE + (uint16_t)slot * SLOT_BYTES);
 }
 
 // CRC-16/CCITT-FALSE, bitwise: slow but tiny, and it only runs at load and on a save.
@@ -141,7 +138,7 @@ static uint16_t cursor_get(void)
     }
 }
 
-// The word under the cursor, as the compiled-in profile has it (the macros are empty by default)
+// The word under the cursor, as the compiled-in keymap has it (the macros are empty by default)
 static uint16_t cursor_default(void)
 {
     switch (sec) {
@@ -196,14 +193,14 @@ static void compute_defaults_print(void)
     defaults_print = crc;
 }
 
-// Reads the header of `slot`; true when it is a header of this build's shape and profile. Leaves seq and CRC in header_*.
+// Reads the header of `slot`; true when it is a header of this build's shape. Leaves seq and CRC in header_*.
 static bool slot_header(uint8_t slot)
 {
     store_hook_read(slot_addr(slot), chunk, HEADER);
 
     if (chunk[0] != MAGIC0 || chunk[1] != MAGIC1 || chunk[2] != VERSION || chunk[3] != KEYMAP_LAYERS || chunk[4] != MATRIX_ROWS
         || chunk[5] != MATRIX_COLS || chunk[10] != ENCODER_COUNT || chunk[11] != (KEYMAP_MACRO_BYTES / 8)
-        || chunk[12] != (uint8_t)(defaults_print & 0xFFu) || chunk[13] != (uint8_t)(defaults_print >> 8) || chunk[14] != profile) {
+        || chunk[12] != (uint8_t)(defaults_print & 0xFFu) || chunk[13] != (uint8_t)(defaults_print >> 8) || chunk[14] != 0u) {
         return false;
     }
 
@@ -242,7 +239,7 @@ static uint16_t slot_payload(uint8_t slot, bool apply)
     return crc;
 }
 
-// True when `slot` holds a complete profile; its sequence is then in header_seq.
+// True when `slot` holds a complete keymap; its sequence is then in header_seq.
 static bool slot_valid(uint8_t slot)
 {
     return slot_header(slot) && slot_payload(slot, false) == header_crc;
@@ -255,8 +252,8 @@ static void mark_loaded(void)
     store_hook_loaded();
 }
 
-// Loads the current profile from its newest valid slot, or the defaults.
-static void load_profile(void)
+// Loads the keymap from its newest valid slot, or the defaults.
+static void load_keymap(void)
 {
     uint16_t seq0 = 0;
     uint16_t seq1 = 0;
@@ -288,17 +285,10 @@ static void load_profile(void)
     mark_loaded();
 }
 
-void store_init(uint8_t first_profile)
+void store_init(void)
 {
     compute_defaults_print();
-    profile         = (first_profile < STORE_PROFILES) ? first_profile : 0;
-    pending_profile = NO_PROFILE;
-    load_profile();
-}
-
-uint8_t store_profile(void)
-{
-    return profile;
+    load_keymap();
 }
 
 bool store_dirty(void)
@@ -349,7 +339,7 @@ void store_flush(void)
         at += n;
     }
 
-    // last: until this lands the slot is not a valid profile
+    // last: until this lands the slot is not a valid keymap
     chunk[0]  = MAGIC0;
     chunk[1]  = MAGIC1;
     chunk[2]  = VERSION;
@@ -364,34 +354,13 @@ void store_flush(void)
     chunk[11] = KEYMAP_MACRO_BYTES / 8; // the macro buffer's size, in 8-byte units, so a size change invalidates old data
     chunk[12] = (uint8_t)(defaults_print & 0xFFu);
     chunk[13] = (uint8_t)(defaults_print >> 8);
-    chunk[14] = profile;
+    chunk[14] = 0;
     store_hook_program(base, chunk, HEADER);
 
     store_hook_flush_end();
 
     active_slot = target;
     active_seq  = seq;
-}
-
-bool store_request(uint8_t index)
-{
-    if (index >= STORE_PROFILES) {
-        return false;
-    }
-
-    pending_profile = index;
-    return true;
-}
-
-static void switch_profile(uint8_t index)
-{
-    if (index == profile) {
-        return;
-    }
-
-    store_flush(); // the edits of the profile being left
-    profile = index;
-    load_profile();
 }
 
 void store_task(uint16_t now, bool any_key_down)
@@ -403,14 +372,6 @@ void store_task(uint16_t now, bool any_key_down)
     }
 
     if (any_key_down) {
-        return;
-    }
-
-    if (pending_profile != NO_PROFILE) {
-        const uint8_t index = pending_profile;
-
-        pending_profile = NO_PROFILE;
-        switch_profile(index);
         return;
     }
 

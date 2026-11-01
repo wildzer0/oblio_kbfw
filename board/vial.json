@@ -167,26 +167,6 @@
       "shortName": "SPD+"
     },
     {
-      "name": "Profile 1",
-      "title": "Switch to keyboard profile 1",
-      "shortName": "PF1"
-    },
-    {
-      "name": "Profile 2",
-      "title": "Switch to keyboard profile 2",
-      "shortName": "PF2"
-    },
-    {
-      "name": "Profile 3",
-      "title": "Switch to keyboard profile 3",
-      "shortName": "PF3"
-    },
-    {
-      "name": "Profile 4",
-      "title": "Switch to keyboard profile 4",
-      "shortName": "PF4"
-    },
-    {
       "name": "LED Colour -",
       "title": "Previous colour of the plain backlight effect",
       "shortName": "COL-"

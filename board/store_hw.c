@@ -50,11 +50,9 @@ void store_hook_program(uint16_t addr, const uint8_t *src, uint8_t len)
     flash_program(addr, src, len);
 }
 
-// A new profile brings its own layers: what the layer engine kept of the old one (toggled layers, one-shots) goes. And the choice is
-// remembered for the next power-on.
+// A new keymap brings its own layers: what the layer engine kept of the old one (toggled layers, one-shots) goes.
 void store_hook_loaded(void)
 {
     layer_init();
     os_switch_apply(); // layer_init() puts the base layer back to 0: the Win/Mac switch decides again which one it is
-    settings_set_profile(store_profile());
 }

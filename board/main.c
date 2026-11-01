@@ -65,8 +65,8 @@ static void init(void)
     keyboard_init();
     watchdog_kick();
     settings_load();
-    store_init(settings.profile); // the profile in use at power-off, from flash, or the defaults
-    os_switch_init();             // which of the two base layers this profile starts on (the Win/Mac switch)
+    store_init();     // the keymap from flash, or the defaults
+    os_switch_init(); // which of the two base layers the keyboard starts on (the Win/Mac switch)
     encoder_init();
     led_init(); // the framebuffer is cheap and the lighting keys write settings: always there
 #if STAGE_LED

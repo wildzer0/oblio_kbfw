@@ -31,7 +31,6 @@ static uint16_t crc16(const uint8_t *data, uint8_t length)
 
 static void defaults(void)
 {
-    settings.profile     = 0;
     settings.sleep_level = SETTINGS_SLEEP_DEFAULT;
     settings.bt_slot     = 1;
 }
@@ -82,8 +81,8 @@ void settings_load(void)
             continue;
         }
 
-        // values out of range are put back in range, a record written by another build may hold anything
-        settings.profile     = (record[3] < STORE_PROFILES) ? record[3] : 0;
+        // values out of range are put back in range, a record written by another build may hold anything. Byte 3 used to hold the
+        // profile in use: it is ignored now, and written back as 0.
         settings.sleep_level = (record[4] < SLEEP_LEVELS) ? record[4] : SETTINGS_SLEEP_DEFAULT;
         settings.bt_slot     = (record[5] >= 1 && record[5] <= 3) ? record[5] : 1;
     }
@@ -93,14 +92,6 @@ static void changed(void)
 {
     dirty       = true;
     last_change = 0; // set by the next settings_task()
-}
-
-void settings_set_profile(uint8_t profile)
-{
-    if (profile < STORE_PROFILES && settings.profile != profile) {
-        settings.profile = profile;
-        changed();
-    }
 }
 
 void settings_set_sleep_level(uint8_t level)
@@ -137,7 +128,7 @@ void settings_flush(void)
     record[0] = MAGIC0;
     record[1] = MAGIC1;
     record[2] = VERSION;
-    record[3] = settings.profile;
+    record[3] = 0;
     record[4] = settings.sleep_level;
     record[5] = settings.bt_slot;
 

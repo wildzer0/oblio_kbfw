@@ -4,7 +4,7 @@ Leggi questo file all'inizio di ogni sessione. Rispondi **in italiano**. Per una
 
 ## Cos'è
 Firmware nuovo, solo per la Yunzii B68 (SH68F90A + radio BK3632), scritto da zero: stile QMK-Vial ma snello e veloce.
-Vincoli: ~43 KB di flash applicazione (fino a 0xAC00 per il codice; profili in flash da 0xAC00) e 4 KB di XDATA.
+Vincoli: codice fino a 0xDC00 (56.320 B; dal 2026-11-01, prima era 0xAC00 perché 16 KB erano dei profili), la keymap in flash da 0xDC00, impostazioni a 0xEC00, 4 KB di XDATA e 223 B di stack interno.
 Repo: https://github.com/wildzer0/oblio_kbfw (privato), cartella `~/dev/oblio_kbfw`, branch `main`. Licenza GPL-2.0-or-later.
 
 ## Origine
@@ -59,6 +59,16 @@ sinowisp write --platform sh68f90 --vendor_id 0x258a --product_id 0xdead --forma
 ```
 Mappa flash del porting: applicazione fino a 0xAC00; profili 0–3 (2 copie × 4 settori) 0xAC00–0xEBFF; impostazioni 0xEC00; marcatore 0xEE00; bootloader stock 0xF000.
 Recupero: Esc+1+2 mentre si inserisce l'USB.
+
+## Aggiornamento 2026-11-01 (notte)
+- **Profili tolti** (decisione dell'utente: non li usava): erano 4 keymap × 2 copie × 2 KB = **16 KB di flash di indirizzamento**. Ora una sola keymap
+  con le sue due copie a **0xDC00–0xEBFF** e il codice può arrivare a **0xDC00 (56.320 B)**: +12,3 KB. Flash 43528/56320, XDATA 3772/4096.
+  La keymap salvata è ripartita dai default una volta (cambia l'indirizzo del deposito) e i tasti `Fn+Z/X/C/V` non esistono più.
+- **Switch Win/Mac**: è **P0.5** (ingresso con pull-up, **alto = Mac**, basso = Windows — misurato sulla tastiera). Non è un semplice swap:
+  Windows usa i layer 0/1, Mac i layer **7/6** (base con Alt↔GUI scambiati e **Fn suo**), tutti e quattro editabili da Vial.
+- **Prossimo passo deciso dall'utente**: batteria + Caps Lock wireless dal frame `08` della radio (mai decodificato), poi combos/key overrides,
+  mouse dall'encoder, Vial RGB. Serve la misura: `diag.py --radio` a carica piena / uso normale / quasi scarica.
+- Bluetooth: funziona (il telefono vede `OBLIO`), il PC dell'utente no — sospetto un legame vecchio su Windows, non il firmware.
 
 ## Aggiornamento 2026-11-01 (sera)
 - Il gradino 2 sull'hardware ha fallito (LED a scatti, nessun tasto): causa = ISR troppo lunghe (4697/8963 istruzioni). Corretto con tabella DUTY2 precalcolata, ISR a indirizzi costanti, slot di scansione 500 µs, ritiro dei LED se il main non gira, contatori diag senza sblocco. Flash 43477/44032, XDATA 3703/4096. **Da riprovare sull'hardware**; se fallisce, `tools/diag.py` (senza sblocco) dice causa reset, slot in ritardo, scansioni perse.
