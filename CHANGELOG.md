@@ -128,3 +128,13 @@ Enumerazione USB, report HID (6KRO, consumer, system), LED dall'host, canale raw
 
 ### Fine fase 5
 Vial/VIA completi per quanto serve al porting: tasti, encoder, macro, tap dance, tapping term, sblocco, matrice, bootloader. Restano fuori (come nel porting): combo, key override, altre QMK settings, HUD.
+
+## Fase 6 — encoder, impostazioni, LED, radio, sleep (piano in `CHANGELOG`, passi sotto)
+
+### Fase 6, passo 1 — encoder e impostazioni globali
+- `core/encoder.[ch]`: decodifica in quadratura. Gli stati scorrono 0→1→3→2→0 in senso orario (A = P0.6 = bit 0, B = P0.7 = bit 1); uno scatto sono 4 variazioni; un salto di due stati è un campione perso e non conta; un rimbalzo avanti e indietro si annulla; la prima lettura è la posizione della manopola, non un movimento. `encoder_poll()` a ogni scansione, `encoder_next()` consegna gli scatti uno per uno. A differenza del porting non c'è un'ISR: campionamento nel `main`, quindi niente accessi atomici.
+- `core/keyboard.c`: ogni scatto è un **tocco** (pressione e rilascio) del codice che i layer attivi danno per quella direzione, fino a 8 per giro; passa da `run_keycode`, quindi la manopola può muovere anche layer, macro e tasti luce. `board/encoder_hw.c` legge P0.6/P0.7.
+- `core/settings.[ch]`: impostazioni della tastiera, non del profilo (profilo in uso, livello di sleep, slot Bluetooth). Un record nel settore 0xEC00 con magic `OS`, versione e CRC-16, riscritto 500 ms dopo una modifica, a tasti rilasciati, solo se qualcosa è cambiato; valori fuori limite rimessi nei limiti; record non valido → predefiniti. Usa gli hook di flash di `store.h` e quindi la protezione di `hal/flash.c` (solo 0xAC00–0xF000). Il marcatore a 0xEE00 non viene toccato.
+- **Il profilo in uso ora si ricorda dopo lo spegnimento:** `store_init(profile)` parte da quello salvato; `store_hook_loaded` lo registra nelle impostazioni.
+- Test: `test_encoder.c` (9 test: scatto completo nei due sensi, scatto incompleto, scatti consecutivi, scatto che non parte da riposo, rimbalzi, campione perso, inversione dentro lo scatto, prima lettura, encoder inesistente; mutazione del segno nella tabella → falliscono), `test_settings.c` (8 test: predefiniti, persistenza, niente scritture inutili, valori fuori limite, record danneggiato o estraneo, record con CRC giusto ma valori fuori limite, scrittura dopo la quiete a tasti rilasciati, giro dell'orologio), `test_store.c` (profilo iniziale scelto), `test_keyboard.c` (scatti dell'encoder → tocchi).
+- Verifica: `make test` 15 file + `check-vial` OK; `make fw size` → flash 30028/44032, XDATA 2622/4096. Simulatore non usato; nessuna prova sull'hardware.

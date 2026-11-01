@@ -15,3 +15,12 @@ void keyboard_hook_custom(uint16_t keycode, bool pressed)
     (void)keycode;
     (void)pressed;
 }
+
+// The encoder lines, set by the test
+uint8_t stub_encoder_state;
+
+uint8_t encoder_hook_state(uint8_t index)
+{
+    (void)index;
+    return stub_encoder_state;
+}

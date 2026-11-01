@@ -29,8 +29,9 @@ void store_hook_program(uint16_t addr, const uint8_t *src, uint8_t len);
 // A profile has just been loaded (or the defaults taken): the rest of the firmware drops what it kept of the old one.
 void store_hook_loaded(void);
 
-// Loads profile 0 (or the defaults, if nothing valid is stored) into the keymap's RAM copy.
-void store_init(void);
+// Loads `profile` (or the defaults, if nothing valid is stored for it) into the keymap's RAM copy. A number that does not exist
+// is profile 0.
+void store_init(uint8_t profile);
 
 uint8_t store_profile(void);
 

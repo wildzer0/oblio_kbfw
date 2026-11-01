@@ -1,5 +1,6 @@
 #include "check.h"
 #include "stubs.h"
+#include "encoder.h"
 #include "keyboard.h"
 #include "keycodes.h"
 #include "keymap.h"
@@ -22,10 +23,8 @@ uint16_t keymap_default(uint8_t layer, uint8_t row, uint8_t col)
 
 uint16_t keymap_default_encoder(uint8_t layer, uint8_t encoder, bool clockwise)
 {
-    (void)layer;
     (void)encoder;
-    (void)clockwise;
-    return KC_NO;
+    return layer == 0 ? (clockwise ? KC_E : KC_D) : KC_TRANSPARENT; // clockwise types e, counter-clockwise d
 }
 
 uint16_t keymap_default_tap_dance(uint8_t index, uint8_t field)
@@ -181,6 +180,34 @@ static void test_macro_key(void)
     CHECK(sent[2].boot[2] == KC_I && sent[3].boot[2] == 0);
 }
 
+static void turn(const uint8_t *states, unsigned count)
+{
+    for (unsigned i = 0; i < count; i++) {
+        stub_encoder_state = states[i];
+        encoder_poll();
+    }
+}
+
+static void test_encoder_detents_type_their_keys(void)
+{
+    static const uint8_t clockwise[]    = {0, 1, 3, 2, 0};
+    static const uint8_t anticlockwise[] = {0, 2, 3, 1, 0};
+
+    reset();
+    stub_encoder_state = 0;
+    encoder_poll();
+    turn(clockwise, 5);
+    keyboard_task(1);
+    CHECK(sent_count == 2 && sent[0].boot[2] == KC_E && sent[1].boot[2] == 0); // a tap: down and up
+
+    turn(anticlockwise, 5);
+    keyboard_task(2);
+    CHECK(sent_count == 4 && sent[2].boot[2] == KC_D && sent[3].boot[2] == 0);
+
+    keyboard_task(3);
+    CHECK(sent_count == 4); // nothing left
+}
+
 int main(void)
 {
     test_plain_key();
@@ -191,5 +218,6 @@ int main(void)
     test_oneshot_shift_applies_to_one_key();
     test_oneshot_layer_applies_to_one_key();
     test_macro_key();
+    test_encoder_detents_type_their_keys();
     return tests_result();
 }

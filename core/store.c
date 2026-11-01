@@ -272,10 +272,10 @@ static void load_profile(void)
     mark_loaded();
 }
 
-void store_init(void)
+void store_init(uint8_t first_profile)
 {
     compute_defaults_print();
-    profile         = 0;
+    profile         = (first_profile < STORE_PROFILES) ? first_profile : 0;
     pending_profile = NO_PROFILE;
     load_profile();
 }

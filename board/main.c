@@ -9,6 +9,8 @@
 #include "matrix.h"
 #include "matrix_hw.h"
 #include "recovery.h"
+#include "settings.h"
+#include "encoder.h"
 #include "store.h"
 #include "usb_app.h"
 #include "usb_device.h"
@@ -33,7 +35,9 @@ static void init(void)
 
     matrix_init();
     keyboard_init();
-    store_init(); // the profile in flash, or the defaults
+    settings_load();
+    store_init(settings.profile); // the profile in use at power-off, from flash, or the defaults
+    encoder_init();
     tick_init();
 
     usb_device_reset();
@@ -60,6 +64,7 @@ void main(void)
             uptime_ms++;
             matrix_hw_scan(raw);
             matrix_feed(raw);
+            encoder_poll();
         }
 
         while (matrix_event_pop(&event)) {
@@ -68,6 +73,7 @@ void main(void)
 
         keyboard_task(now_ms);
         store_task(now_ms, matrix_any_pressed());
+        settings_task(now_ms, matrix_any_pressed());
         usb_task(now_ms);
     }
 }

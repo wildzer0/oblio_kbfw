@@ -1,6 +1,7 @@
 #include "keyboard.h"
 #include "keymap.h"
 #include "keycodes.h"
+#include "encoder.h"
 #include "layer.h"
 #include "macro.h"
 #include "report.h"
@@ -13,6 +14,7 @@ void keyboard_init(void)
     report_init();
     tapping_init();
     macro_init();
+    encoder_init();
 }
 
 // The layer engine holds modifiers (one-shot, layer + mods) through the same report as the keys.
@@ -142,11 +144,29 @@ void keyboard_event(const matrix_event_t *event, uint16_t now)
     process_key_state(event->row, event->col, event->pressed);
 }
 
+#define ENCODER_TAPS_PER_PASS 8 // a fast spin is worked off over a few passes
+
+// Every detent is a tap of the keycode the active layers give for that direction
+static void encoder_task(void)
+{
+    for (uint8_t i = 0; i < ENCODER_COUNT; i++) {
+        bool clockwise;
+
+        for (uint8_t taps = 0; taps < ENCODER_TAPS_PER_PASS && encoder_next(i, &clockwise); taps++) {
+            const uint16_t keycode = layer_lookup_encoder(i, clockwise);
+
+            run_keycode(keycode, true);
+            run_keycode(keycode, false);
+        }
+    }
+}
+
 void keyboard_task(uint16_t now)
 {
     current_now = now;
     tapping_task(now);
     macro_task(now);
+    encoder_task();
 }
 
 // ---- what tapping.c needs from the rest of the firmware ----

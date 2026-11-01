@@ -115,7 +115,7 @@ static void blank_flash(void)
 static void boot(void)
 {
     keymap_init();
-    store_init();
+    store_init(0);
 }
 
 static void test_blank_flash_gives_the_defaults(void)
@@ -316,6 +316,25 @@ static void test_profiles_are_independent(void)
     CHECK(!store_request(STORE_PROFILES));
 }
 
+static void test_the_first_profile_can_be_chosen(void)
+{
+    blank_flash();
+    boot();
+    store_request(2);
+    store_task(0, false);
+    edit_everything(0x500); // profile 2
+    store_flush();
+
+    keymap_init();
+    store_init(2);
+    CHECK(store_profile() == 2);
+    check_everything(0x500);
+
+    keymap_init();
+    store_init(9); // no such profile: the first
+    CHECK(store_profile() == 0);
+}
+
 static void test_a_switch_waits_for_all_keys_up(void)
 {
     blank_flash();
@@ -406,6 +425,7 @@ int main(void)
     test_power_cut_leaves_the_old_or_the_new_profile_never_a_mix();
     test_power_cut_during_the_very_first_save();
     test_profiles_are_independent();
+    test_the_first_profile_can_be_chosen();
     test_a_switch_waits_for_all_keys_up();
     test_loading_tells_the_firmware();
     test_save_after_the_quiet_time_only();
