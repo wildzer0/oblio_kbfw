@@ -233,14 +233,16 @@ Il selettore fisico vicino all'USB-C è letto dalla MCU su `P0.4` (2.4G) e `P0.3
 ## Switch Win/Mac (2026-11-01)
 
 Lo switch fisico Win/Mac **non è nella matrice**: è **`P0.5`**, un ingresso con pull-up (`P0CR = 0x04` lo lascia ingresso, `P0PCR = 0xF8` lascia il
-pull-up). Misurato sulla scheda con `tools/diag.py --ports`: con lo switch su Windows il pin legge **1**, su Mac **0**, e il livello non dipende
-dalle colonne (non è cablato nella matrice). Il candidato che veniva dal dump (`P7.0`, letto dalla ISR insieme alle righe) resta alto in tutte e
+pull-up). Misurato sulla scheda con `tools/diag.py --ports`: con lo switch su **Mac** il pin legge **1**, su **Windows** **0**, e il livello non dipende
+dalle colonne (non è cablato nella matrice). (Le due catture da sole non dicevano quale posizione fosse quale: è stata la tastiera a dirlo,
+perché al primo tentativo il layer Mac usciva sul lato sbagliato.) Il candidato che veniva dal dump (`P7.0`, letto dalla ISR insieme alle righe) resta alto in tutte e
 due le posizioni: non è lui.
 
 Conferma dal firmware stock: a `0xA9D9` c'è il debounce di `P0.5` (due contatori, dieci letture uguali di fila) che tiene lo stato in
 `XDATA[0x0307]`; quello stato sceglie fra **due insiemi di tabelle della keymap** (`DPTR = 0x7Cxx + 4 × indice` dopo il test di `0x0307`), cioè
-il venditore cambia il layer di base. In Oblio fa lo stesso: `board/os_switch.c` rende predefinito il layer 7 (`KEYMAP_MAC_LAYER`) quando lo
-switch è su Mac, cioè il layer base con Alt e GUI scambiati, modificabile da Vial.
+il venditore cambia il layer di base. In Oblio fa lo stesso, ma con **due tastiere complete**: su Windows i layer 0 (base) e 1 (Fn), su Mac i
+layer 7 (base con Alt e GUI scambiati) e 6 (il suo Fn, che il tasto Fn del lato Mac seleziona al posto dell'1). Tutti e quattro sono
+modificabili da Vial, quindi il lato Mac può avere anche un Fn completamente diverso.
 
 ## Profili
 

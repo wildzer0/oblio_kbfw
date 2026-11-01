@@ -9,7 +9,7 @@ for other boards. Everything that does not need a register is plain C that also 
 | --- | --- | --- |
 | `core/` | hardware-independent logic: matrix debounce, layers, tapping (LT/MT/tap dance), reports, macros, profile store, settings, VIA/Vial/HUD/diagnostics protocols, USB descriptors and control-endpoint state machine, radio protocol and link logic, backlight effects, sleep timing, encoder decoder, timer-slot sequence | `tests/host/` (`make test`, plain gcc, `-Wall -Wextra -Werror`) |
 | `hal/` | the SH68F90A's registers and drivers: GPIO, clock, delays, Timer 2 slot interrupt, USB controller, flash self-programming, PWM, power-down | the simulator (`make sim`) and the hardware |
-| `board/` | what is specific to the B68: pinout, matrix scan, LED PWM channels, radio serial port and pins, mode selector, Win/Mac switch (`os_switch`, which picks the default layer), sleep sequence, the default keymap, the custom keycodes, the Vial definition | `check_vial.py`, the simulator, the hardware |
+| `board/` | what is specific to the B68: pinout, matrix scan, LED PWM channels, radio serial port and pins, mode selector, Win/Mac switch (`os_switch`, which picks between two pairs of layers: 0/1 on Windows and 7/6 on Mac), sleep sequence, the default keymap, the custom keycodes, the Vial definition | `check_vial.py`, the simulator, the hardware |
 | `tools/` | build helpers (Vial definition generator, budget, interrupt and Vial checks) and `diag.py` | `make check` |
 
 `core/` never touches hardware. When it needs something from the outside it declares a **hook**, a function the board (or a test) defines:

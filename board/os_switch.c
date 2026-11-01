@@ -3,8 +3,11 @@
 #include "layer.h"
 #include "sh68f90.h"
 
-// P0.5: an input with a pull-up (P0CR = 0x04 leaves it an input, P0PCR = 0xF8 leaves the pull-up on). Low = Mac.
-#define OS_SWITCH_PIN 0x20u
+// P0.5: an input with a pull-up (P0CR = 0x04 leaves it an input, P0PCR = 0xF8 leaves the pull-up on).
+// The polarity is the one the keyboard showed: with the switch on Mac the pin reads HIGH, on Windows LOW (the first reading of the two
+// captures had them the other way round, and the hardware settled it). One line to change if a different board turns out opposite.
+#define OS_SWITCH_PIN   0x20u
+#define OS_SWITCH_IS_MAC 1
 
 static bool     candidate; // what the pin reads now
 static bool     settled;   // what the default layer is following
@@ -12,7 +15,9 @@ static uint16_t since;     // when the pin started to disagree with the state in
 
 static bool switch_mac(void)
 {
-    return (P0 & OS_SWITCH_PIN) == 0;
+    const bool high = (P0 & OS_SWITCH_PIN) != 0;
+
+    return OS_SWITCH_IS_MAC ? high : !high;
 }
 
 void os_switch_apply(void)

@@ -19,7 +19,7 @@ credited in `NOTICE.md` and `README.md`. License GPL-2.0-or-later. Repo: github.
 | Radio | **BK3632** on a serial port (UART0, 260870 baud, `P5.5/P5.6`, select `P0.2`, attention `P4.7`) for 2.4G and Bluetooth (3 BT slots) |
 | Matrix | 16 columns (strobes, active low) × 5 rows (inputs with pull-up). The column lines are **also the sinks of the RGB backlight**, so a key scan and a backlight subframe can never overlap |
 | Backlight | RGB under the keys, 15 PWM channels (3 colours × 5 key rows), one column lit at a time |
-| Other | encoder on `P0.6/P0.7`; mode selector near the USB-C port on `P0.4` (2.4G) / `P0.3` (Bluetooth), both high = USB; **Win/Mac switch on `P0.5`** (input with pull-up, low = Mac; measured 2026-11-01 and confirmed against the stock firmware, see §3), which selects the default layer; `P7.0` is read by the stock with the matrix rows but is not a row and does not change with the switch |
+| Other | encoder on `P0.6/P0.7`; mode selector near the USB-C port on `P0.4` (2.4G) / `P0.3` (Bluetooth), both high = USB; **Win/Mac switch on `P0.5`** (input with pull-up, **high = Mac**, low = Windows; measured on the keyboard 2026-11-01 and confirmed against the stock firmware, see §3), which selects the default layer; `P7.0` is read by the stock with the matrix rows but is not a row and does not change with the switch |
 | Flash map | application up to **0xAC00** (44032 B budget); profiles 0–3 (2 copies × 4 sectors) 0xAC00–0xEBFF; settings at 0xEC00 (a log of 56 records: a save appends, it does not erase); 0xEE00 is the
 bootloader's marker sector and is **not touched**; **stock bootloader at 0xF000, never written** (`hal/flash.c` refuses addresses outside 0xAC00–0xF000) |
 | Recovery | hold **Esc+1+2 while plugging the USB cable**: the firmware jumps to the stock ISP bootloader before USB or radio start. There is **no ICP programmer** — this is the only way back |
@@ -30,9 +30,11 @@ The USB device enumerates as `258a:dead`, product name "Oblio B68", with a keybo
 
 ## 3. What the firmware does
 
-- **Win/Mac switch:** `board/os_switch.c` reads `P0.5` (debounced 50 ms) and makes layer 7 the default on Mac, layer 0 on Windows. Layer 7 is the
-  base layer with Alt and GUI swapped and is editable in Vial like any other layer (this is what the stock firmware does with its second set
-  of keymap tables). Switching does not write to flash: the switch is the source of truth.
+- **Win/Mac switch:** `board/os_switch.c` reads `P0.5` (debounced 50 ms) and makes layer 7 the default on Mac, layer 0 on Windows. That is not just
+  a modifier swap: the two sides are **two complete keyboards**, each with its own Fn layer (Windows: layers 0 and 1, Mac: layers 7 and 6, the Fn
+  key of the Mac side going to 6), both fully editable in Vial. The Mac base is a copy of the Windows base with Alt and GUI swapped; its Fn layer
+  starts as a copy of the Windows one, and changing it changes nothing on the Windows side. This is what the stock firmware does with its second
+  set of keymap tables. Switching does not write to flash: the switch is the source of truth.
 - **Keys:** matrix scan + debounce (3 scans in a row), 8 layers in RAM (`KEYMAP_LAYERS`), layer keys, tap-hold (LT/MT/OSM/OSL), tap dance, macros, encoder.
   Default keymap in `board/keymap_default.c`: layer 0 = ANSI-ish B68 layout with the encoder push as tap dance 0 (tap mute, hold play/pause, double tap next
   track) and the encoder turning volume; layer 1 (Fn) as below.
@@ -89,7 +91,7 @@ nix develop --command make sim               # ~50 s: the real hex in the chip s
 nix develop --command make stages            # staged builds, see below
 ```
 
-Current budget: **flash 43838 / 44032 (194 B of margin — tight), XDATA 3771 / 4096**; the stack is the other tight one (internal RAM, 223 B
+Current budget: **flash 43935 / 44032 (97 B of margin — full), XDATA 3777 / 4096**; the stack is the other tight one (internal RAM, 223 B
 from 0x21 up; the USB interrupt used to keep 48 B of buffers on it, now static in XDATA). Check the `flash` line before every commit; a failed link
 leaves no stale `.ihx` any more (`.DELETE_ON_ERROR`). SDCC pitfalls seen here: `%`, `/` and loops with a variable count are very costly; use typed `XDATA` pointers
 (`core/platform.h`), constant addresses in interrupts, `--std-c23 --Werror` (an empty `if` body is an error 110).
@@ -110,7 +112,7 @@ durations. It has a guard on instructions per interrupt (backlight subframe < 12
 | Keyboard on USB: backlight | **verified by the user**: stable after the timing fix (it flickered before) |
 | 2.4G and Bluetooth | user reported "everything works normally" without the cable, on a build before the final timing change; **re-check on the current hex** |
 | Vial app, HUD app, profiles survive power-off, encoder, tap-hold/macros on the keyboard | **not yet tested** on hardware |
-| Win/Mac switch | **not yet tried**: the pin and its use are verified in the stock firmware and measured on the board, the layer switching is not |
+| Win/Mac switch | **verified by the user**: the switch changes side, and the polarity is the one measured on the keyboard (Mac = `P0.5` high) |
 | Sleep | **tested by the user**: it sleeps and wakes, but the LEDs stayed dark until a power cycle (cause found and fixed on 2026-11-01: `led_hw_init()` dropped the backlight permission and `led_app_task()` compared it against its own copy). Re-test pending |
 | Battery gauge | **not tested**; the battery percentage source is unknown |
 
@@ -153,8 +155,14 @@ adding one means dropping one.
 5. **The main loop is slow**: 0–5 passes per scan period; a pass is ~1170 instructions in the simulator, 37 % of it `matrix_any_pressed()` called twice per pass
    (`store_task`, `settings_task`). Typing latency is not visible, so no action required; calling it once would save ~215 instructions. A counter of passes per
    second would give the real pass time.
-6. **Flash margin is 194 B** (after freeing ~340 B of dead code, three answered diag counters and the LED settings cache, and after adding the Win/Mac
-   switch, which cost ~285 B). Before adding features, look for something else to drop.
+6. **Flash margin is 97 B.** Everything the firmware has fits, and nothing more does. Before the next feature something has to go; the candidates,
+   in order of what costs least to the user: the port readout of the diagnostics (kind 3, ~70 B, its question — where the switch is wired — is
+   answered); the three radio counters (~30 B, useful while Bluetooth is being shaken down); `DIAG_PASSES_LAST`, `DIAG_SCAN_LOST`, `DIAG_BACKOFF`
+   (answered); the HUD (a real feature, ~300 B, the user's app reads it); the Vial definition (876 B, not negotiable).
+7. **What is still missing, in the order a user would notice it:** the battery percentage (the gauge is there and always says "unknown"); the host
+   Caps Lock on the radio (the `08` frame probably carries it, like the battery); more than six keys at once on USB (no NKRO report, the radio has
+   one); per-key RGB from Vial (vialrgb) and combos/key overrides, which the Vial app would show as tabs; a mouse report (the stock firmware had a
+   pointer interface, Oblio has none).
 
 ## 10. Working agreements with the user
 

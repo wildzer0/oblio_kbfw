@@ -12,6 +12,21 @@
 
 Il controllo di recupero Esc+1+2 va all'inizio del `main`, prima di USB e radio.
 
+## 2026-11-01 (notte fonda) — polarità dello switch corretta, e i due lati diventano due tastiere
+
+- **Polarità:** provato sulla tastiera, era al contrario. Adesso **Mac = P0.5 alto**, Windows = basso (`OS_SWITCH_IS_MAC` in
+  `board/os_switch.c`, una riga da girare se un'altra scheda si comporta all'opposto). Le due catture di `diag.py --ports` da sole non potevano
+  dire quale posizione fosse quale: lo ha detto la tastiera.
+- **Due tastiere in una:** il lato Mac non è più solo uno scambio di Alt/GUI. `core/keymap.h`: `KEYMAP_MAC_LAYER` = 7 (base) e
+  `KEYMAP_MAC_FN_LAYER` = 6 (il suo Fn). Su Windows si usano i layer 0 e 1, su Mac i layer 7 e 6; il tasto Fn del lato Mac manda a `MO(6)`
+  invece che a `MO(1)`. Il layer 6 parte come copia del layer Fn di Windows e il layer 7 come copia del base con Alt e GUI scambiati: **tutti e
+  quattro sono modificabili da Vial**, quindi il lato Mac può avere un Fn completamente diverso senza toccare il lato Windows.
+- `tests/host/test_default_keymap.c`: controlla i tre modificatori scambiati, il Fn che va al layer 6, il layer 6 copia dell'1 e che Fn+B resti
+  il tasto Bluetooth anche sul lato Mac.
+
+Budget: flash **43935/44032** (97 B liberi), XDATA **3777/4096**. `make test` 22/22. **Il margine di flash è agli sgoccioli**: la prossima
+funzione richiede di togliere qualcosa (vedi `docs/firmware-report.md` §9).
+
 ## 2026-11-01 (notte) — lo switch Win/Mac: trovato, ed è una funzione
 
 ### Dov'è e come funziona (misurato, non ipotesi)

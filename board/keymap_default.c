@@ -69,8 +69,19 @@ static uint16_t os_swap(uint16_t keycode)
 
 uint16_t keymap_default(uint8_t layer, uint8_t row, uint8_t col)
 {
+    // The Mac side: the same keyboard with its own Fn layer, so everything on that side can be different (and is edited in Vial there).
+    if (layer == KEYMAP_MAC_FN_LAYER) {
+        return keymaps[FN][row][col];
+    }
+
     if (layer == KEYMAP_MAC_LAYER) {
-        return os_swap(keymaps[BASE][row][col]);
+        const uint16_t base = keymaps[BASE][row][col];
+
+        if (base == MO(FN)) {
+            return MO(KEYMAP_MAC_FN_LAYER); // Fn goes to the Fn layer of this side
+        }
+
+        return os_swap(base);
     }
 
     return (layer < DEFAULT_LAYERS) ? keymaps[layer][row][col] : KC_TRANSPARENT;
@@ -82,6 +93,8 @@ uint16_t keymap_default_encoder(uint8_t layer, uint8_t encoder, bool clockwise)
 
     if (layer == KEYMAP_MAC_LAYER) {
         layer = BASE; // the knob does the same on both sides of the switch
+    } else if (layer == KEYMAP_MAC_FN_LAYER) {
+        layer = FN;
     }
 
     return (layer < DEFAULT_LAYERS) ? encoder_keys[layer][clockwise ? 1 : 0] : KC_TRANSPARENT;
