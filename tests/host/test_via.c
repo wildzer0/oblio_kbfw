@@ -32,6 +32,13 @@ uint16_t keymap_default_combo(uint8_t index, uint8_t field)
     return 0;
 }
 
+uint16_t keymap_default_override(uint8_t index, uint8_t field)
+{
+    (void)index;
+    (void)field;
+    return 0;
+}
+
 uint8_t hud_hook_host_leds(void) { return 0; }
 void layer_hook_mods_add(uint8_t m) { (void)m; }
 void layer_hook_mods_del(uint8_t m) { (void)m; }
@@ -391,7 +398,7 @@ static void test_tap_dances(void)
     reset();
 
     REQUEST(0xFE, vial_dynamic_entry_op, 0x00);
-    CHECK(buf[0] == KEYMAP_TAP_DANCE_COUNT && buf[1] == KEYMAP_COMBO_COUNT && buf[2] == 0); // combos, no key overrides
+    CHECK(buf[0] == KEYMAP_TAP_DANCE_COUNT && buf[1] == KEYMAP_COMBO_COUNT && buf[2] == KEYMAP_KEY_OVERRIDE_COUNT);
 
     REQUEST(0xFE, vial_dynamic_entry_op, 0x01, 2); // tap dance 2: words 32..36
     CHECK(buf[0] == 0 && buf[1] == 32 && buf[2] == 0 && buf[9] == 36 && buf[10] == 0);
@@ -421,6 +428,25 @@ static void test_tap_dances(void)
     REQUEST(0xFE, vial_dynamic_entry_op, 0x03, KEYMAP_COMBO_COUNT); // no such entry
     CHECK(buf[0] == 1);
     REQUEST(0xFE, vial_dynamic_entry_op, 0x04, KEYMAP_COMBO_COUNT, KC_A, 0);
+    CHECK(buf[0] == 1);
+
+    // key overrides: trigger, replacement, layers, then the four option bytes
+    REQUEST(0xFE, vial_dynamic_entry_op, 0x05, 0);
+    CHECK(buf[0] == 0 && buf[1] == 0 && buf[9] == 0);
+
+    REQUEST(0xFE, vial_dynamic_entry_op, 0x06, 0, KC_BSPC, 0, KC_DEL, 0, 0xFF, 0xFF, 0x02, 0, 0, 0x80, 0);
+    CHECK(buf[0] == 0);
+    CHECK(keymap_override_get(0, KO_TRIGGER) == KC_BSPC && keymap_override_get(0, KO_REPLACEMENT) == KC_DEL);
+    CHECK(keymap_override_get(0, KO_LAYERS) == 0xFFFF);
+    CHECK(keymap_override_get(0, KO_MODS) == 0x0002 && keymap_override_get(0, KO_ACTION) == 0x8000);
+
+    REQUEST(0xFE, vial_dynamic_entry_op, 0x05, 0);
+    CHECK(buf[0] == 0 && buf[1] == KC_BSPC && buf[3] == KC_DEL);   // trigger, replacement
+    CHECK(buf[5] == 0xFF && buf[6] == 0xFF && buf[7] == 0x02 && buf[10] == 0x80); // layers, required mods, options
+
+    REQUEST(0xFE, vial_dynamic_entry_op, 0x05, KEYMAP_KEY_OVERRIDE_COUNT);
+    CHECK(buf[0] == 1);
+    REQUEST(0xFE, vial_dynamic_entry_op, 0x06, KEYMAP_KEY_OVERRIDE_COUNT, KC_A, 0);
     CHECK(buf[0] == 1);
 
     REQUEST(0xFE, vial_dynamic_entry_op, 0x7F); // an operation we do not know: echoed

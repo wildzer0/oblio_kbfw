@@ -12,6 +12,24 @@
 
 Il controllo di recupero Esc+1+2 va all'inizio del `main`, prima di USB e radio.
 
+## 2026-11-02 (tarda notte) — key overrides (Vial), e il deposito quasi pieno
+
+- **`core/override.[ch]`**: fino a 4 voci nel formato di Vial (10 byte: trigger, replacement, layer, modificatori richiesti, modificatori che
+  non devono essere premuti, modificatori da togliere mentre agisce, opzioni con bit 7 = abilitata). Shift+Backspace = Delete, per esempio; il
+  trigger non arriva mai all'host e il suo rilascio rilascia il replacement. Le opzioni di QMK su *quando* si attiva sono lette e ignorate
+  (nessuna cambia l'uso quotidiano).
+- **`core/keymap.[ch]`**, **`core/store.c`**: le voci fanno parte della keymap salvata (20 parole, sezione `SEC_OVERRIDES`).
+- **`core/vial.c`**: l'operazione 0 riporta anche il numero di key overrides; 5 e 6 leggono e scrivono una voce → **la scheda Key Overrides di
+  Vial funziona**.
+- **`core/keyboard.c`**: il gancio sta prima dei combos (un override cambia *cosa è* il tasto) e riceve i modificatori attuali.
+- **`tests/host/test_override.c`** (25° test): senza i modificatori il tasto resta suo, il trigger diventa il replacement, un modificatore
+  soppresso va e torna, i modificatori che non devono esserci, il vincolo di layer, la voce disabilitata, il rilascio di un altro tasto.
+- **Spazio**: per far stare gli override i combos scendono da 8 a 6. Il deposito ora è **2029 byte su 2048 di slot** (19 liberi): la prossima
+  cosa che va nel profilo richiede di togliere qualcosa (le macro da 512 a 384 B libererebbero 64 byte di parole).
+- **XDATA 3960/4096 (136 B liberi)**: è il vincolo più stretto adesso.
+
+Budget: flash **48897/56320**, XDATA **3960/4096**. `make test` 25/25, `make sim` 24/24, `make stages` 1–3 ok, vettori ok.
+
 ## 2026-11-02 (notte) — batteria e Caps Lock wireless: la fonte era il driver di riferimento
 
 - **Trovato senza misurare**: il driver dello **stesso radio** per le NuPhy (`src/peripherals/bk3632/rf_controller.c` del porting) decodifica già i

@@ -48,6 +48,13 @@ uint16_t keymap_default_combo(uint8_t index, uint8_t field)
     return 0;
 }
 
+uint16_t keymap_default_override(uint8_t index, uint8_t field)
+{
+    (void)index;
+    (void)field;
+    return 0;
+}
+
 // What reached the host, as a readable log: "+A" key down, "-A" key up, "mods=NN", "c=XXX" consumer
 static char     log_text[512];
 static uint16_t last_consumer;

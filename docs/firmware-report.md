@@ -41,6 +41,10 @@ The USB device enumerates as `258a:dead`, product name "Oblio B68", with a keybo
   assign `MS_WH_UP` / `MS_WH_DOWN` to its two directions in Vial. **USB only**: the radio protocol has no mouse frame, so in 2.4G and Bluetooth
   those keycodes do nothing (the report is dropped in `board/transport.c`).
 - **Keys:** matrix scan + debounce (3 scans in a row), 8 layers in RAM (`KEYMAP_LAYERS`), layer keys, tap-hold (LT/MT/OSM/OSL), tap dance, macros, encoder.
+- **Key overrides** (`core/override.c`, Vial's Key Overrides tab): up to 4. A trigger keycode under the modifiers it requires becomes a
+  replacement (Shift+Backspace = Delete, say), optionally on a set of layers only, with modifiers that must not be held and modifiers to take
+  away while it acts; the trigger itself never reaches the host and its release releases the replacement. The "when does it activate" options
+  are read and ignored (none of them changes the everyday use).
 - **Combos** (`core/combo.c`, Vial's Combos tab): up to 8 chords of up to 4 keycodes each giving one other keycode. A key that is an input of a
   configured combo is held back for at most 50 ms waiting for the rest of the chord; if it closes, the keys are dropped and the output is pressed
   (released when they are let go), if not they go out as usual. Exact matches only, one chord at a time. A key outside every chord pays nothing.
@@ -49,8 +53,8 @@ The USB device enumerates as `258a:dead`, product name "Oblio B68", with a keybo
 - **Fn layer (hold Fn):** F1–F12 on the number row; lighting on Q…Y (effect −/+, brightness −/+, speed −/+), plain colour −/+ on U I; sleep time −/+ on O P;
   sleep now on Tab (`B68_SLEEP`); Bluetooth slots 1–3 on B N M (tap selects, hold 3 s pairs); battery level on Backspace;
   media on the arrows. Custom keycodes live in `board/b68_keys.h` (0x7E00…0x7E13, same numbers as the SMK port so saved layouts keep their meaning).
-- **Vial / VIA over raw HID:** live keymap, macros, tap dances, **combos**, encoder; Vial unlock = hold Esc+Enter. The protocol as the app
-  speaks it is written down in `docs/vial.md` (key overrides and per-key RGB are the two Vial tabs still missing). Definition from `board/vial.json` (generated into the
+- **Vial / VIA over raw HID:** live keymap, macros, tap dances, combos, **key overrides**, encoder; Vial unlock = hold Esc+Enter. The protocol as
+  the app speaks it is written down in `docs/vial.md` (per-key RGB is the Vial tab still missing). Definition from `board/vial.json` (generated into the
   firmware by `tools/vial_gen.py`, checked by `tools/check_vial.py`).
 - **HUD protocol v2** (`docs/hud-protocol-v2.md`, command `0xF0`): another app of the user's reads layers, pressed keys and the keymap. `B68_HUD_TOG`
   (0x7E00) bumps a counter the app watches.
@@ -105,7 +109,8 @@ nix develop --command make sim               # ~50 s: the real hex in the chip s
 nix develop --command make stages            # staged builds, see below
 ```
 
-Current budget: **flash 46989 / 56320 (9.3 KB of margin), XDATA 3907 / 4096**; the stack is the other tight one (internal RAM, 223 B
+Current budget: **flash 48897 / 56320 (7.4 KB of margin), XDATA 3960 / 4096 (136 B free — the tight one), and the keymap slot is 19 bytes
+from full**; the stack is the other tight one (internal RAM, 223 B
 from 0x21 up; the USB interrupt used to keep 48 B of buffers on it, now static in XDATA). Check the `flash` line before every commit; a failed link
 leaves no stale `.ihx` any more (`.DELETE_ON_ERROR`). SDCC pitfalls seen here: `%`, `/` and loops with a variable count are very costly; use typed `XDATA` pointers
 (`core/platform.h`), constant addresses in interrupts, `--std-c23 --Werror` (an empty `if` body is an error 110).

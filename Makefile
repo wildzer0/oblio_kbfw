@@ -35,8 +35,8 @@ test: $(HOST_TESTS) check-vial
 
 # test_X.c tests core/X.c; the modules it needs besides are listed in LINK_X. The tests are rebuilt every time (they are quick).
 LINK_layer := core/keymap.c
-LINK_keyboard := core/layer.c core/keymap.c core/report.c core/tapping.c core/macro.c core/encoder.c core/mouse.c core/combo.c
-LINK_tapping := core/keyboard.c core/layer.c core/keymap.c core/report.c core/macro.c core/encoder.c core/mouse.c core/combo.c
+LINK_keyboard := core/layer.c core/keymap.c core/report.c core/tapping.c core/macro.c core/encoder.c core/mouse.c core/combo.c core/override.c
+LINK_tapping := core/keyboard.c core/layer.c core/keymap.c core/report.c core/macro.c core/encoder.c core/mouse.c core/combo.c core/override.c
 LINK_macro := core/keymap.c
 LINK_hud := core/keymap.c core/matrix.c core/layer.c core/report.c
 LINK_radio := core/diag.c
@@ -44,6 +44,7 @@ LINK_link := core/radio.c core/settings.c core/diag.c
 LINK_led := core/led_effect.c core/keymap.c
 LINK_via := core/vial.c core/keymap.c core/matrix.c core/diag.c core/hud.c core/layer.c core/report.c
 LINK_combo :=
+LINK_override :=
 LINK_usb_reports := core/report.c
 LINK_mouse := core/report.c
 LINK_store := core/keymap.c

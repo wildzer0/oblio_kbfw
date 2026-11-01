@@ -5,6 +5,7 @@ static uint16_t keys[KEYMAP_LAYERS][MATRIX_ROWS][MATRIX_COLS];
 static uint16_t encoder_keys[KEYMAP_LAYERS][ENCODER_COUNT][2];
 static uint16_t tap_dances[KEYMAP_TAP_DANCE_COUNT][TD_FIELDS];
 static uint16_t combos[KEYMAP_COMBO_COUNT][COMBO_FIELDS];
+static uint16_t overrides[KEYMAP_KEY_OVERRIDE_COUNT][KO_FIELDS];
 static uint16_t cfg[KEYMAP_CFG_COUNT];
 static uint8_t  macros[KEYMAP_MACRO_BYTES];
 static uint8_t  version;
@@ -33,6 +34,12 @@ static void load_defaults(void)
     for (uint8_t index = 0; index < KEYMAP_COMBO_COUNT; index++) {
         for (uint8_t field = 0; field < COMBO_FIELDS; field++) {
             combos[index][field] = keymap_default_combo(index, field);
+        }
+    }
+
+    for (uint8_t index = 0; index < KEYMAP_KEY_OVERRIDE_COUNT; index++) {
+        for (uint8_t field = 0; field < KO_FIELDS; field++) {
+            overrides[index][field] = keymap_default_override(index, field);
         }
     }
 
@@ -139,6 +146,26 @@ bool keymap_combo_set(uint8_t index, uint8_t field, uint16_t value)
     }
 
     combos[index][field] = value;
+    version++;
+    return true;
+}
+
+uint16_t keymap_override_get(uint8_t index, uint8_t field)
+{
+    if (index >= KEYMAP_KEY_OVERRIDE_COUNT || field >= KO_FIELDS) {
+        return 0;
+    }
+
+    return overrides[index][field];
+}
+
+bool keymap_override_set(uint8_t index, uint8_t field, uint16_t value)
+{
+    if (index >= KEYMAP_KEY_OVERRIDE_COUNT || field >= KO_FIELDS) {
+        return false;
+    }
+
+    overrides[index][field] = value;
     version++;
     return true;
 }

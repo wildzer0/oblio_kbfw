@@ -55,7 +55,7 @@ bool     keymap_tap_dance_set(uint8_t index, uint8_t field, uint16_t value);
 // ---- combos: keys pressed together give one other key, edited from Vial's Combos tab ----
 // The wire format of Vial's combo entry (see docs/vial.md): up to four input keycodes and one output, in words. A combo with an empty output
 // (or no inputs) is not used. The matching engine is in combo.c.
-#define KEYMAP_COMBO_COUNT 8
+#define KEYMAP_COMBO_COUNT 6
 #define COMBO_INPUTS       4
 #define COMBO_FIELDS       (COMBO_INPUTS + 1) // input 0-3, then the output
 
@@ -64,6 +64,25 @@ uint16_t keymap_default_combo(uint8_t index, uint8_t field);
 
 uint16_t keymap_combo_get(uint8_t index, uint8_t field);
 bool     keymap_combo_set(uint8_t index, uint8_t field, uint16_t value);
+
+// ---- key overrides: a key with some modifiers held does something else, edited from Vial's Key Overrides tab ----
+// Vial's entry is 10 bytes: trigger keycode, replacement keycode, the layers it applies on (0xFFFF = all), the modifiers it needs, the ones
+// that must not be held, the ones to take away while it acts, and the option bits (bit 7 = enabled). Kept as five words.
+#define KEYMAP_KEY_OVERRIDE_COUNT 4
+#define KO_TRIGGER     0
+#define KO_REPLACEMENT 1
+#define KO_LAYERS      2
+#define KO_MODS        3 // low byte: required, high byte: must-not-be-held
+#define KO_ACTION      4 // low byte: suppressed, high byte: options
+#define KO_FIELDS      5
+
+#define KO_OPTIONS_ENABLED 0x80u
+
+// Provided by the board (or a test): the compiled-in key overrides (none).
+uint16_t keymap_default_override(uint8_t index, uint8_t field);
+
+uint16_t keymap_override_get(uint8_t index, uint8_t field);
+bool     keymap_override_set(uint8_t index, uint8_t field, uint16_t value);
 
 // ---- settings that belong to a profile, as words ----
 #define KEYMAP_CFG_COUNT 5

@@ -35,6 +35,13 @@ uint16_t keymap_default_combo(uint8_t index, uint8_t field)
     return 0;
 }
 
+uint16_t keymap_default_override(uint8_t index, uint8_t field)
+{
+    (void)index;
+    (void)field;
+    return 0;
+}
+
 static char     log_text[4096];
 static uint16_t log_time[1024];
 static unsigned log_count;

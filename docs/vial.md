@@ -77,13 +77,11 @@ typedef struct {          // 6 bytes
 
 ## What Oblio answers today
 
-`core/vial.c` implements commands 0x00–0x08 and 0x0D with **tap dances and combos**: operation 0 returns the tap dance count in `[0]`, the combo
-count in `[1]` and zeros in `[2..3]` (so Vial shows no key overrides and no alt repeat keys), operations 1/2 read and write a tap dance, 3/4 a
-combo. The QMK settings commands answer the tapping term (QSID 7). The engine that matches a combo is `core/combo.c`: the keys of a chord are
-held back for at most 50 ms, so the letters of the chord do not reach the host.
-
-**To add key overrides**: report their count in `[2]`, implement operations 5 and 6 with the 10-byte structure above, store the entries with the
-keymap, and act on them where a key event is turned into what the host sees (a trigger keycode under a modifier set becomes the replacement).
+`core/vial.c` implements commands 0x00–0x08 and 0x0D with **tap dances, combos and key overrides**: operation 0 returns the tap dance count in
+`[0]`, the combo count in `[1]`, the key override count in `[2]` and zero in `[3]` (no alt repeat keys), operations 1/2 read and write a tap
+dance, 3/4 a combo, 5/6 a key override. The QMK settings commands answer the tapping term (QSID 7). The engines are `core/combo.c` (the keys of
+a chord are held back for at most 50 ms, so the letters of the chord do not reach the host) and `core/override.c` (a trigger keycode under the
+required modifiers becomes the replacement, with the modifiers it lists taken away while it acts).
 
 Per-key RGB (vialrgb) is a separate interface, not this one: it is advertised by byte `[12] == 1` in `vial_get_keyboard_id` and uses its own raw
 HID channel (this keyboard has one free report ID range on interface 0 or could use the raw HID interface).

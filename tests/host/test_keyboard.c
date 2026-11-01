@@ -41,6 +41,13 @@ uint16_t keymap_default_combo(uint8_t index, uint8_t field)
     return 0;
 }
 
+uint16_t keymap_default_override(uint8_t index, uint8_t field)
+{
+    (void)index;
+    (void)field;
+    return 0;
+}
+
 // every report sent: kind, then the boot report, consumer and system usages at that moment
 typedef struct {
     report_kind_t kind;

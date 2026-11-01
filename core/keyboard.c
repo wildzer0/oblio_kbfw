@@ -6,6 +6,7 @@
 #include "layer.h"
 #include "macro.h"
 #include "mouse.h"
+#include "override.h"
 #include "report.h"
 #include "tapping.h"
 
@@ -19,6 +20,7 @@ void keyboard_init(void)
     encoder_init();
     mouse_init();
     combo_init();
+    override_init();
 }
 
 // The layer engine holds modifiers (one-shot, layer + mods) through the same report as the keys.
@@ -152,6 +154,10 @@ static void process_key_state(uint8_t row, uint8_t col, bool pressed)
         return; // a tap-or-hold key starts waiting, or lets go after becoming a hold
     }
 
+    if (override_process(row, col, keycode, pressed, report_mods())) {
+        return; // a key override: the trigger never reached the host, the replacement did
+    }
+
     if (combo_process(row, col, keycode, pressed, current_now)) {
         return; // held back for a chord, swallowed as part of one, or turned into the combo's output
     }
@@ -232,6 +238,21 @@ void tapping_hook_keycode(uint16_t keycode, bool pressed)
 void combo_hook_send(uint16_t keycode, bool pressed)
 {
     send_keycode(keycode, pressed);
+}
+
+// A key override's replacement and the modifiers it takes away, by the same road
+void override_hook_send(uint16_t keycode, bool pressed)
+{
+    send_keycode(keycode, pressed);
+}
+
+void override_hook_mods(uint8_t mods, bool on)
+{
+    if (on) {
+        layer_hook_mods_add(mods);
+    } else {
+        layer_hook_mods_del(mods);
+    }
 }
 
 void macro_hook_press(uint16_t keycode)
