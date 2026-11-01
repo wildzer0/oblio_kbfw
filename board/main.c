@@ -99,6 +99,7 @@ void main(void)
 
     for (;;) {
         watchdog_kick();
+        tick_alive();
 
         while (tick_take()) { // a millisecond has passed
             now_ms++;

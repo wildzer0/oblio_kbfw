@@ -8,7 +8,7 @@ usage: diag.py [--radio] [--monitor] [--watch SECONDS]
   --monitor    with the cable in (USB mode): listen to the radio's status too (it is switched off in USB mode); implies --radio
   --watch N    repeat every N seconds, printing only what changed
 
-The counters are behind the Vial unlock, so the first thing this does is ask for it: hold the unlock keys (Esc and Enter) when asked.
+The counters need no unlock (they are what you need when the keys do not work); the radio data and --monitor do: hold the unlock keys (Esc and Enter) when asked.
 Run it as a user that may open the hidraw device (a udev rule, or sudo).
 """
 
@@ -114,7 +114,9 @@ def main():
         sys.exit("diag: no Oblio keyboard found (258a:dead, raw HID interface)")
 
     keyboard = Keyboard(path)
-    keyboard.unlock()
+
+    if want_radio:
+        keyboard.unlock()
 
     if want_monitor:
         if keyboard.ask(0xF1, 2, 1)[2] != 1:

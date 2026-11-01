@@ -19,3 +19,6 @@ void led_hw_subframe(void);
 // The PWM paused / resumed around a matrix scan and a flash write: outputs off, strobes off.
 void led_hw_pause(void);
 void led_hw_resume(void);
+
+// A subframe given up: everything off. Called instead of led_hw_subframe() when the timer interrupt ran late.
+void led_hw_idle(void);

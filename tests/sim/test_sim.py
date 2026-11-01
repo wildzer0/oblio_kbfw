@@ -78,6 +78,43 @@ class TestBoot(SimCase):
         self.assertTrue(self.sim.sfr(0xA8) & 0x80, "EA")
         self.assertTrue(self.sim.sfr(0xA8) & 0x01, "ET2: the timer interrupt")
 
+    def test_the_interrupt_work_fits_its_slots(self):
+        # In the simulator the instruction counts are exact, the time per instruction is not: the guard is on the count. The first version
+        # of the backlight took 4697 instructions for a subframe and 8963 for a scan and starved the main loop on the real keyboard (no
+        # keys, then watchdog resets). A scan includes ~6400 instructions of deliberate waiting (16 columns x 2 readings x 10 us).
+        self.sim.break_at(SYMBOLS["tick_hook_scan"], hits=900)  # past the half second after which the backlight is allowed
+        self.sim.run()
+        self.sim.clear_breaks()
+        isr = self._isr_calls()
+
+        counts = {}
+        for name, (call, after) in isr.items():
+            samples = []
+            for _ in range(4):
+                self.sim.clear_breaks(); self.sim.break_at(call); self.sim.run(); a = self.sim.instructions()
+                self.sim.clear_breaks(); self.sim.break_at(after); self.sim.run(); b = self.sim.instructions()
+                samples.append(b - a)
+            counts[name] = max(samples)
+
+        print("\n    instructions: backlight subframe %d, scan %d" % (counts["led"], counts["scan"]))
+        self.assertLess(counts["led"], 1200)
+        self.assertLess(counts["scan"], 8500)  # ~6400 of them are the waits: 320 us of 500, the work is ~120 us
+
+    def _isr_calls(self):
+        """The addresses of the two hook calls in tick_isr and of the instruction after each (found in the disassembly)."""
+        start = SYMBOLS["tick_isr"]
+        calls = {}
+        for line in self.sim.cmd("dc 0x%x 0x%x" % (start, start + 0x180)).splitlines():
+            m = re.match(r"\s*0x([0-9a-f]+)\s+\?\s+12 ([0-9a-f]{2}) ([0-9a-f]{2}) LCALL", line, re.I)
+            if m:
+                target = int(m.group(2) + m.group(3), 16)
+                for name, symbol in (("led", "tick_hook_led"), ("scan", "tick_hook_scan")):
+                    if target == SYMBOLS[symbol]:
+                        at = int(m.group(1), 16)
+                        calls[name] = (at, at + 3)
+        self.assertEqual(sorted(calls), ["led", "scan"])
+        return calls
+
     def test_the_stack_stays_shallow_with_every_interrupt_running(self):
         self.sim.break_at(SYMBOLS["usb_task"], hits=400)
         self.assertEqual(self.sim.run(), SYMBOLS["usb_task"])
@@ -196,8 +233,10 @@ class TestRawHid(UsbCase):
     def test_a_command_the_firmware_does_not_know(self):
         self.assertEqual(self.usb.raw_hid([0x77])[0], 0xFF)
 
-    def test_diagnostics_need_the_unlock(self):
-        self.assertEqual(self.usb.raw_hid([0xF1, 0])[0], 0xFF)
+    def test_the_counters_can_be_read_without_the_unlock_but_the_radio_dump_cannot(self):
+        # the counters are what tells a dead keyboard from a starved one: they must be readable with no key working to unlock
+        self.assertEqual(self.usb.raw_hid([0xF1, 0])[0], 0xF1)
+        self.assertEqual(self.usb.raw_hid([0xF1, 1])[0], 0xFF)
 
     def test_two_requests_in_a_row(self):
         self.assertEqual(self.usb.raw_hid([0x01])[:3], [0x01, 0x00, 0x09])

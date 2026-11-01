@@ -10,12 +10,17 @@
 // pass, so that a repaint never holds up the keys.
 
 #include "matrix.h"
+#include "platform.h"
 #include <stdbool.h>
 #include <stdint.h>
 
 #define LED_ROWS     MATRIX_ROWS
 #define LED_COLS     MATRIX_COLS
 #define LED_CHANNELS (LED_ROWS * 3) // per column: row 0 R G B, row 1 R G B, ...
+
+// The PWM channel n of a column has DUTY1 = LED_DUTY1_BASE + n (fixed, staggered like the stock firmware's so that the channels do not all
+// switch at once) and DUTY2 = DUTY1 + width. The main loop keeps the DUTY2 values ready, so the timer interrupt only copies them.
+#define LED_DUTY1_BASE 195u
 
 // 8-bit level -> pulse width in PWM counts: 3.5 per step, 892 at most, so that DUTY2 stays below the 1200-count period
 #define LED_WIDTH(level) ((uint16_t)((uint16_t)(level) * 3u + ((uint16_t)(level) >> 1)))
@@ -44,6 +49,7 @@ uint8_t led_next_column(void);
 
 // Whether any channel of the column is lit (a dark column is not strobed).
 bool    led_column_lit(uint8_t column);
+XDATA const uint16_t *led_duty2(uint8_t column); // the LED_CHANNELS DUTY2 values of the column, ready to write
 uint8_t led_level(uint8_t column, uint8_t channel);
 
 // ---- for the main loop ----

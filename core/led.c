@@ -7,6 +7,7 @@
 
 static uint8_t level[LED_COLS][LED_CHANNELS]; // [column][row * 3 + colour]
 static uint8_t lit[LED_COLS];                 // channels of the column that are not dark
+static uint16_t duty2[LED_COLS][LED_CHANNELS]; // the same levels as the DUTY2 values the interrupt writes: no arithmetic there
 
 // The interrupt's: the column being played and the frames counted
 static uint8_t          next_column;
@@ -36,6 +37,12 @@ void led_init(void)
 {
     memset(level, 0, sizeof level);
     memset(lit, 0, sizeof lit);
+
+    for (uint8_t col = 0; col < LED_COLS; col++) {
+        for (uint8_t n = 0; n < LED_CHANNELS; n++) {
+            duty2[col][n] = (uint16_t)(LED_DUTY1_BASE + n); // no width: dark
+        }
+    }
 
     next_column   = 0;
     frames        = 0;
@@ -68,6 +75,11 @@ uint8_t led_next_column(void)
 bool led_column_lit(uint8_t column)
 {
     return lit[column] != 0;
+}
+
+XDATA const uint16_t *led_duty2(uint8_t column)
+{
+    return duty2[column];
 }
 
 uint8_t led_level(uint8_t column, uint8_t channel)
@@ -162,6 +174,7 @@ static void paint_one(void)
         }
 
         level[paint_col][i] = rgb[c];
+        duty2[paint_col][i] = (uint16_t)(LED_DUTY1_BASE + i + LED_WIDTH(rgb[c]));
     }
 
     if (++paint_col >= LED_COLS) {

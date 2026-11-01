@@ -345,7 +345,8 @@ void via_receive(XDATA uint8_t *data, uint8_t length)
             break;
 
         case id_oblio_diag:
-            if (vial_is_unlocked()) { // the diagnostics are for whoever can unlock the keyboard
+            // the counters (kind 0) are harmless and are what is needed when the keys do not work, so they need no unlock; the rest does
+            if (vial_is_unlocked() || data[1] == 0) {
                 diag_receive(data, length);
             } else {
                 data[0] = id_unhandled;

@@ -15,6 +15,14 @@ Il controllo di recupero Esc+1+2 va all'inizio del `main`, prima di USB e radio.
 ## 2026-11-01
 - Repo creato. Documenti hardware, radio e LED portati dal porting SMK (`docs/`).
 
+### Correzione dopo la prova del gradino 2 (sull'hardware: LED che lampeggiano, nessun tasto)
+- **Causa (ipotesi forte, dal simulatore):** il lavoro dell'interrupt non stava nei suoi slot. Con `make sim` il sottoquadro LED costava 4697 istruzioni e la scansione 8963, contro slot da 400/450 µs: il main loop non girava più (niente tasti, LED a scatti, poi reset del watchdog). Lo stesso codice LED era nella build finale, quindi andava corretto, non aggirato.
+- `board/led_hw.c`: il percorso dell'interrupt non calcola più nulla né cicla: scrive indirizzi costanti (macro `LED_PWM`/`SWITCHED`) leggendo i DUTY2 già pronti. `core/led.[ch]`: tabella `duty2` precalcolata (+480 B di XDATA, `LED_DUTY1_BASE` = 195). Sottoquadro: 4697 → 433 istruzioni.
+- `core/sched.h`: slot di scansione 500 µs (era 450); scansione 8963 → 8305 istruzioni (~6400 sono le attese volontarie di 320 µs).
+- `hal/tick.[ch]`: se il main loop non gira per 3 scansioni di fila (`tick_alive()`), i LED cedono il posto per 32 slot, così tasti, USB e watchdog hanno la CPU anche se qualcosa va storto.
+- `core/via.c`, `tools/diag.py`: i contatori diagnostici (causa reset, slot in ritardo, scansioni perse, giro più lento) si leggono senza sblocco: servono proprio quando i tasti non funzionano. Radio/monitor richiedono ancora lo sblocco.
+- `tests/sim`: nuovo guard sul numero di istruzioni di sottoquadro e scansione (limiti 1200 / 8500); test sul diag aggiornato. Non provato sull'hardware.
+
 ### Fase 1 — build, budget, release
 - `board/main.c`: `main` segnaposto (loop vuoto) per esercitare compilatore, linker e budget; lo sostituisce la fase 2.
 - `Makefile`: nuovi target `fw` (SDCC → `build/oblio.ihx` e `build/oblio.hex` con `packihx`), `size` (controllo budget); `clean` rimuove anche `build/`. Flag SDCC ripresi dal vecchio repo: modello large, `--stack-auto`, XDATA 4096, codice fino a 0xAC00.

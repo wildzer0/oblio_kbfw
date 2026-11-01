@@ -134,6 +134,10 @@ class Session:
         found = re.findall(r"Stop at 0x([0-9a-fA-F]+)", out)
         return int(found[-1], 16) if found else None
 
+    def instructions(self):
+        """Instructions executed since reset (exact in the model)."""
+        return int(re.search(r"Inst=\s*(\d+)", self.cmd("state")).group(1))
+
     # --- memory ---
     @staticmethod
     def _bytes(output):

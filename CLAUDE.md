@@ -59,3 +59,6 @@ sinowisp write --platform sh68f90 --vendor_id 0x258a --product_id 0xdead --forma
 ```
 Mappa flash del porting: applicazione fino a 0xAC00; profili 0–3 (2 copie × 4 settori) 0xAC00–0xEBFF; impostazioni 0xEC00; marcatore 0xEE00; bootloader stock 0xF000.
 Recupero: Esc+1+2 mentre si inserisce l'USB.
+
+## Aggiornamento 2026-11-01 (sera)
+- Il gradino 2 sull'hardware ha fallito (LED a scatti, nessun tasto): causa = ISR troppo lunghe (4697/8963 istruzioni). Corretto con tabella DUTY2 precalcolata, ISR a indirizzi costanti, slot di scansione 500 µs, ritiro dei LED se il main non gira, contatori diag senza sblocco. Flash 43477/44032, XDATA 3703/4096. **Da riprovare sull'hardware**; se fallisce, `tools/diag.py` (senza sblocco) dice causa reset, slot in ritardo, scansioni perse.

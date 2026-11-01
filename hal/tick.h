@@ -14,7 +14,7 @@ void tick_isr(void) __interrupt(0); // INT_TIMER2
 
 // Provided by the board: the work of the two kinds of slots. They run inside the interrupt and must fit in their slot (400 / 450 us).
 void tick_hook_scan(uint8_t raw[16]); // scan the key matrix: raw[col] has bit `row` set for a pressed key
-void tick_hook_led(void);             // play one subframe of the backlight
+void tick_hook_led(bool give_up);     // play one subframe of the backlight; `give_up`: the timer is running late, switch the backlight off instead
 
 void tick_init(void);
 
@@ -27,3 +27,7 @@ bool tick_take(void);
 
 // True once for every scan of the matrix not yet taken; its result is copied to `raw`.
 bool tick_scan_take(uint8_t raw[16]);
+
+// The main loop calls this once per pass. The timer interrupt watches it: if the main loop has not come round for a few scans, the interrupt work
+// does not fit its slots and is starving it, and the backlight steps aside (see tick.c) so that the keys, USB and the watchdog get the CPU.
+void tick_alive(void);

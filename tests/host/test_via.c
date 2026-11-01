@@ -419,7 +419,11 @@ static void test_diagnostics_need_the_unlock(void)
 {
     reset();
     REQUEST(0xF1, 0);
-    CHECK(buf[0] == 0xFF); // locked: unhandled
+    CHECK(buf[0] == 0xF1 && buf[2] == DIAG_COUNT); // the counters answer locked too: they are what is needed when the keys do not work
+    REQUEST(0xF1, 1);
+    CHECK(buf[0] == 0xFF); // the radio's data and the monitor switch are unlocked only
+    REQUEST(0xF1, 2, 1);
+    CHECK(buf[0] == 0xFF);
 
     unlock();
     REQUEST(0xF1, 0);

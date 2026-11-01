@@ -35,9 +35,9 @@ static void test_a_frame_and_a_scan_period(void)
     const unsigned frame_us = 16 * SCHED_LED_US + (16 / SCHED_SUBFRAMES_PER_SCAN) * SCHED_SCAN_US;
     const unsigned scan_us  = SCHED_SUBFRAMES_PER_SCAN * SCHED_LED_US + SCHED_SCAN_US;
 
-    CHECK(frame_us == 8200); // 122 Hz
-    CHECK(scan_us == 2050);  // a key is polled every ~2 ms
-    CHECK(sched_slot_us(SLOT_LED) == 400 && sched_slot_us(SLOT_SCAN) == 450);
+    CHECK(frame_us == 8400); // 119 Hz
+    CHECK(scan_us == 2100);  // a key is polled every ~2 ms
+    CHECK(sched_slot_us(SLOT_LED) == 400 && sched_slot_us(SLOT_SCAN) == 500);
 }
 
 // The milliseconds counted follow the time that really passed (the sum of the slot lengths)

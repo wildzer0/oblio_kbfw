@@ -4,10 +4,16 @@
 #include "stage.h"
 
 // The two kinds of slot of the timer interrupt (core/sched.h)
-void tick_hook_led(void)
+void tick_hook_led(bool give_up)
 {
 #if STAGE_LED
-    led_hw_subframe();
+    if (give_up) {
+        led_hw_idle();
+    } else {
+        led_hw_subframe();
+    }
+#else
+    (void)give_up;
 #endif
 }
 

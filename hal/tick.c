@@ -4,6 +4,11 @@
 #include "sh68f90.h"
 
 // The timer counts at FREQ_SYS / 12 = 2 MHz, so a slot of N microseconds is 2 * N counts.
+// LED slots given up while the main loop is starved (two frames of the backlight), and how many scans in a row without a pass of the main
+// loop count as starving it (a pass takes about a millisecond even with the interrupt at work)
+#define BACK_OFF_SLOTS 32u
+#define STARVED_SCANS  3u
+
 #define RELOAD(us) ((uint16_t)(65536u - 2u * (us)))
 
 static volatile uint8_t ticks;
@@ -11,6 +16,10 @@ static uint8_t          taken;
 
 static uint8_t          scan_raw[16];
 static volatile bool    scan_ready;
+static uint8_t          back_off; // LED slots still to be given up after the main loop was starved
+static volatile uint8_t alive;    // passes of the main loop
+static uint8_t          seen_alive;
+static uint8_t          starved;  // scans in a row in which the main loop did not come round
 
 static void set_reload(slot_t slot)
 {
@@ -26,6 +35,10 @@ void tick_init(void)
 
     ticks      = 0;
     taken      = 0;
+    alive      = 0;
+    seen_alive = 0;
+    starved    = 0;
+    back_off   = 0;
     scan_ready = false;
     sched_init();
 
@@ -63,13 +76,34 @@ void tick_isr(void) __interrupt(INT_TIMER2)
 
         tick_hook_scan(scan_raw);
         scan_ready = true;
+
+        if (alive == seen_alive) {
+            if (++starved >= STARVED_SCANS) {
+                back_off = BACK_OFF_SLOTS;
+            }
+        } else {
+            starved = 0;
+        }
+
+        seen_alive = alive;
     } else {
-        tick_hook_led();
+        // A slot that ran late means the work of the interrupt does not fit its time, and the main loop is starved of the CPU (no keys, and
+        // finally the watchdog). The backlight is the part that can wait: it steps aside for a while and the keys keep working.
+        tick_hook_led(back_off != 0);
+
+        if (back_off) {
+            back_off--;
+        }
     }
 
     if (TF2) {
         diag_inc(DIAG_SLOT_LATE); // the next overflow came while this slot's work was still running
     }
+}
+
+void tick_alive(void)
+{
+    alive++;
 }
 
 void tick_pause(void)
