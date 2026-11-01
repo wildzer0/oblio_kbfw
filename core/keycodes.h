@@ -1,5 +1,7 @@
 #pragma once
 
+#include <stdint.h>
+
 // 16-bit keycodes, laid out as QMK/Vial does: the Vial desktop app edits the keymap with these numbers, so the
 // ranges cannot change. Only what Oblio uses is defined here.
 
@@ -74,6 +76,16 @@
 #define QK_LAYER_MOD_GET_MODS(code)  ((code) & 0x1Fu)
 #define QK_MODS_GET_MODS(code)       (((code) >> 8) & 0x1Fu)
 #define QK_MODS_GET_KEY(code)        ((code) & 0xFFu)
+
+// A basic key with modifiers held around it: LSFT(KC_A) is shift + A. Same 5-bit mask as MOD_* below, in bits 8-12.
+#define LCTL(kc) ((MOD_LCTL << 8) | (kc))
+#define LSFT(kc) ((MOD_LSFT << 8) | (kc))
+#define LALT(kc) ((MOD_LALT << 8) | (kc))
+#define LGUI(kc) ((MOD_LGUI << 8) | (kc))
+#define RCTL(kc) ((MOD_RCTL << 8) | (kc))
+#define RSFT(kc) ((MOD_RSFT << 8) | (kc))
+#define RALT(kc) ((MOD_RALT << 8) | (kc))
+#define RGUI(kc) ((MOD_RGUI << 8) | (kc))
 
 // Modifier masks in the QMK encoding: bit 4 moves the modifier to the right hand
 #define MOD_LCTL 0x01u
@@ -176,10 +188,55 @@
 #define KC_RALT 0xE6u
 #define KC_RGUI 0xE7u
 
-// media (sent as consumer usages)
+// system control (sent on their own report)
+#define KC_SYSTEM_POWER 0xA5u
+#define KC_SYSTEM_SLEEP 0xA6u
+#define KC_SYSTEM_WAKE  0xA7u
+
+// media and application keys (sent as consumer usages)
 #define KC_MUTE 0xA8u
 #define KC_VOLU 0xA9u
 #define KC_VOLD 0xAAu
 #define KC_MNXT 0xABu
 #define KC_MPRV 0xACu
+#define KC_MSTP 0xADu
 #define KC_MPLY 0xAEu
+#define KC_MSEL 0xAFu
+#define KC_EJCT 0xB0u
+#define KC_MAIL 0xB1u
+#define KC_CALC 0xB2u
+#define KC_MYCM 0xB3u
+#define KC_WSCH 0xB4u
+#define KC_WHOM 0xB5u
+#define KC_WBAK 0xB6u
+#define KC_WFWD 0xB7u
+#define KC_WSTP 0xB8u
+#define KC_WREF 0xB9u
+#define KC_WFAV 0xBAu
+#define KC_MFFD 0xBBu
+#define KC_MRWD 0xBCu
+#define KC_BRIU 0xBDu
+#define KC_BRID 0xBEu
+#define KC_CPNL 0xBFu
+#define KC_ASST 0xC0u
+#define KC_MCTL 0xC1u
+#define KC_LPAD 0xC2u
+
+#define KC_FIRST_KEY    0x04u // KC_A
+#define KC_LAST_KEY     0xA4u // KC_EXSEL
+#define KC_FIRST_SYSTEM KC_SYSTEM_POWER
+#define KC_LAST_SYSTEM  KC_SYSTEM_WAKE
+#define KC_FIRST_MEDIA  KC_MUTE
+#define KC_LAST_MEDIA   KC_LPAD
+
+#define IS_KEY_KEYCODE(code)      IN_RANGE(code, KC_FIRST_KEY, KC_LAST_KEY)
+#define IS_SYSTEM_KEYCODE(code)   IN_RANGE(code, KC_FIRST_SYSTEM, KC_LAST_SYSTEM)
+#define IS_CONSUMER_KEYCODE(code) IN_RANGE(code, KC_FIRST_MEDIA, KC_LAST_MEDIA)
+#define IS_MODIFIER_KEYCODE(code) IN_RANGE(code, KC_LCTL, KC_RGUI)
+
+// The bit of a modifier key (KC_LCTL..KC_RGUI) in the HID modifier byte
+#define MOD_BIT(code) (1u << ((code) & 0x07u))
+
+// The 5-bit modifier mask of MOD_*, OSM, LM and the QK_MODS range, as the HID modifier byte: the low 4 bits pick the
+// modifiers, bit 4 moves them to the right hand.
+#define MODS_FROM_MASK(mask) ((uint8_t)(((mask) & 0x10u) ? (((mask) & 0x0Fu) << 4) : ((mask) & 0x0Fu)))

@@ -45,3 +45,12 @@ Si procede senza aspettare l'ICP, riscrivendo ciò che il porting SMK già fa; l
 - `board/main.c`: contatore dei millisecondi, gli eventi della matrice vanno a `keyboard_event`.
 - Test: `test_layer.c` (11 test: ricerca, trasparenza, rilascio con lo stesso codice, TG/TO/DF, layer non valido, OSL, OSM anche a destra, LM, TT con 5 tocchi e con pausa, encoder) e `test_default_keymap.c` (67 celle come misurate sulla scheda, nessun tasto Fn dove la base è vuota). Il `Makefile` ricompila sempre i test e accetta moduli extra per test (`LINK_x`).
 - Verifica: `make test` 3 file OK; `make fw size` → flash 5031/44032, XDATA 1590/4096. Simulatore non usato; nessuna prova sull'hardware.
+
+### Fase 3, passo 2 — report HID
+- `core/report.[ch]`: stato di ciò che l'host deve sapere e costruzione dei byte. Report boot da 8 byte (modificatori + 6 tasti nell'ordine di pressione; il settimo non entra), bitmap NKRO (modificatori + 120 bit, come il descrittore stock), modificatori a sinistra nei bit 0–3 e a destra 4–7, uso consumer e system (uno alla volta) con le tabelle tasto → uso (HUT 1.12).
+- Il core non invia nulla: chiama `report_hook_send(kind)` a ogni cambio, una volta per cambio, così un tasto premuto e rilasciato nello stesso giro produce comunque due report. Il trasporto (USB, fase 4; radio, fase 6) implementa l'hook; per ora `board/transport.c` è un hook vuoto.
+- `core/keyboard.c`: gli hook dei modificatori del layer ora scrivono nel report; `send_keycode` gestisce tasti, modificatori (KC_LCTL…), `LSFT(KC_A)`-style (modificatori prima del tasto alla pressione, dopo alla fine), consumer e system. Alla fine del tasto il report esce prima che i modificatori one-shot vengano tolti.
+- `core/keycodes.h`: aggiunti tasti media/system, `LCTL/LSFT/LALT/LGUI/RCTL/…(kc)`, macro `IS_*_KEYCODE`, `MOD_BIT`, `MODS_FROM_MASK` (spostata da layer.c, ora condivisa).
+- Bug trovato dai test: `LSFT(kc)` sommava per errore `QK_MODS` (che vale già `MOD_LCTL << 8`), dando 0x0305 invece di 0x0205; il test `test_keycode_encoding` ora fissa i valori usati da Vial.
+- Test: `test_report.c` (ordine e limite dei 6 tasti, NKRO, modificatori, tabelle degli usi, valori dei codici), `test_keyboard.c` (tasto semplice, modificatore, mods+tasto, tasto di layer con rilascio dopo il cambio, consumer/system, OSM e OSL su un solo tasto).
+- Verifica: `make test` 5 file OK; `make fw size` → flash 6333/44032, XDATA 1616/4096. Simulatore non usato; nessuna prova sull'hardware.

@@ -21,6 +21,7 @@ test: $(HOST_TESTS)
 
 # test_X.c tests core/X.c; the modules it needs besides are listed in LINK_X. The tests are rebuilt every time (they are quick).
 LINK_layer := core/keymap.c
+LINK_keyboard := core/layer.c core/keymap.c core/report.c
 
 .PHONY: FORCE
 FORCE:

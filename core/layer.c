@@ -154,13 +154,6 @@ uint16_t layer_key_up(uint8_t row, uint8_t col)
     return keycode;
 }
 
-// The 5-bit mask of OSM and LM: the low 4 bits pick the modifiers, bit 4 moves them to the right hand.
-static uint8_t mask_to_mods(uint16_t mask)
-{
-    const uint8_t bits = (uint8_t)(mask & 0x0F);
-    return (mask & 0x10) ? (uint8_t)(bits << 4) : bits;
-}
-
 static void osl_finish(void)
 {
     if (os_layer != LAYER_NONE) {
@@ -278,7 +271,7 @@ bool layer_process(uint16_t keycode, bool pressed, uint16_t now)
 
     if (IS_QK_LAYER_MOD(keycode)) {
         const uint8_t layer = (uint8_t)QK_LAYER_MOD_GET_LAYER(keycode);
-        const uint8_t mods  = mask_to_mods(QK_LAYER_MOD_GET_MODS(keycode));
+        const uint8_t mods  = MODS_FROM_MASK(QK_LAYER_MOD_GET_MODS(keycode));
 
         if (layer_valid(layer)) {
             layer_hold(layer, pressed);
@@ -302,7 +295,7 @@ bool layer_process(uint16_t keycode, bool pressed, uint16_t now)
     }
 
     if (IS_QK_ONE_SHOT_MOD(keycode)) {
-        process_osm(mask_to_mods(keycode & 0x1F), pressed);
+        process_osm(MODS_FROM_MASK(keycode & 0x1Fu), pressed);
         return true;
     }
 
