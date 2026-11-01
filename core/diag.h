@@ -18,13 +18,13 @@ typedef enum {
     DIAG_LOOP_MAX_MS,      // the slowest pass of the main loop
     DIAG_USB_OVERFLOW,     // USB report packets that replaced or pushed out another
     DIAG_MATRIX_DEFERRED,  // key changes held back because the event queue was full
-    DIAG_RADIO_REFUSED,    // "not now" answers of the radio
-    DIAG_RADIO_TX_TIMEOUT, // radio frames that never finished
+    DIAG_LED_US_MAX,       // longest LED slot, from its start to the end of its work, in us (the slot is 400; more means it ran late)
+    DIAG_SCAN_US_MAX,      // the same for the scan slot (500)
     DIAG_RADIO_EVENTS,     // 03 frames from the radio
     DIAG_RADIO_INFOS,      // 08 frames from the radio
     DIAG_RADIO_STATUS,     // changes of the radio's status bytes
     DIAG_BACKOFF,          // times the main loop was found starved and the backlight stood aside
-    DIAG_LED_TOGGLES,      // times the backlight was allowed or forbidden (USB suspend, host seen or not)
+    DIAG_USB_IRQS,         // USB interrupts other than the start of frame
     DIAG_COUNT
 } diag_id_t;
 

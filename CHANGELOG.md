@@ -27,6 +27,11 @@ Il controllo di recupero Esc+1+2 va all'inizio del `main`, prima di USB e radio.
 - Segnalato dall'utente: con il cavo i LED flickerano forte, in 2.4G e BLE senza cavo va tutto. Causa **non nota**: due sospetti, da distinguere con i dati e non con tentativi alla cieca: (1) il salvagente del main loop spegne i LED perché con il cavo il giro del main è lento; (2) il backlight viene acceso/spento dal flag di sospensione USB (`led_app_task`).
 - Due contatori nuovi nella diagnostica: `DIAG_BACKOFF` (volte che il salvagente è scattato) e `DIAG_LED_TOGGLES` (cambi di permesso del backlight). Al posto di `DIAG_FLASH_ERASES` (il pacchetto da 32 B tiene al massimo 14 contatori). Flash 43493/44032.
 
+### Led che flickerano in USB: primi dati dalla tastiera, seconda strumentazione
+- Lettura di `diag.py` col cavo: nessun reset (causa 0), 45988 slot in ritardo, 19643 scansioni perse, giro più lento del main 15 ms, stack 187 su 223, **130 back-off**, solo 3 cambi di permesso del backlight. Quindi il sospetto «flag di sospensione che oscilla» è escluso; il lavoro dell'interrupt non sta nel tempo in modo USB (in wireless sì). La causa resta da trovare.
+- `tools/diag.py`: funziona anche su Windows/macOS con `hidapi`.
+- Strumentazione nuova: durata massima misurata dal Timer 2 (2 MHz) di uno slot LED e di uno slot di scansione, dall'overflow che lo ha iniziato alla fine del lavoro (`DIAG_LED_US_MAX`, `DIAG_SCAN_US_MAX`; se lo slot è in ritardo include il ritardo), e conteggio degli interrupt USB diversi dal SOF (`DIAG_USB_IRQS`). Tolti i contatori radio «rifiuti» e «TX scaduti» (a zero) e i cambi di permesso. Flash 43672/44032 (margine 360 B).
+
 ### Fase 1 — build, budget, release
 - `board/main.c`: `main` segnaposto (loop vuoto) per esercitare compilatore, linker e budget; lo sostituisce la fase 2.
 - `Makefile`: nuovi target `fw` (SDCC → `build/oblio.ihx` e `build/oblio.hex` con `packihx`), `size` (controllo budget); `clean` rimuove anche `build/`. Flag SDCC ripresi dal vecchio repo: modello large, `--stack-auto`, XDATA 4096, codice fino a 0xAC00.

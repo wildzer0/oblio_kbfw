@@ -1,4 +1,5 @@
 #include "usb.h"
+#include "diag.h"
 #include "usb_device.h"
 #include "usb_reports.h"
 #include "raw_hid.h"
@@ -173,6 +174,10 @@ static void bus_reset(void)
 void usb_isr(void) __interrupt(7)
 {
     const uint8_t if1 = USBIF1;
+
+    if ((if1 & ~USBIF1_SOFIF) || USBIF2) {
+        diag_inc(DIAG_USB_IRQS);
+    }
 
     if (if1 & (USBIF1_USBRSTIF | USBIF1_PUPIF)) {
         USBIF1 &= (uint8_t) ~(USBIF1_USBRSTIF | USBIF1_PUPIF);

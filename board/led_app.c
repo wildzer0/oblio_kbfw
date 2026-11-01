@@ -31,7 +31,6 @@ void led_app_task(uint16_t now)
 
     if (on != last) {
         last = on;
-        diag_inc(DIAG_LED_TOGGLES);
         led_hw_enable(on);
     }
 }

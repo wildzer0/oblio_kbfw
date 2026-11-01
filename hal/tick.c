@@ -19,11 +19,16 @@ static volatile bool    scan_ready;
 static uint8_t          back_off; // LED slots still to be given up after the main loop was starved
 static volatile uint8_t alive;    // passes of the main loop
 static uint8_t          seen_alive;
+static uint16_t         slot_start; // the count the running slot began from (what the timer reloaded)
 static uint8_t          starved;  // scans in a row in which the main loop did not come round
+
+static uint16_t         next_start;
 
 static void set_reload(slot_t slot)
 {
     const uint16_t reload = RELOAD(sched_slot_us(slot));
+
+    next_start = reload;
 
     RCAP2H = (uint8_t)(reload >> 8);
     RCAP2L = (uint8_t)(reload & 0xFF);
@@ -41,6 +46,7 @@ void tick_init(void)
     back_off   = 0;
     scan_ready = false;
     sched_init();
+    slot_start = first;
 
     TR2   = 0;
     T2CON = 0; // 16-bit auto-reload on overflow
@@ -100,9 +106,26 @@ void tick_isr(void) __interrupt(INT_TIMER2)
         }
     }
 
+    // How long the slot took, from the overflow that began it, in us (the timer counts at 2 MHz)
+    uint8_t  high;
+    uint8_t  low;
+    uint16_t count;
+
+    do {
+        high  = TH2;
+        low   = TL2;
+        count = (uint16_t)((uint16_t)high << 8 | low);
+    } while (high != TH2);
+
+    uint16_t elapsed = (uint16_t)(count - slot_start);
+
     if (TF2) {
         diag_inc(DIAG_SLOT_LATE); // the next overflow came while this slot's work was still running
+        elapsed = (uint16_t)((uint16_t)(0u - slot_start) + (uint16_t)(count - next_start));
     }
+
+    diag_max(slot == SLOT_SCAN ? DIAG_SCAN_US_MAX : DIAG_LED_US_MAX, (uint16_t)(elapsed >> 1));
+    slot_start = next_start;
 }
 
 void tick_alive(void)

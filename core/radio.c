@@ -367,8 +367,6 @@ static void mode_answered(void)
 
 static void refused(void)
 {
-    diag_inc(DIAG_RADIO_REFUSED);
-
     // "not now": what the frame was sent for has to be offered again, unless it changed nothing
     if (last_kind == KIND_REPORT && !last_report_is_acked()) {
         key_unpop();
@@ -541,10 +539,6 @@ void radio_task(void)
 
     if (transmitting) {
         if (radio_hook_tx_done() || (uint16_t)(radio_hook_now_ms() - t_start) >= TX_TIMEOUT_MS) {
-            if (!radio_hook_tx_done()) {
-                diag_inc(DIAG_RADIO_TX_TIMEOUT);
-            }
-
             radio_hook_select(false); // released with the last byte, as the stock does in its interrupt
             t_sent       = radio_hook_now_ms();
             transmitting = false;

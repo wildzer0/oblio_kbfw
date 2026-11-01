@@ -41,13 +41,13 @@ NAMES = [
     ("slowest main-loop pass (ms)", "{}"),
     ("USB report queue overflows", "{}"),
     ("matrix changes deferred", "{}"),
-    ("radio: refusals", "{}"),
-    ("radio: frames that never ended", "{}"),
+    ("longest LED slot (us, of 400)", "{}"),
+    ("longest scan slot (us, of 500)", "{}"),
     ("radio: 03 frames", "{}"),
     ("radio: 08 frames", "{}"),
     ("radio: status changes", "{}"),
     ("backlight back-offs (starved)", "{}"),
-    ("backlight allowed/forbidden", "{}"),
+    ("USB interrupts (not SOF)", "{}"),
 ]
 
 
