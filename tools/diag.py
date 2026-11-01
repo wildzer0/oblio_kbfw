@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
-"""Reads the diagnostic counters of an Oblio keyboard (Linux, /dev/hidraw, no dependencies).
+"""Reads the diagnostic counters of an Oblio keyboard.
+
+Linux: /dev/hidraw, no dependencies. Windows and macOS: `pip install hidapi` (the module is called `hid`).
 
 usage: diag.py [--radio] [--monitor] [--watch SECONDS]
 
@@ -14,10 +16,19 @@ Run it as a user that may open the hidraw device (a udev rule, or sudo).
 
 import glob
 import os
-import select
 import struct
 import sys
 import time
+
+try:
+    import select
+except ImportError:  # pragma: no cover
+    select = None
+
+try:
+    import hid  # pip install hidapi: used where there is no /dev/hidraw
+except ImportError:
+    hid = None
 
 VID_PID = "0000258A:0000DEAD"
 RAW_SIZE = 32
@@ -41,7 +52,15 @@ NAMES = [
 
 
 def find_device():
-    """The hidraw node of the raw HID interface (usage page 0xFF60) of the keyboard."""
+    """The hidraw node of the raw HID interface (usage page 0xFF60) of the keyboard, or its hidapi path where there is no hidraw."""
+    if not os.path.isdir("/sys/class/hidraw"):
+        if hid is None:
+            sys.exit("diag: no /dev/hidraw here; install the hidapi module:  py -m pip install hidapi")
+        for info in hid.enumerate(0x258A, 0xDEAD):
+            if info["usage_page"] == 0xFF60:
+                return info["path"]
+        return None
+
     for node in sorted(glob.glob("/sys/class/hidraw/hidraw*")):
         try:
             uevent = open(os.path.join(node, "device/uevent")).read()
@@ -55,10 +74,23 @@ def find_device():
 
 class Keyboard:
     def __init__(self, path):
-        self.fd = os.open(path, os.O_RDWR)
+        self.device = None
+        if isinstance(path, bytes):  # a hidapi path
+            self.device = hid.device()
+            self.device.open_path(path)
+        else:
+            self.fd = os.open(path, os.O_RDWR)
 
     def ask(self, *request):
         packet = bytes(request) + bytes(RAW_SIZE - len(request))
+
+        if self.device:
+            self.device.write(b"\x00" + packet)  # report id 0: the interface has none
+            reply = self.device.read(RAW_SIZE, 1000)
+            if not reply:
+                sys.exit("diag: the keyboard did not answer")
+            return bytes(reply)
+
         os.write(self.fd, packet)
         ready, _, _ = select.select([self.fd], [], [], 1.0)
         if not ready:
