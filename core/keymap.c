@@ -3,6 +3,8 @@
 
 static uint16_t keys[KEYMAP_LAYERS][MATRIX_ROWS][MATRIX_COLS];
 static uint16_t encoder_keys[KEYMAP_LAYERS][ENCODER_COUNT][2];
+static uint16_t tap_dances[KEYMAP_TAP_DANCE_COUNT][TD_FIELDS];
+static uint16_t tapping_term = KEYMAP_TAPPING_TERM_DEFAULT;
 static uint8_t  version;
 
 void keymap_init(void)
@@ -20,6 +22,13 @@ void keymap_init(void)
         }
     }
 
+    for (uint8_t index = 0; index < KEYMAP_TAP_DANCE_COUNT; index++) {
+        for (uint8_t field = 0; field < TD_FIELDS; field++) {
+            tap_dances[index][field] = keymap_default_tap_dance(index, field);
+        }
+    }
+
+    tapping_term = KEYMAP_TAPPING_TERM_DEFAULT;
     version++;
 }
 
@@ -66,4 +75,35 @@ bool keymap_set_encoder(uint8_t layer, uint8_t encoder, bool clockwise, uint16_t
 uint8_t keymap_version(void)
 {
     return version;
+}
+
+uint16_t keymap_tap_dance_get(uint8_t index, uint8_t field)
+{
+    if (index >= KEYMAP_TAP_DANCE_COUNT || field >= TD_FIELDS) {
+        return 0;
+    }
+
+    return tap_dances[index][field];
+}
+
+bool keymap_tap_dance_set(uint8_t index, uint8_t field, uint16_t value)
+{
+    if (index >= KEYMAP_TAP_DANCE_COUNT || field >= TD_FIELDS) {
+        return false;
+    }
+
+    tap_dances[index][field] = value;
+    version++;
+    return true;
+}
+
+uint16_t keymap_tapping_term(void)
+{
+    return tapping_term;
+}
+
+void keymap_set_tapping_term(uint16_t ms)
+{
+    tapping_term = ms;
+    version++;
 }

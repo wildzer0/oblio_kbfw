@@ -3,12 +3,14 @@
 #include "keycodes.h"
 #include "layer.h"
 #include "report.h"
+#include "tapping.h"
 
 void keyboard_init(void)
 {
     keymap_init();
     layer_init();
     report_init();
+    tapping_init();
 }
 
 // The layer engine holds modifiers (one-shot, layer + mods) through the same report as the keys.
@@ -72,23 +74,84 @@ static void send_keycode(uint16_t keycode, bool pressed)
     }
 }
 
-void keyboard_event(const matrix_event_t *event, uint16_t now)
-{
-    if (event->pressed) {
-        // The key is looked up before layer_key_pressed(): a one-shot layer must still be on for the key it waits for.
-        const uint16_t keycode = layer_key_down(event->row, event->col);
+// The time of the event being handled, for the hooks that run inside it (queued events replayed by the tapping logic)
+static uint16_t current_now;
 
-        if (!layer_process(keycode, true, now)) {
-            layer_key_pressed();
-            send_keycode(keycode, true);
-        }
+// A keycode going down or up, from a key of the keymap or from a tap dance.
+static void run_keycode(uint16_t keycode, bool pressed)
+{
+    if (layer_process(keycode, pressed, current_now)) {
         return;
     }
 
-    const uint16_t keycode = layer_key_up(event->row, event->col);
+    if (pressed) {
+        // The key was looked up before this: a one-shot layer must still be on for the key it waits for.
+        layer_key_pressed();
+    }
 
-    if (!layer_process(keycode, false, now)) {
-        send_keycode(keycode, false);
+    send_keycode(keycode, pressed);
+
+    if (!pressed) {
         layer_key_released();
     }
+}
+
+static void process_key_state(uint8_t row, uint8_t col, bool pressed)
+{
+    if (tapping_intercept(row, col, pressed, current_now)) {
+        return; // a tap-or-hold key is undecided: this waits behind it (or decides it)
+    }
+
+    const uint16_t keycode = pressed ? layer_key_down(row, col) : layer_key_up(row, col);
+
+    if (tapping_event(row, col, keycode, pressed, current_now)) {
+        return; // a tap-or-hold key starts waiting, or lets go after becoming a hold
+    }
+
+    run_keycode(keycode, pressed);
+}
+
+void keyboard_event(const matrix_event_t *event, uint16_t now)
+{
+    current_now = now;
+    process_key_state(event->row, event->col, event->pressed);
+}
+
+void keyboard_task(uint16_t now)
+{
+    current_now = now;
+    tapping_task(now);
+}
+
+// ---- what tapping.c needs from the rest of the firmware ----
+void tapping_hook_replay(uint8_t row, uint8_t col, bool pressed)
+{
+    process_key_state(row, col, pressed);
+}
+
+void tapping_hook_tap(uint8_t basic_keycode)
+{
+    layer_key_pressed(); // a tapped key is a key press as far as one-shots go
+    send_keycode(basic_keycode, true);
+    send_keycode(basic_keycode, false);
+    layer_key_released();
+}
+
+void tapping_hook_mods(uint8_t mods, bool on)
+{
+    if (on) {
+        layer_hook_mods_add(mods);
+    } else {
+        layer_hook_mods_del(mods);
+    }
+}
+
+void tapping_hook_layer(uint8_t layer, bool on)
+{
+    layer_hold(layer, on);
+}
+
+void tapping_hook_keycode(uint16_t keycode, bool pressed)
+{
+    run_keycode(keycode, pressed);
 }

@@ -8,3 +8,6 @@ void keyboard_init(void);
 
 // One debounced key event. `now` is the time in ms (wraps at 65536).
 void keyboard_event(const matrix_event_t *event, uint16_t now);
+
+// Regularly, with the current time: lets a key held past the tapping term become a hold.
+void keyboard_task(uint16_t now);

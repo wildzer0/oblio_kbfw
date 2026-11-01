@@ -27,6 +27,13 @@ uint16_t keymap_default_encoder(uint8_t layer, uint8_t encoder, bool clockwise)
     return KC_NO;
 }
 
+uint16_t keymap_default_tap_dance(uint8_t index, uint8_t field)
+{
+    (void)index;
+    (void)field;
+    return 0;
+}
+
 // every report sent: kind, then the boot report, consumer and system usages at that moment
 typedef struct {
     report_kind_t kind;

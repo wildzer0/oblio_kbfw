@@ -63,3 +63,12 @@ uint16_t keymap_default_encoder(uint8_t layer, uint8_t encoder, bool clockwise)
     (void)encoder; // one encoder
     return (layer < DEFAULT_LAYERS) ? encoder_keys[layer][clockwise ? 1 : 0] : KC_TRANSPARENT;
 }
+
+// Tap dances, {on tap, on hold, on double tap, on tap-then-hold, tapping term (0 = the general one)}.
+// TD(0) is the encoder push: tap = mute, hold = play/pause, double tap = next track.
+uint16_t keymap_default_tap_dance(uint8_t index, uint8_t field)
+{
+    static const ROM uint16_t td0[TD_FIELDS] = {KC_MUTE, KC_MPLY, KC_MNXT, 0, 0};
+
+    return (index == 0) ? td0[field] : 0;
+}

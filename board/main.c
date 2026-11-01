@@ -1,5 +1,5 @@
 // Oblio entry point: clock, pins, recovery check, tick, the debounced key matrix and the key logic behind it.
-// The logic is being added step by step (phase 3): layers so far; the HID report, tapping, macros and profiles follow.
+// The logic is being added step by step (phase 3): layers, report and tapping so far; macros and profiles follow.
 
 #include "clock.h"
 #include "tick.h" // declares the Timer 2 handler: SDCC wants it visible in the module that defines main()
@@ -44,5 +44,7 @@ void main(void)
         while (matrix_event_pop(&event)) {
             keyboard_event(&event, now_ms);
         }
+
+        keyboard_task(now_ms);
     }
 }
