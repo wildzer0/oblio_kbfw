@@ -1,4 +1,5 @@
 #include "check.h"
+#include "blog.h"
 #include "diag.h"
 #include <string.h>
 
@@ -79,7 +80,19 @@ static void test_radio_reply(void)
     CHECK(data[2] == 1 && data[7] == 6); // the six status bytes
     CHECK(data[8] == 0x08 && data[29] == 0x99); // the 22 bytes of the last 08 frame
     CHECK(data[30] == 0x03 && data[31] == 0x01); // and the status as last seen on battery
+
+    // kind 4: the battery log, six records of four bytes from the index asked for
+    memset(data, 0, sizeof data);
+    data[0] = 0xF1;
+    data[1] = 4;
+    diag_receive(data, 32);
+    CHECK(data[2] == blog_count());
+    CHECK(data[2] == 0); // nothing has been logged in this test
 }
+
+// core/blog.c asks the radio for its last answer on battery: there is no radio in this test, and no log either
+const uint8_t *radio_status_on_battery(void) { return 0; }
+bool radio_hook_on_battery(void) { return false; }
 
 void diag_hook_radio_on_battery(uint8_t *battery, uint8_t *flags)
 {

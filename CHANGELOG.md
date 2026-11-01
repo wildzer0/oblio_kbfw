@@ -12,6 +12,23 @@
 
 Il controllo di recupero Esc+1+2 va all'inizio del `main`, prima di USB e radio.
 
+## 2026-11-02 (notte) — il registro della batteria dentro la tastiera
+
+- **Il problema fisico, detto chiaro**: la diagnostica viaggia sull'USB della tastiera, e col cavo la batteria **si carica** (il byte risponde
+  `0xFF`). Il dongle 2.4G, dal canto suo, si presenta al PC come una tastiera normale: **non espone l'interfaccia raw HID**, quindi nessun demone
+  sul PC può interrogare la tastiera mentre è wireless. Le letture che servono si possono fare solo senza cavo, cioè quando niente può leggerle.
+- **La soluzione**: la tastiera se le scrive da sola. `core/blog.[ch]` tiene **48 record da 4 byte** (192 B di XDATA): i minuti di accensione,
+  il byte batteria e il byte dei flag dello stato radio. Un record quando la lettura cambia, e comunque ogni **5 minuti**; è un anello, si
+  sovrascrive il più vecchio. Vive in RAM: un power cycle lo azzera (una scarica = una sessione).
+- Il tempo è quello **da svegli** (i minuti si fermano nel sonno): è la cosa onesta, perché nel sonno non si campiona nulla e un record non deve
+  dichiarare un'età che non ha.
+- **Lettura**: comando diag `kind 4`, sei record per pacchetto; `tools/diag.py --blog` stampa la tabella. `--daemon N file.csv` scrive i
+  contatori ogni N secondi in CSV con l'orologio (per lasciarlo girare la notte col cavo, che serve per il flicker).
+- Test nuovo `test_blog` (niente senza risposta, niente col cavo, record sul cambio, ogni 5 minuti, anello, il sonno non conta) e il caso kind 4
+  in `test_diag`. `core/blog.c` non conosce il radio: `blog_task` riceve lo stato, così i test non hanno bisogno di stub.
+
+Budget: flash **53069/56320** (3,3 KB liberi), XDATA **3934/4096** (162 B liberi). `make test` 28/28, `make sim` 24/24, `make stages` ok.
+
 ## 2026-11-03 — la batteria: 0xFF col cavo, e lo stato a batteria adesso si può leggere
 
 - **Dati dell'utente** (carica reale ~metà): con il cavo e selettore 2.4G la ghiera diceva **tutte e dieci** (100%), senza cavo **cinque** (43%),

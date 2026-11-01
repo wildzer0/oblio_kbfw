@@ -149,14 +149,60 @@ def radio(keyboard):
         print("on battery         : battery byte {:#04x} (level {}), flags byte {:#04x}".format(battery, battery & 0x07, flags))
 
 
+def blog(keyboard):
+    """The battery log the keyboard keeps while it runs on its battery: minutes awake, the battery byte and the flags byte of the status
+    answer. It is the only way to see those readings, because the diagnostics need a cable and with the cable the battery charges."""
+    first = keyboard.ask(0xF1, 4, 0)
+    count = first[2]
+
+    if count == 0:
+        print("battery log        : empty (it fills up while the keyboard runs on its battery)")
+        return
+
+    print("battery log        : {} records (minutes awake, battery byte, flags byte)".format(count))
+
+    index = 0
+    while index < count:
+        reply = keyboard.ask(0xF1, 4, index)
+        for at in range(3, len(reply) - 3, 4):
+            if index >= count:
+                break
+            minutes = reply[at] | (reply[at + 1] << 8)
+            battery = reply[at + 2]
+            flags = reply[at + 3]
+            print("  {:5d} min   battery {:#04x} (level {})   flags {:#04x}".format(minutes, battery, battery & 0x07, flags))
+            index += 1
+
+
+def daemon(keyboard, seconds, path):
+    """The counters (and the radio, if asked) appended to a file every `seconds`, with the time: leave it running and read it afterwards."""
+    import datetime
+
+    with open(path, "a") as out:
+        out.write("# counters, in the order this tool prints them\n")
+        while True:
+            values = counters(keyboard)
+            line = ",".join(str(v) for v in values)
+            out.write("{},{}\n".format(datetime.datetime.now().isoformat(timespec="seconds"), line))
+            out.flush()
+            time.sleep(seconds)
+
+
 def main():
     args = sys.argv[1:]
     want_monitor = "--monitor" in args
     want_radio = "--radio" in args or want_monitor
     want_ports = "--ports" in args
+    want_blog = "--blog" in args
     watch = None
     if "--watch" in args:
         watch = float(args[args.index("--watch") + 1])
+
+    daemon_seconds = None
+    if "--daemon" in args:
+        at = args.index("--daemon")
+        more = args[at + 1:]
+        daemon_seconds = float(more[0]) if more and not more[0].startswith("--") else 60.0
 
     path = find_device()
     if not path:
@@ -166,11 +212,16 @@ def main():
 
     if want_monitor:
         keyboard.unlock()
-
-    if want_monitor:
         if keyboard.ask(0xF1, 2, 1)[2] != 1:
             sys.exit("diag: the keyboard did not start listening to the radio")
         print("listening to the radio (only in USB mode; in the wireless modes it is in use anyway)")
+
+    if daemon_seconds is not None:
+        out = [a for a in args[args.index("--daemon") + 1:] if not a.startswith("--")]
+        out = out[1] if len(out) > 1 else "oblio-log.csv"
+        print("logging every {:g} s to {} (Ctrl+C to stop)".format(daemon_seconds, out))
+        daemon(keyboard, daemon_seconds, out)
+        return
 
     values = counters(keyboard)
     print("counters:")
@@ -179,6 +230,8 @@ def main():
         radio(keyboard)
     if want_ports:
         ports(keyboard)
+    if want_blog:
+        blog(keyboard)
 
     while watch:
         time.sleep(watch)
@@ -189,6 +242,8 @@ def main():
             values = new
         if want_radio:
             radio(keyboard)
+        if want_blog:
+            blog(keyboard)
 
 
 if __name__ == "__main__":

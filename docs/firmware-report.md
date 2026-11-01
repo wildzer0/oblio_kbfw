@@ -80,7 +80,12 @@ The USB device enumerates as `258a:dead`, product name "Oblio B68", with a keybo
 - **Wireless:** 2.4G and Bluetooth through the BK3632 (`core/radio.c`, `core/link.c`, `board/radio_hw.c`): frames, flow control, mode, slots, pairing.
   The mode selector is read with a 50 ms stability filter. Keys go to the radio queues when `link_wireless()`, otherwise to the USB queue.
 - **Sleep:** in wireless modes only, after 1/5/10/30 min or never (default 10), or on demand; power-down with INT4 wake-up. Never sleeps on USB.
-- **Diagnostics** (`core/diag.c`, VIA command `0xF1`, `tools/diag.py`): counters readable **without** the Vial unlock (they are for when the keys do not work).
+- **Diagnostics** (`core/diag.c`, VIA command `0xF1`, `tools/diag.py`): counters readable **without** the Vial unlock (they are for when the keys
+  do not work).
+- **Battery log** (`core/blog.c`): the keyboard writes the radio's battery and flag bytes down itself while it runs on its battery, because the
+  diagnostics need a cable and the cable charges the battery (a reading with the cable is the sentinel `0xFF`). Up to 48 records of four bytes -
+  the minutes it has been awake, the battery byte, the flags byte - one whenever the answer changes and at least every five minutes; it lives in
+  RAM, so turning the keyboard off starts a new one. Read it with `diag.py --blog` (diag kind 4, six records per packet).
 - **Safety:** watchdog (kicked from the main loop and from `delay_us`, not from the scan wait), recovery chord at the start of `main`, flash writes confined to
   0xDC00–0xF000.
 
@@ -120,7 +125,7 @@ nix develop --command make sim               # ~50 s: the real hex in the chip s
 nix develop --command make stages            # staged builds, see below
 ```
 
-Current budget: **flash 51654 / 56320 (4.7 KB of margin), XDATA 3721 / 4096 (375 B free), keymap slot 1709 of 2048 bytes.** Six layers since
+Current budget: **flash 53069 / 56320 (3.3 KB of margin), XDATA 3934 / 4096 (162 B free), keymap slot 1709 of 2048 bytes.** Six layers since
 2026-11-02 (8 → 6 freed 320 B of XDATA and 320 B of slot); the Mac pair moved from 7/6 to 5/4. The per-key colour buffer went away again with the
 painter (the app has none), which is why the slot has room for what comes next.; the stack is the other tight one (internal RAM, 223 B
 from 0x21 up; the USB interrupt used to keep 48 B of buffers on it, now static in XDATA). Check the `flash` line before every commit; a failed link

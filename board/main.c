@@ -1,6 +1,7 @@
 // Oblio entry point: clock, pins, recovery check, then the timer interrupt (backlight subframes and matrix scans), and a main loop
 // that debounces the keys, runs the key logic and looks after USB, profiles, settings and the backlight.
 
+#include "blog.h"
 #include "clock.h"
 #include "diag.h"
 #include "diag_hw.h"
@@ -18,6 +19,7 @@
 #include "radio_hw.h" // declares the serial handler, for the same reason
 #include "timebase.h"
 #include "matrix.h"
+#include "radio.h"
 #include "matrix_hw.h"
 #include "os_switch.h"
 #include "recovery.h"
@@ -63,6 +65,7 @@ static void init(void)
 
     matrix_init();
     keyboard_init();
+    blog_init();
     watchdog_kick();
     settings_load();
     store_init();     // the keymap from flash, or the defaults
@@ -127,6 +130,8 @@ void main(void)
         os_switch_task(now_ms);
         store_task(now_ms, any_key_down);
         settings_task(now_ms, any_key_down);
+        // what the radio says about the battery, written down while there is no cable to read it
+        blog_task(now_ms, radio_hook_on_battery(), radio_status_on_battery());
         usb_task(now_ms);
 #if STAGE_LED
         led_task();
