@@ -236,10 +236,13 @@ class TestRawHid(UsbCase):
     def test_a_command_the_firmware_does_not_know(self):
         self.assertEqual(self.usb.raw_hid([0x77])[0], 0xFF)
 
-    def test_the_counters_can_be_read_without_the_unlock_but_the_radio_dump_cannot(self):
-        # the counters are what tells a dead keyboard from a starved one: they must be readable with no key working to unlock
+    def test_the_diagnostics_read_without_the_unlock_but_the_radio_monitor_does_not(self):
+        # the counters and the radio's own data are what tells a dead keyboard from a starved one, and what a measurement needs: they must
+        # be readable with no key working to unlock. Only the monitor switch, which changes what the radio does, needs it.
         self.assertEqual(self.usb.raw_hid([0xF1, 0])[0], 0xF1)
-        self.assertEqual(self.usb.raw_hid([0xF1, 1])[0], 0xFF)
+        self.assertEqual(self.usb.raw_hid([0xF1, 1])[0], 0xF1)
+        self.assertEqual(self.usb.raw_hid([0xF1, 3])[0], 0xF1)
+        self.assertEqual(self.usb.raw_hid([0xF1, 2, 1])[0], 0xFF)
 
     def test_two_requests_in_a_row(self):
         self.assertEqual(self.usb.raw_hid([0x01])[:3], [0x01, 0x00, 0x09])
