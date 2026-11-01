@@ -100,7 +100,11 @@ void tick_isr(void) __interrupt(INT_TIMER2)
         tick_hook_scan(scan_raw);
         scan_ready = true;
 
+        diag_set(DIAG_PASSES_LAST, (uint8_t)(alive - seen_alive));
+
         if (alive == seen_alive) {
+            diag_inc(DIAG_NO_PASS);
+
             if (++starved >= STARVED_SCANS) {
                 if (!back_off) {
                     diag_inc(DIAG_BACKOFF);

@@ -394,17 +394,12 @@ static void rx_frame_done(void)
             break;
 
         case HEADER_INFO:
-            diag_inc(DIAG_RADIO_INFOS);
             memcpy(last_info, rx_frame, INFO_LEN);
             ack_info = true;
             break;
 
         case HEADER_RADIO:
             if (rx_frame[1] == CMD_STATUS && rx_length == STATUS_LEN) {
-                if (memcmp(status, &rx_frame[2], sizeof status) != 0) {
-                    diag_inc(DIAG_RADIO_STATUS);
-                }
-
                 memcpy(status, &rx_frame[2], sizeof status);
             } else if (rx_frame[1] == 0x00u && rx_frame[2] == 0x01u) {
                 refused();

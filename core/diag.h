@@ -20,8 +20,8 @@ typedef enum {
     DIAG_MS_PER_50_SOF,    // milliseconds of our own clock that pass in 50 start-of-frames of the USB bus (1 ms each): 50 if the timer runs as assumed
     DIAG_LED_US_MAX,       // longest LED slot, from its start to the end of its work, in us (the slot is 400; more means it ran late)
     DIAG_SCAN_US_MAX,      // the same for the scan slot (500)
-    DIAG_RADIO_INFOS,      // 08 frames from the radio
-    DIAG_RADIO_STATUS,     // changes of the radio's status bytes
+    DIAG_PASSES_LAST,      // passes of the main loop between the last two scans
+    DIAG_NO_PASS,          // scans after which the main loop had not come round once since the one before
     DIAG_BACKOFF,          // times the main loop was found starved and the backlight stood aside
     DIAG_USB_IRQS,         // USB interrupts other than the start of frame
     DIAG_SCAN_LATE,        // the same as DIAG_SLOT_LATE, for the scan slots

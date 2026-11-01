@@ -47,6 +47,10 @@ Il controllo di recupero Esc+1+2 va all'inizio del `main`, prima di USB e radio.
 - `hal/tick.c`: ogni ISR legge il contatore (latenza), riavvia il Timer 2 per il proprio slot, e alla fine della scansione forza subito l'overflow, così lo slot seguente parte appena finita. L'orologio in millisecondi usa il tempo reale (lunghezza dello slot + latenza), non i valori nominali. `DIAG_SCAN_US_MAX` ora è la durata vera del lavoro di scansione. Flash 43814/44032 (margine 218 B).
 - **Non provato sull'hardware.** Resta da spiegare perché la scansione duri ~800 µs e non ~440; non cambia l'esito, ma la cornice dei LED non è più fissa (~9,6 ms con scansione da 800 µs). Prova: `diag.py` → `longest scan slot` (durata vera), `own ms per 50 USB SOF` (deve dare 50).
 
+### Dopo la correzione dei tempi: LED stabili, scansioni perse in aumento
+- Prova dell'utente (col cavo): **LED stabili**. Contatori: slot LED/scansione in ritardo 0, back-off 0, slot LED più lungo 93 µs, scansione più lunga 609 µs (durata vera), giro più lento del main 7 ms, 49 ms ogni 50 SOF (il Timer 2 va ai 2 MHz assunti, al più con un errore del 2%). **Scansioni perse in aumento** (3910 poi 14594), ~40% come prima della correzione: il main non prende ogni scansione.
+- Nel simulatore il giro del main costa ~1170 istruzioni (~180 µs sul chip), quindi in teoria prende ogni scansione molte volte: manca il dato hardware. Nuovi contatori al posto di quelli radio (a zero in USB): giri del main tra le ultime due scansioni (`DIAG_PASSES_LAST`) e scansioni dopo le quali il main non è passato nemmeno una volta (`DIAG_NO_PASS`). Flash 43803/44032.
+
 ### Fase 1 — build, budget, release
 - `board/main.c`: `main` segnaposto (loop vuoto) per esercitare compilatore, linker e budget; lo sostituisce la fase 2.
 - `Makefile`: nuovi target `fw` (SDCC → `build/oblio.ihx` e `build/oblio.hex` con `packihx`), `size` (controllo budget); `clean` rimuove anche `build/`. Flag SDCC ripresi dal vecchio repo: modello large, `--stack-auto`, XDATA 4096, codice fino a 0xAC00.
