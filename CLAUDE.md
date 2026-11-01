@@ -1,6 +1,7 @@
 # CLAUDE.md — Oblio (firmware Yunzii B68)
 
-Leggi questo file all'inizio di ogni sessione. Rispondi **in italiano**. Per una panoramica completa e aggiornata (cosa fa il firmware, stato verificato, problemi aperti) leggi [docs/firmware-report.md](docs/firmware-report.md). Il README è per il pubblico (inglese, niente milestone); lo stato dei lavori sta in [CHANGELOG.md](CHANGELOG.md) e qui.
+Leggi questo file all'inizio di ogni sessione; per riprendere il lavoro da dove era rimasto c'è [docs/session-state.md](docs/session-state.md)
+(ultimo commit, cosa aspetta una prova sulla tastiera, domande aperte, misure da fare). Rispondi **in italiano**. Per una panoramica completa e aggiornata (cosa fa il firmware, stato verificato, problemi aperti) leggi [docs/firmware-report.md](docs/firmware-report.md). Il README è per il pubblico (inglese, niente milestone); lo stato dei lavori sta in [CHANGELOG.md](CHANGELOG.md) e qui.
 
 ## Cos'è
 Firmware nuovo, solo per la Yunzii B68 (SH68F90A + radio BK3632), scritto da zero: stile QMK-Vial ma snello e veloce.
