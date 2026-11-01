@@ -1,6 +1,7 @@
 #include "usb.h"
 #include "usb_device.h"
 #include "usb_reports.h"
+#include "raw_hid.h"
 
 static volatile bool event;     // a bus reset or a configuration change: see usb_hw_take_event()
 static volatile bool suspended;
@@ -85,6 +86,27 @@ void usb_reports_hook_ep1_send(const uint8_t *data, uint8_t length)
     EP1CON |= EPCON_IRDY;
 }
 
+// ---- EP2: the raw HID pipe ----
+bool raw_hid_hook_ep2_free(void)
+{
+    return !(EP2CON & EPCON_IRDY);
+}
+
+void raw_hid_hook_ep2_send(const uint8_t *data, uint8_t length)
+{
+    for (uint8_t i = 0; i < length; i++) {
+        EP2_IN_BUF[i] = data[i];
+    }
+
+    IEP2CNT = (uint8_t)((IEP2CNT & ~0x7F) | length);
+    EP2CON |= EPCON_IRDY;
+}
+
+void raw_hid_hook_out_arm(void)
+{
+    EP2CON |= EPCON_ORDY;
+}
+
 // ---- the interrupt ----
 void usb_hw_init(void)
 {
@@ -92,7 +114,7 @@ void usb_hw_init(void)
 
     USBADDR = 0;
     USBIE1  = USBIE1_SETUPIE | USBIE1_SOFIA | USBIE1_RESMIE | USBIE1_SUSPIE | USBIE1_PBRSTIE;
-    USBIE2  = USBIE2_OEP0IE | USBIE2_IEP0IE;
+    USBIE2  = USBIE2_OEP0IE | USBIE2_IEP0IE | USBIE2_OEP2IE;
     USBCON  = USBCON_ENUSB | USBCON_SW1CON;
     IEN1 |= IEN1_EUSB;
 }
@@ -132,7 +154,8 @@ static void bus_reset(void)
     event = true;
 }
 
-// The ISR does not call anything the main loop calls: it works on the EP0 state and the hardware, and tells the main loop
+// The ISR calls only raw_hid_out() of what the main loop shares, which hands over through a flag and does not run while
+// raw_hid_task() works on the same packet (the endpoint is not armed then). Otherwise it does not call anything the main loop calls: it works on the EP0 state and the hardware, and tells the main loop
 // through `event`, the ISP flag and the LED byte.
 void usb_isr(void) __interrupt(7)
 {
@@ -196,6 +219,19 @@ void usb_isr(void) __interrupt(7)
     if (if2 & USBIF2_IEP0IF) {
         USBIF2 &= (uint8_t)~USBIF2_IEP0IF;
         usb_device_ep0_in_done();
+    }
+
+    if (if2 & USBIF2_OEP2IF) {
+        uint8_t       data[RAW_HID_SIZE];
+        const uint8_t n = OEP2CNT & 0x7F;
+
+        USBIF2 &= (uint8_t)~USBIF2_OEP2IF;
+
+        for (uint8_t i = 0; i < RAW_HID_SIZE; i++) {
+            data[i] = EP2_OUT_BUF[i];
+        }
+
+        raw_hid_out(data, n);
     }
 
     // the completion of EP1 / EP2 IN needs no bookkeeping: IRDY reads back as busy / free

@@ -2,6 +2,7 @@
 #include "usb_reports.h"
 #include "usb.h"
 #include "isp.h"
+#include "raw_hid.h"
 
 // What the USB side hands to the rest of the keyboard.
 static volatile uint8_t host_leds;
@@ -38,11 +39,23 @@ void usb_task(void)
 {
     if (usb_hw_take_event()) {
         usb_reports_flush(); // a bus reset or a new configuration: what was queued is stale
+
+        if (usb_device_configured()) {
+            raw_hid_reset(); // the raw HID pipe starts listening
+        }
     }
+
+    raw_hid_task();
 
     usb_reports_pump();
 
     if (isp_requested) {
         isp_jump(); // the host asked for the bootloader and the status stage is done
     }
+}
+
+// Until Vial / VIA arrive (phase 5): every request is answered "unhandled", which both protocols understand (0xFF).
+void raw_hid_hook_process(uint8_t packet[RAW_HID_SIZE])
+{
+    packet[0] = 0xFF;
 }

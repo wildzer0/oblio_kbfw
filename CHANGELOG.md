@@ -5,7 +5,7 @@
 1. CI: build del firmware, budget flash/XDATA, hex come artifact, Release al tag — **fatto** (CI remota non ancora vista girare)
 2. HAL minimo e matrice 5×16 — **scritta, non provata sull'hardware** (build e test host OK)
 3. Logica pura con test sull'host (layer, tapping, report, macro, profili) — **fatta** (passi 1–5, 8 file di test)
-4. USB e raw HID (dopo l'arrivo del programmatore ICP)
+4. USB e raw HID — **scritta, non provata sull'hardware**
 5. Vial/VIA
 6. Radio, LED, profili, sleep
 7. Parità con il porting SMK e passaggio
@@ -100,3 +100,12 @@ Logica pura completa: matrice, layer, report, tapping, macro, profili. Resta da 
 - `board/usb_app.[ch]`: byte dei LED dall'host (`usb_host_leds()`, per il caps lock della fase 6), richiesta ISP, collegamento di configurazione/protocollo alla coda e `usb_task()` del main loop (svuotamento della coda, salto al bootloader **dal main**, mai dall'ISR). `board/isp.[ch]`: `isp_jump` condiviso con il recupero Esc+1+2. `board/transport.c`: `report_hook_send` → coda USB. `board/main.c`: inizializza l'USB dopo il recupero e prima di abilitare gli interrupt; `usb_task()` nel giro.
 - Non portato (per ora): `usb_wait_for_enumeration` del porting (attesa dell'enumerazione prima di accendere i LED; serve ai LED, fase 6); EP2 OUT (raw HID) non è armato: arriva al passo 3.
 - Test `test_usb_reports.c` (6 test: formato dei pacchetti con e senza ID, consumer/system, un pacchetto per volta e rispetto dell'endpoint occupato, niente prima della configurazione, svuotamento, coda piena). Verifica: `make test` 11 file OK; `make fw size` → flash 21002/44032, XDATA 2560/4096 (la flash cresce di ~6 KB). Stack libero dopo l'avvio: 223 B; l'uso massimo in ISR + catena del main **non è misurato** (da fare in fase 7 con un riempimento dello stack sull'hardware). Simulatore non usato.
+
+### Fase 4, passo 3 — raw HID
+- `core/raw_hid.[ch]`: il canale di Vial e VIA, richiesta da 32 B su EP2 OUT e risposta da 32 B su EP2 IN. Una richiesta alla volta: l'interrupt copia il pacchetto e lo segna in attesa, e finché non c'è risposta EP2 OUT non viene riarmato, quindi il pacchetto successivo dell'host riceve NAK e riprova (niente coda, niente perdite, come nel porting). Il `main` esegue `raw_hid_hook_process` (la fase 5 lo trasforma in VIA/Vial; la risposta resta nello stesso buffer), aspetta che EP2 IN sia libero e poi riarma. Un pacchetto di dimensione diversa viene scartato e si riarma. `raw_hid_reset()` al cambio di configurazione/reset di bus.
+- `hal/usb.c`: hook di EP2 (IN libero/invio, riarmo OUT), interrupt OEP2 abilitato; `board/usb_app.c`: all'evento di configurazione svuota la coda dei report e riavvia il canale raw HID; nell'attesa della fase 5 ogni richiesta riceve la risposta «non gestito» (`0xFF` nel primo byte), che VIA/Vial capiscono, invece di un'eco.
+- Sospensione e configurazione sono già esposte (`usb_hw_suspended()`, `usb_device_configured()`) per sleep e remote wakeup della fase 6.
+- Test `test_raw_hid.c` (5 test: richiesta e risposta, risposta che aspetta EP2 IN occupato, una sola esecuzione per richiesta, nessuna seconda richiesta in volo, pacchetto di altra dimensione, reset); verificato con una mutazione (la guardia «una volta sola» tolta → i test falliscono). Verifica: `make test` 12 file OK; `make fw size` → flash 21348/44032, XDATA 2594/4096. Simulatore non usato; nessuna prova sull'hardware.
+
+### Fine fase 4
+Enumerazione USB, report HID (6KRO, consumer, system), LED dall'host, canale raw HID, ingresso nel bootloader dal comando ISP: tutto scritto, compilato e con la logica testata sull'host; **nessuna parte USB è stata provata sull'hardware** (registri, tempi, riarmo degli endpoint, sospensione). Restano: Vial/VIA veri (fase 5) e LED/radio/sleep/impostazioni (fase 6).
