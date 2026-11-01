@@ -11,8 +11,11 @@ SDCC      ?= sdcc
 SDCCFLAGS := --std-c23 --Werror -mmcs51 --model-large --stack-auto \
              --xram-loc 0x0000 --xram-size $(XRAM_SIZE) --code-size $(CODE_LIMIT) \
              --opt-code-speed --out-fmt-ihx
-FW_SRC    := $(wildcard core/*.c hal/*.c board/*.c)
+# Compiled to check them with SDCC, linked once the board provides their hooks (step 5 of phase 6)
+NOT_LINKED := core/radio.c
+FW_SRC    := $(filter-out $(NOT_LINKED),$(wildcard core/*.c hal/*.c board/*.c))
 FW_REL    := $(patsubst %.c,build/%.rel,$(FW_SRC)) build/vial_data.rel
+CHECK_REL := $(patsubst %.c,build/%.rel,$(NOT_LINKED))
 
 .PHONY: test fw size clean check-vial
 .DELETE_ON_ERROR: # a failed build must not leave a half-made file that make takes for up to date
@@ -68,7 +71,7 @@ build/%.rel: %.c $(HEADERS)
 	@mkdir -p $(dir $@)
 	$(SDCC) $(SDCCFLAGS) -Icore -Ihal -Iboard -c $< -o $@
 
-build/oblio.ihx: $(FW_REL)
+build/oblio.ihx: $(FW_REL) $(CHECK_REL)
 	$(SDCC) $(SDCCFLAGS) $(FW_REL) -o $@
 
 build/oblio.hex: build/oblio.ihx
