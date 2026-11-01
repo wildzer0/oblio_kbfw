@@ -389,6 +389,8 @@ static void rx_frame_done(void)
         return;
     }
 
+    diag_inc(DIAG_RADIO_RX);
+
     switch (rx_frame[0]) {
         case HEADER_EVENT:
             ack_event = true;
@@ -405,6 +407,7 @@ static void rx_frame_done(void)
             } else if (rx_frame[1] == 0x00u && rx_frame[2] == 0x01u) {
                 refused();
             } else if (rx_frame[1] == CMD_MODE) {
+                diag_inc(DIAG_RADIO_MODE);
                 mode_answered();
             } else if (rx_frame[1] == CMD_REPORT && last_kind == KIND_REPORT) {
                 acked_mods = last_mods;
@@ -454,6 +457,7 @@ static void rx_task(void)
 
 static void start_frame(kind_t kind)
 {
+    diag_inc(DIAG_RADIO_TX);
     last_kind = kind;
     t_start   = radio_hook_now_ms();
     radio_hook_select(true);

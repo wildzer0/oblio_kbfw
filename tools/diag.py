@@ -47,6 +47,9 @@ NAMES = [
     ("main passes between the last 2 scans", "{}"),
     ("backlight back-offs (starved)", "{}"),
     ("scan slots that ran late", "{}"),
+    ("radio: frames sent", "{}"),
+    ("radio: frames received (checksum ok)", "{}"),
+    ("radio: answers to the mode command", "{}"),
 ]
 
 
