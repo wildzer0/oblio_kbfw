@@ -9,6 +9,9 @@
 #include "led.h"
 #include "led_app.h"
 #include "led_hw.h"
+#include "link.h"
+#include "radio_hw.h" // declares the serial handler, for the same reason
+#include "timebase.h"
 #include "matrix.h"
 #include "matrix_hw.h"
 #include "recovery.h"
@@ -21,8 +24,14 @@
 #include "via.h"
 #include "sh68f90.h"
 
-// Milliseconds since power-on, for the uptime the Vial app shows and the unlock steps
+// Milliseconds since power-on, for the uptime the Vial app shows and the unlock steps; and the 16-bit clock of the main loop
 static uint32_t uptime_ms;
+static uint16_t now_ms;
+
+uint16_t board_now_ms(void)
+{
+    return now_ms;
+}
 
 uint32_t via_hook_now(void)
 {
@@ -43,6 +52,8 @@ static void init(void)
     encoder_init();
     led_init();
     led_hw_init();
+    radio_hw_init();
+    link_init();
     tick_init(); // from here on the timer plays the slots: LED subframes and scans (see core/sched.h)
 
     usb_device_reset();
@@ -57,7 +68,6 @@ void main(void)
 {
     uint8_t        raw[MATRIX_COLS];
     matrix_event_t event;
-    uint16_t       now_ms = 0;
 
     init();
 
@@ -85,5 +95,6 @@ void main(void)
         usb_task(now_ms);
         led_task();
         led_app_task(now_ms);
+        link_task(now_ms);
     }
 }

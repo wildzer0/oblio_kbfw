@@ -8,3 +8,5 @@
 #define GPIO_WRITE(port, value)        (P##port = (uint8_t)(value))
 #define GPIO_HIGH(port, mask)          (P##port |= (uint8_t)(mask))
 #define GPIO_LOW(port, mask)           (P##port &= (uint8_t) ~(mask))
+#define GPIO_OUTPUT(port, mask)        (P##port##CR |= (uint8_t)(mask))
+#define GPIO_INPUT(port, mask)         (P##port##CR &= (uint8_t) ~(mask))

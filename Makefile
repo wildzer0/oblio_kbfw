@@ -11,8 +11,8 @@ SDCC      ?= sdcc
 SDCCFLAGS := --std-c23 --Werror -mmcs51 --model-large --stack-auto \
              --xram-loc 0x0000 --xram-size $(XRAM_SIZE) --code-size $(CODE_LIMIT) \
              --opt-code-speed --out-fmt-ihx
-# Compiled to check them with SDCC, linked once the board provides their hooks (step 5 of phase 6)
-NOT_LINKED := core/radio.c
+# Sources compiled with SDCC but not linked, while a module waits for the hooks of the next step
+NOT_LINKED :=
 FW_SRC    := $(filter-out $(NOT_LINKED),$(wildcard core/*.c hal/*.c board/*.c))
 FW_REL    := $(patsubst %.c,build/%.rel,$(FW_SRC)) build/vial_data.rel
 CHECK_REL := $(patsubst %.c,build/%.rel,$(NOT_LINKED))
@@ -29,6 +29,7 @@ LINK_layer := core/keymap.c
 LINK_keyboard := core/layer.c core/keymap.c core/report.c core/tapping.c core/macro.c core/encoder.c
 LINK_tapping := core/keyboard.c core/layer.c core/keymap.c core/report.c core/macro.c core/encoder.c
 LINK_macro := core/keymap.c
+LINK_link := core/radio.c core/settings.c
 LINK_led := core/led_effect.c core/keymap.c
 LINK_via := core/vial.c core/keymap.c core/matrix.c
 LINK_usb_reports := core/report.c

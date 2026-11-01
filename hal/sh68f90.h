@@ -166,6 +166,26 @@ static __xdata __at(0x1120) volatile uint8_t EP1_IN_BUF[EP1_BUF_SIZE];
 static __xdata __at(0x1140) volatile uint8_t EP2_OUT_BUF[EP2_BUF_SIZE];
 static __xdata __at(0x1180) volatile uint8_t EP2_IN_BUF[EP2_BUF_SIZE];
 
+// The serial port (EUART0), which carries the link to the radio
+SFR(PCON, 0x87);
+SFR(SCON, 0xd8);
+SFR(SBUF, 0xaa);
+SFR(SBRTH, 0xad);
+SFR(SBRTL, 0xae);
+SFR(SFINE, 0xaf);
+SFR(IPL1, 0xb9);
+SFR(IPH1, 0xb5);
+
+SBIT(RI, 0xd8, 0);
+SBIT(TI, 0xd8, 1);
+SBIT(SM2_TXCOL, 0xd8, 5); // with PCON.SSTAT set, the top three bits of SCON are error flags: framing, receive overrun, transmit collision
+SBIT(SM1_RXOV, 0xd8, 6);
+SBIT(SM0_FE, 0xd8, 7);
+
+#define PCON_SSTAT (1u << 6)
+#define IEN1_ES0   (1u << 6) // also the bit of the serial port in IPL1 / IPH1
+
 // Interrupt numbers, as SDCC's __interrupt(n) wants them: vector 0x0003 + 8 * n. On this chip Timer 2 sits on vector 0.
 #define INT_TIMER2 0
 #define INT_USB    7
+#define INT_EUART0 13

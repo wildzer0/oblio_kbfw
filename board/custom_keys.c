@@ -1,12 +1,19 @@
 #include "keyboard.h"
 #include "b68_keys.h"
 #include "led.h"
+#include "link.h"
+#include "timebase.h"
 #include "store.h"
 
-// The keycodes of the B68 (b68_keys.h). The profile and lighting keys are handled here; the radio and sleep keys join them with
-// their modules.
+// The keycodes of the B68 (b68_keys.h). The profile, lighting and Bluetooth keys are handled here; the sleep keys join them with their module.
 void keyboard_hook_custom(uint16_t keycode, bool pressed)
 {
+    // The Bluetooth keys need the release too: a tap chooses the slot, a hold pairs
+    if (keycode >= B68_LK_1 && keycode <= B68_LK_3) {
+        link_key((uint8_t)(keycode - B68_LK_1 + 1), pressed, board_now_ms());
+        return;
+    }
+
     if (!pressed) {
         return;
     }
