@@ -25,7 +25,8 @@
 #define MODE_TRIES       8u
 #define REFUSED_RETRY_MS 10u
 #define POLL_MS          200u
-#define KEY_QUEUE        4u // a power of two: keyboard states waiting to go out (a tap is a press and a release in one pass)
+#define KEY_QUEUE        8u // a power of two: keyboard states waiting to go out (a tap is a press and a release in one pass, and a
+                            // fast sequence must not lose one: the queue holds eight states, ~4 keys typed back to back)
 #define CONSUMER_QUEUE   4u // consumer usages waiting
 
 uint8_t radio_checksum(const uint8_t *data, uint8_t length)

@@ -9,7 +9,6 @@ static uint8_t same[MATRIX_COLS];      // scans in a row the candidate has been 
 static matrix_event_t queue[QUEUE_SIZE];
 static uint8_t        head;
 static uint8_t        tail;
-static uint8_t        deferred;
 
 void matrix_init(void)
 {
@@ -19,9 +18,8 @@ void matrix_init(void)
         same[col]      = MATRIX_DEBOUNCE_SCANS;
     }
 
-    head     = 0;
-    tail     = 0;
-    deferred = 0;
+    head = 0;
+    tail = 0;
 }
 
 static bool queue_push(uint8_t col, uint8_t row, bool pressed)
@@ -67,8 +65,6 @@ void matrix_feed(const uint8_t raw[MATRIX_COLS])
             // The stable bit flips only once the event is queued, so a full queue delays a key, never drops it.
             if (queue_push(col, row, (sample & bit) != 0)) {
                 stable[col] ^= bit;
-            } else if (deferred < 0xFF) {
-                deferred++;
             }
         }
     }
@@ -112,9 +108,4 @@ bool matrix_any_pressed(void)
     }
 
     return false;
-}
-
-uint8_t matrix_deferred(void)
-{
-    return deferred;
 }

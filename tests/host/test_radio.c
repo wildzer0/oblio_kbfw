@@ -417,23 +417,23 @@ static void test_status_is_polled_every_200_ms_and_kept(void)
     CHECK(radio_status()[0] == 0x00 && radio_status()[1] == 0x01 && radio_status()[3] == 0x03 && radio_status()[4] == 0xFF);
 }
 
-static void test_the_queue_keeps_four_and_replaces_the_newest(void)
+static void test_the_queue_keeps_eight_and_replaces_the_newest(void)
 {
     reset();
     settle_in_mode(0);
 
     att = false;
 
-    for (uint8_t i = 1; i <= 6; i++) {
+    for (uint8_t i = 1; i <= 10; i++) {
         const uint8_t keys[6] = {i, 0, 0, 0, 0, 0};
 
         radio_send_keys(0, keys);
     }
 
     att = true;
-    run(30);
-    CHECK(tx_count == 4);
-    CHECK(tx[0][3] == 1 && tx[1][3] == 2 && tx[2][3] == 3 && tx[3][3] == 6); // the 4th place holds the newest
+    run(60);
+    CHECK(tx_count == 8);
+    CHECK(tx[0][3] == 1 && tx[1][3] == 2 && tx[2][3] == 3 && tx[6][3] == 7 && tx[7][3] == 10); // the 8th place holds the newest
 }
 
 static void test_garbage_before_a_frame_is_skipped(void)
@@ -540,7 +540,7 @@ int main(void)
     test_a_refusal_of_the_mode_counts_as_an_answer();
     test_bluetooth_names_are_set_once_after_the_first_answer();
     test_status_is_polled_every_200_ms_and_kept();
-    test_the_queue_keeps_four_and_replaces_the_newest();
+    test_the_queue_keeps_eight_and_replaces_the_newest();
     test_garbage_before_a_frame_is_skipped();
     test_a_frame_that_never_ends_is_given_up_after_50_ms();
     test_stop_and_sleep();

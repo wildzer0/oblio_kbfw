@@ -5,7 +5,6 @@
 
 static uint8_t  mods;
 static uint8_t  boot_keys[REPORT_BOOT_KEYS]; // in the order the keys went down
-static uint8_t  nkro_bits[REPORT_NKRO_BYTES];
 static uint16_t consumer;
 static uint16_t system_usage;
 
@@ -13,7 +12,6 @@ void report_init(void)
 {
     mods = 0;
     memset(boot_keys, 0, sizeof boot_keys);
-    memset(nkro_bits, 0, sizeof nkro_bits);
     consumer     = 0;
     system_usage = 0;
 }
@@ -22,10 +20,6 @@ void report_add_key(uint8_t key)
 {
     if (key == KC_NO) {
         return;
-    }
-
-    if (key < REPORT_NKRO_BITS) {
-        nkro_bits[key >> 3] |= (uint8_t)(1u << (key & 7));
     }
 
     uint8_t free_slot = REPORT_BOOT_KEYS;
@@ -51,10 +45,6 @@ void report_del_key(uint8_t key)
         return;
     }
 
-    if (key < REPORT_NKRO_BITS) {
-        nkro_bits[key >> 3] &= (uint8_t)~(1u << (key & 7));
-    }
-
     for (uint8_t i = 0; i < REPORT_BOOT_KEYS; i++) {
         if (boot_keys[i] == key) {
             boot_keys[i] = 0;
@@ -65,26 +55,6 @@ void report_del_key(uint8_t key)
 void report_clear_keys(void)
 {
     memset(boot_keys, 0, sizeof boot_keys);
-    memset(nkro_bits, 0, sizeof nkro_bits);
-}
-
-bool report_key_pressed(uint8_t key)
-{
-    if (key == KC_NO) {
-        return false;
-    }
-
-    if (key < REPORT_NKRO_BITS && (nkro_bits[key >> 3] & (1u << (key & 7)))) {
-        return true;
-    }
-
-    for (uint8_t i = 0; i < REPORT_BOOT_KEYS; i++) {
-        if (boot_keys[i] == key) {
-            return true;
-        }
-    }
-
-    return false;
 }
 
 void report_add_mods(uint8_t m)
@@ -112,12 +82,6 @@ void report_build_boot(uint8_t out[REPORT_BOOT_SIZE])
     out[0] = mods;
     out[1] = 0;
     memcpy(&out[2], boot_keys, REPORT_BOOT_KEYS);
-}
-
-void report_build_nkro(uint8_t out[REPORT_NKRO_SIZE])
-{
-    out[0] = mods;
-    memcpy(&out[1], nkro_bits, REPORT_NKRO_BYTES);
 }
 
 void report_set_consumer(uint16_t usage)

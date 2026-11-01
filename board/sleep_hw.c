@@ -3,12 +3,15 @@
 #include "led.h"
 #include "led_hw.h"
 #include "link.h"
+#include "matrix.h"
 #include "matrix_hw.h"
 #include "power.h"
 #include "pwm.h"
 #include "radio.h"
 #include "radio_hw.h"
+#include "report.h"
 #include "settings.h"
+#include "store.h"
 #include "sh68f90.h"
 #include "sleep.h"
 #include "tick.h"
@@ -73,6 +76,10 @@ static void pins_park(void)
 
 static void sleep_and_wake(void)
 {
+    // What was changed in the last second (a profile, a lighting setting) is written now: on battery the keyboard may not come back.
+    store_flush();
+    settings_flush();
+
     radio_sleep(); // the radio first, while the serial port still works (with delays: the timer is not needed)
 
     tick_pause();
@@ -93,14 +100,21 @@ static void sleep_and_wake(void)
     link_wake();         // the radio starts again and the selector is applied anew
     usb_device_reset();  // and USB, which was released
     usb_reports_flush();
+
+    // Nothing is held as far as the host is concerned: what was down when the keyboard went to sleep may have been let go while it
+    // slept (no event, no report), and the link is re-established from scratch anyway.
+    report_clear_keys();
+    report_clear_mods();
+
     usb_hw_init();
     tick_resume();
 }
 
 void sleep_hw_task(uint16_t now)
 {
-    // Only on battery: with the cable seen by the PC the keyboard is powered and stays awake
-    const bool allowed = link_wireless() && !usb_device_configured();
+    // Only on battery: with the cable seen by the PC the keyboard is powered and stays awake. And never with a key down: an idle
+    // count only restarts on a key *event*, so a key held still would otherwise put the keyboard to sleep under the finger.
+    const bool allowed = link_wireless() && !usb_device_configured() && !matrix_any_pressed();
 
     if (!sleep_due(now, allowed)) {
         return;

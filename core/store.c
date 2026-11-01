@@ -49,19 +49,6 @@ static uint16_t slot_addr(uint8_t slot)
 }
 
 // CRC-16/CCITT-FALSE, bitwise: slow but tiny, and it only runs at load and on a save.
-static uint16_t crc16_word(uint16_t crc, uint16_t word)
-{
-    for (uint8_t byte = 0; byte < 2; byte++) {
-        crc ^= (uint16_t)((byte ? (word >> 8) : (word & 0xFFu)) << 8);
-
-        for (uint8_t bit = 0; bit < 8; bit++) {
-            crc = (crc & 0x8000u) ? (uint16_t)((crc << 1) ^ 0x1021u) : (uint16_t)(crc << 1);
-        }
-    }
-
-    return crc;
-}
-
 static uint16_t crc16_byte(uint16_t crc, uint8_t byte)
 {
     crc ^= (uint16_t)((uint16_t)byte << 8);
@@ -199,7 +186,10 @@ static void compute_defaults_print(void)
     cursor_start();
 
     for (uint16_t i = 0; i < WORDS; i++) {
-        crc = crc16_word(crc, cursor_default());
+        const uint16_t word = cursor_default();
+
+        crc = crc16_byte(crc, (uint8_t)(word & 0xFFu));
+        crc = crc16_byte(crc, (uint8_t)(word >> 8));
         cursor_advance();
     }
 
@@ -329,6 +319,8 @@ void store_flush(void)
     const uint16_t seq    = (uint16_t)(active_seq + 1);
     const uint16_t base   = slot_addr(target);
 
+    store_hook_flush_begin(); // the timer and the backlight stand still for the whole write, not once per chunk
+
     for (uint8_t sector = 0; sector < STORE_SLOT_SECTORS; sector++) {
         store_hook_erase((uint16_t)(base + sector * STORE_SECTOR_BYTES));
     }
@@ -374,6 +366,8 @@ void store_flush(void)
     chunk[13] = (uint8_t)(defaults_print >> 8);
     chunk[14] = profile;
     store_hook_program(base, chunk, HEADER);
+
+    store_hook_flush_end();
 
     active_slot = target;
     active_seq  = seq;

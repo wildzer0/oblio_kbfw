@@ -3,11 +3,12 @@
 
 Linux: /dev/hidraw, no dependencies. Windows and macOS: `pip install hidapi` (the module is called `hid`).
 
-usage: diag.py [--radio] [--monitor] [--watch SECONDS]
+usage: diag.py [--radio] [--monitor] [--ports] [--watch SECONDS]
 
   (no option)  print the counters once
   --radio      also print the radio's last status bytes and its last 08 frame
   --monitor    with the cable in (USB mode): listen to the radio's status too (it is switched off in USB mode); implies --radio
+  --ports      print the raw port bytes and the columns in which P7.0 reads low (finding out where a switch is wired)
   --watch N    repeat every N seconds, printing only what changed
 
 The counters need no unlock (they are what you need when the keys do not work); the radio data and --monitor do: hold the unlock keys (Esc and Enter) when asked.
@@ -33,6 +34,7 @@ except ImportError:
 VID_PID = "0000258A:0000DEAD"
 RAW_SIZE = 32
 
+# The order of the counters in core/diag.h: keep this list in step with it (an old copy prints the wrong labels)
 NAMES = [
     ("reset cause (RSTSTAT)", "{:#04x}"),
     ("stack used (bytes of 223)", "{}"),
@@ -40,13 +42,10 @@ NAMES = [
     ("scans overwritten (harmless)", "{}"),
     ("slowest main-loop pass (ms)", "{}"),
     ("USB report queue overflows", "{}"),
-    ("own ms per 50 USB SOF (50 = ok)", "{}"),
     ("longest LED slot (us, of 400)", "{}"),
     ("longest scan slot (us, of 500)", "{}"),
     ("main passes between the last 2 scans", "{}"),
-    ("scans with no main pass (harmless)", "{}"),
     ("backlight back-offs (starved)", "{}"),
-    ("USB interrupts (not SOF)", "{}"),
     ("scan slots that ran late", "{}"),
 ]
 
@@ -128,6 +127,20 @@ def show(values, previous=None):
         print("  {:32} {}".format(name, fmt.format(value)))
 
 
+def ports(keyboard):
+    reply = keyboard.ask(0xF1, 3)
+    names = ["P0", "P1", "P2", "P3", "P4", "P5", "P6", "P7"]
+    print("ports              : " + " ".join("{}={:02x}".format(n, b) for n, b in zip(names, reply[2:10])))
+    low, high = reply[10], reply[11]
+    mask = low | (high << 8)
+    if mask == 0xFFFF:
+        print("P7.0 low in every column: a switch to ground")
+    elif mask:
+        print("P7.0 low in the columns " + ", ".join(str(c) for c in range(16) if mask & (1 << c)))
+    else:
+        print("P7.0 low in no column (it did not change with the strobes)")
+
+
 def radio(keyboard):
     reply = keyboard.ask(0xF1, 1)
     print("radio status bytes : " + " ".join("{:02x}".format(b) for b in reply[2:8]))
@@ -138,6 +151,7 @@ def main():
     args = sys.argv[1:]
     want_monitor = "--monitor" in args
     want_radio = "--radio" in args or want_monitor
+    want_ports = "--ports" in args
     watch = None
     if "--watch" in args:
         watch = float(args[args.index("--watch") + 1])
@@ -161,6 +175,8 @@ def main():
     show(values)
     if want_radio:
         radio(keyboard)
+    if want_ports:
+        ports(keyboard)
 
     while watch:
         time.sleep(watch)

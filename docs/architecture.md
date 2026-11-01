@@ -13,7 +13,8 @@ for other boards. Everything that does not need a register is plain C that also 
 | `tools/` | build helpers (Vial definition generator, budget, interrupt and Vial checks) and `diag.py` | `make check` |
 
 `core/` never touches hardware. When it needs something from the outside it declares a **hook**, a function the board (or a test) defines:
-`report_hook_send()`, `store_hook_read/erase/program()`, `radio_hook_*()`, `usb_hook_*()`, `layer_hook_mods_add()`… A test defines the hook with a
+`report_hook_send()`, `store_hook_read/erase/program()` (and `store_hook_flush_begin/end()`, which let the board stop the timer and the backlight once
+around a whole save), `radio_hook_*()`, `usb_hook_*()`, `layer_hook_mods_add()`… A test defines the hook with a
 recorder or a simulated device; the firmware defines it in `hal/` or `board/`. Time always comes in as an argument (`now`, in ms), never from a
 timer the core reads itself.
 
@@ -62,7 +63,9 @@ interrupt work by instructions (`make sim` has a guard) and by the durations the
 
 ## Memory
 
-Application flash ends at 0xAC00. After it: profiles 0–3 (two copies of four 512-byte sectors each) up to 0xEBFF, the settings record at 0xEC00, 0xEE00 untouched,
+Application flash ends at 0xAC00. After it: profiles 0–3 (two copies of four 512-byte sectors each) up to 0xEBFF, the settings record in two copies at
+0xEC00 as a log of 56 small records (a save appends to the first erased one, so a power cut during a save keeps the previous settings and the sector
+is erased once every 56 saves), the bootloader's marker sector at 0xEE00 **untouched**,
 the stock bootloader from 0xF000 (never written: `hal/flash.c` refuses any address outside 0xAC00–0xF000). `make size` reports flash and XDATA use against 44032 and 4096
 bytes. Pointers into XDATA are typed (`XDATA uint8_t *`, `core/platform.h`) in the packet paths: a generic pointer costs three bytes and a slow access on this
 core and was worth 1.5 KB of flash. Constant tables are `ROM`.

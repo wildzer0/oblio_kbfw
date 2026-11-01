@@ -84,6 +84,31 @@ static bool monitoring;
 
 void diag_hook_radio_monitor(bool on) { monitoring = on; }
 
+void diag_hook_ports(uint8_t *out)
+{
+    for (uint8_t i = 0; i < DIAG_PORT_BYTES; i++) {
+        out[i] = (uint8_t)(0x10 + i);
+    }
+
+    out[DIAG_PORT_BYTES + 0] = 0x34; // the columns 2, 4, 5
+    out[DIAG_PORT_BYTES + 1] = 0x80; // and 15
+}
+
+static void test_ports_reply(void)
+{
+    uint8_t data[32];
+
+    memset(data, 0xAA, sizeof data);
+    data[0] = 0xF1;
+    data[1] = 3;
+    diag_receive(data, 32);
+
+    CHECK(data[0] == 0xF1 && data[1] == 3);
+    CHECK(data[2] == 0x10 && data[9] == 0x17);                   // P0 .. P7
+    CHECK(data[10] == 0x34 && data[11] == 0x80);                 // P7.0 low in the columns 2, 4, 5 and 15
+    CHECK(data[12] == 0);                                        // the rest of the packet is cleared
+}
+
 static void test_radio_monitor_switch(void)
 {
     uint8_t data[32] = {0xF1, 2, 1};
@@ -116,6 +141,7 @@ int main(void)
     test_counters_reply();
     test_radio_reply();
     test_radio_monitor_switch();
+    test_ports_reply();
     test_unknown_kind_is_unhandled();
     return tests_result();
 }

@@ -13,10 +13,15 @@ void store_hook_read(uint16_t addr, uint8_t *dst, uint8_t len)
     memcpy(dst, &flash[addr], len);
 }
 
+static bool flushing;
+
+void store_hook_flush_begin(void) { flushing = true; }
+void store_hook_flush_end(void) { flushing = false; }
+
 void store_hook_erase(uint16_t sector)
 {
-    if (sector != SETTINGS_ADDR) {
-        violations++; // the settings sector, and only it
+    if (sector != SETTINGS_ADDR || !flushing) {
+        violations++; // the settings sector, and only it, inside a save
         return;
     }
     erases++;
@@ -25,7 +30,7 @@ void store_hook_erase(uint16_t sector)
 
 void store_hook_program(uint16_t addr, const uint8_t *src, uint8_t len)
 {
-    if (addr < SETTINGS_ADDR || addr + len > SETTINGS_ADDR + SETTINGS_SECTOR) {
+    if (!flushing || addr < SETTINGS_ADDR || addr + len > SETTINGS_ADDR + SETTINGS_SECTOR) {
         violations++;
         return;
     }
@@ -46,6 +51,7 @@ static void blank(void)
     erases     = 0;
     programs   = 0;
     violations = 0;
+    flushing   = false;
 }
 
 static void test_blank_flash_gives_the_defaults(void)
@@ -65,7 +71,7 @@ static void test_changes_survive(void)
     settings_set_bt_slot(2);
     CHECK(settings_dirty());
     settings_flush();
-    CHECK(!settings_dirty() && erases == 1 && violations == 0);
+    CHECK(!settings_dirty() && erases == 0 && violations == 0); // appended in the erased sector: no erase
 
     settings.profile = 0; // forget
     settings.sleep_level = 0;
@@ -98,21 +104,67 @@ static void test_out_of_range_values_are_refused(void)
     CHECK(settings.profile == 0 && settings.bt_slot == 1);
 }
 
-static void test_a_damaged_record_is_not_used(void)
+// The record of a save, at slot `slot`
+static uint16_t record_at(uint8_t slot)
+{
+    return (uint16_t)(SETTINGS_ADDR + slot * 9u);
+}
+
+// A damaged record is skipped and the one before it stays the newest: the settings are never lost by a bad save
+static void test_a_damaged_record_falls_back_to_the_one_before_it(void)
 {
     blank();
     settings_load();
     settings_set_profile(2);
     settings_flush();
 
-    flash[SETTINGS_ADDR + 3] &= 0x01; // the profile byte changes, the CRC does not
+    settings_set_profile(3);
+    settings_flush();
+
+    flash[record_at(1) + 3] &= 0x01; // the last record changes, its CRC does not
     settings_load();
-    CHECK(settings.profile == 0 && settings.sleep_level == SETTINGS_SLEEP_DEFAULT);
+    CHECK(settings.profile == 2); // the previous one
 
     blank();
-    flash[SETTINGS_ADDR] = 'X'; // not a record at all
+    flash[SETTINGS_ADDR] = 'X'; // not a record at all, and nothing else
     settings_load();
     CHECK(settings.profile == 0);
+}
+
+// A save appends: nothing is erased until the sector is full, and the newest record is the one read back
+static void test_records_are_appended_and_the_sector_is_erased_only_when_full(void)
+{
+    blank();
+    settings_load();
+
+    settings_set_profile(1);
+    settings_flush();
+    CHECK(flash[record_at(0)] == 'O' && flash[record_at(1)] == 0xFF && erases == 0);
+
+    settings_set_profile(2);
+    settings_flush();
+    CHECK(flash[record_at(1)] == 'O' && flash[record_at(0) + 3] == 1); // the previous record is still there
+    CHECK(erases == 0);
+
+    settings.profile = 0;
+    settings_load();
+    CHECK(settings.profile == 2);
+    CHECK(violations == 0);
+
+    // fill the sector: the save that finds it full erases it once
+    for (uint8_t i = 0; i < SETTINGS_SLOTS - 2; i++) {
+        settings_set_profile((uint8_t)(i % STORE_PROFILES));
+        settings_flush();
+    }
+    CHECK(erases == 0);
+
+    settings_set_profile(3);
+    settings_flush();
+    CHECK(erases == 1 && flash[record_at(0)] == 'O');
+
+    settings.profile = 0;
+    settings_load();
+    CHECK(settings.profile == 3);
 }
 
 static void test_values_from_a_record_are_put_in_range(void)
@@ -148,11 +200,11 @@ static void test_written_after_the_quiet_time_with_no_key_down(void)
 
     settings_task(1100, false); // the change is first seen here
     settings_task(1100 + SETTINGS_QUIET_MS - 1, false);
-    CHECK(erases == 0);
+    CHECK(programs == 0);
     settings_task(1100 + SETTINGS_QUIET_MS, true); // a key is down: later
-    CHECK(erases == 0);
+    CHECK(programs == 0);
     settings_task(1100 + SETTINGS_QUIET_MS + 5, false);
-    CHECK(erases == 1 && !settings_dirty());
+    CHECK(programs == 1 && !settings_dirty());
 }
 
 static void test_the_clock_wrap(void)
@@ -163,9 +215,9 @@ static void test_the_clock_wrap(void)
     settings_set_profile(1);
     settings_task(65400, false);
     settings_task(100, false); // 236 ms later
-    CHECK(erases == 0);
+    CHECK(programs == 0);
     settings_task(500, false); // 636 ms
-    CHECK(erases == 1);
+    CHECK(programs == 1);
 }
 
 int main(void)
@@ -174,7 +226,8 @@ int main(void)
     test_changes_survive();
     test_nothing_is_written_when_nothing_changed();
     test_out_of_range_values_are_refused();
-    test_a_damaged_record_is_not_used();
+    test_a_damaged_record_falls_back_to_the_one_before_it();
+    test_records_are_appended_and_the_sector_is_erased_only_when_full();
     test_values_from_a_record_are_put_in_range();
     test_written_after_the_quiet_time_with_no_key_down();
     test_the_clock_wrap();

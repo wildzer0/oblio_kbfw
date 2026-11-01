@@ -18,11 +18,11 @@ void macro_init(void);
 // Queue macro `id` to play. Ignored for an id that does not exist or when the queue is full.
 void macro_start(uint8_t id);
 
-// Regularly, with the current time in ms: does the next step if the millisecond has changed since the last one.
-void macro_task(uint16_t now);
-
 // True while a macro is playing or waiting its turn.
 bool macro_busy(void);
+
+// Regularly, with the current time in ms: does the next step if the millisecond has changed since the last one.
+void macro_task(uint16_t now);
 
 // Provided by the caller: press / release a keycode (basic key, modifier, media key, key with modifiers).
 void macro_hook_press(uint16_t keycode);

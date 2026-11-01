@@ -40,6 +40,16 @@ bool led_hook_caps_lock(void) { return caps; }
 uint8_t led_hook_profile(void) { return profile; }
 
 // ---- helpers ----
+// A full repaint: ask for it and let led_task() paint the 8 LEDs of a pass until it is done
+static void render_all(void)
+{
+    led_refresh();
+
+    for (unsigned i = 0; i < 2 * LED_ROWS * LED_COLS / 8; i++) {
+        led_task();
+    }
+}
+
 static void reset(uint16_t effect)
 {
     cfg_defaults[CFG_LED_EFFECT] = effect;
@@ -47,7 +57,7 @@ static void reset(uint16_t effect)
     caps    = false;
     profile = 0;
     led_init();
-    led_render_all();
+    render_all();
 }
 
 // `n` whole frames, as the interrupt would play them (16 subframes each); the main loop looks after each one, as it does in the
@@ -65,7 +75,7 @@ static void frames(unsigned n)
 
 static void settle(void)
 {
-    led_render_all();
+    render_all();
 }
 
 static void key_rgb(uint8_t row, uint8_t col, uint8_t out[3])

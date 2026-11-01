@@ -26,6 +26,11 @@ void store_hook_read(uint16_t addr, uint8_t *dst, uint8_t len);
 void store_hook_erase(uint16_t sector_addr);
 void store_hook_program(uint16_t addr, const uint8_t *src, uint8_t len);
 
+// Around a whole save (a profile or the settings): the board stops the timer and parks the backlight once, and starts them again at
+// the end. Do not leave the work of the interrupt running in between: a sector erase blocks the CPU for milliseconds.
+void store_hook_flush_begin(void);
+void store_hook_flush_end(void);
+
 // A profile has just been loaded (or the defaults taken): the rest of the firmware drops what it kept of the old one.
 void store_hook_loaded(void);
 

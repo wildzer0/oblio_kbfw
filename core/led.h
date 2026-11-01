@@ -68,6 +68,9 @@ void led_flash_key(uint8_t kind, uint8_t index);
 #define LED_BATTERY_FRAMES  366u   // ~3 s
 void led_show_battery(uint8_t percent);
 
+// Asks for a full repaint (the tests pump led_task() until it is done).
+void led_refresh(void);
+
 // The keys of the lighting: they change the setting of the profile in use.
 void led_effect_next(void);
 void led_effect_prev(void);
@@ -78,5 +81,3 @@ void led_speed_down(void);
 void led_color_up(void);
 void led_color_down(void);
 
-// Everything at once, for the tests and for the moment the board turns the LEDs on: a repaint of the whole board is made at once.
-void led_render_all(void);

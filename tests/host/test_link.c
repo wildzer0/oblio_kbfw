@@ -28,6 +28,8 @@ void store_hook_read(uint16_t addr, uint8_t *dst, uint8_t len)
 void store_hook_erase(uint16_t sector) { (void)sector; }
 void store_hook_program(uint16_t addr, const uint8_t *src, uint8_t len) { (void)addr; (void)src; (void)len; }
 void store_hook_loaded(void) {}
+void store_hook_flush_begin(void) {}
+void store_hook_flush_end(void) {}
 
 // ---- a radio that always listens ----
 static uint8_t  tx[32][RADIO_FRAME_MAX];

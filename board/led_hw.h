@@ -10,8 +10,10 @@
 void led_hw_init(void);
 
 // Whether the backlight is allowed to light: it is not while the keyboard waits for the USB host to enumerate it (a bus-powered
-// device must stay within 100 mA until configured) or while the bus is suspended.
+// device must stay within 100 mA until configured) or while the bus is suspended. A wake from sleep re-initialises the channels and
+// with them this permission (led_hw_init), so the caller has to look at led_hw_enabled() and ask again.
 void led_hw_enable(bool on);
+bool led_hw_enabled(void);
 
 // One subframe, from the timer interrupt (constant time).
 void led_hw_subframe(void);

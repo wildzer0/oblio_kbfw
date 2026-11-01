@@ -33,6 +33,8 @@ static uint8_t  flash[0x10000];
 static long     budget = -1; // operations left before the power goes; -1 = no cut
 static unsigned violations;  // writes the real flash would not do right
 static unsigned erases;
+static unsigned flushes; // begin/end pairs: one for each save
+static bool     flushing;
 
 static bool in_store(uint16_t addr, unsigned len)
 {
@@ -48,8 +50,29 @@ void store_hook_read(uint16_t addr, uint8_t *dst, uint8_t len)
     memcpy(dst, &flash[addr], len);
 }
 
+void store_hook_flush_begin(void)
+{
+    if (flushing) {
+        violations++; // nested
+    }
+    flushing = true;
+    flushes++;
+}
+
+void store_hook_flush_end(void)
+{
+    if (!flushing) {
+        violations++;
+    }
+    flushing = false;
+}
+
 void store_hook_erase(uint16_t sector_addr)
 {
+    if (!flushing) {
+        violations++; // a flash operation outside store_hook_flush_begin/end
+    }
+
     if (!in_store(sector_addr, STORE_SECTOR_BYTES) || (sector_addr & (STORE_SECTOR_BYTES - 1))) {
         violations++;
         return;
@@ -73,6 +96,10 @@ void store_hook_erase(uint16_t sector_addr)
 
 void store_hook_program(uint16_t addr, const uint8_t *src, uint8_t len)
 {
+    if (!flushing) {
+        violations++;
+    }
+
     if (!in_store(addr, len)) {
         violations++;
         return;

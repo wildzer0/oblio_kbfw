@@ -101,8 +101,8 @@ static void get_definition(XDATA uint8_t *data, uint8_t length)
     const uint16_t start = (uint16_t)(u16_le(&data[2]) << 5);
     uint16_t       end   = (uint16_t)(start + length);
 
-    if (start >= vial_definition_size || start < (u16_le(&data[2]) << 5) - 0) {
-        return;
+    if (start >= vial_definition_size) {
+        return; // the request is echoed back: Vial reads the size first
     }
 
     if (end > vial_definition_size || end < start) {

@@ -119,9 +119,11 @@ void main(void)
             keyboard_event(&event, now_ms);
         }
 
+        const bool any_key_down = matrix_any_pressed(); // once: two passes of the matrix cost a third of a loop
+
         keyboard_task(now_ms);
-        store_task(now_ms, matrix_any_pressed());
-        settings_task(now_ms, matrix_any_pressed());
+        store_task(now_ms, any_key_down);
+        settings_task(now_ms, any_key_down);
         usb_task(now_ms);
 #if STAGE_LED
         led_task();

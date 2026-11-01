@@ -142,7 +142,6 @@ static void test_full_queue_delays_but_never_drops(void)
     }
 
     scans(MATRIX_DEBOUNCE_SCANS);
-    CHECK(matrix_deferred() > 0);
 
     for (unsigned guard = 0; guard < 10; guard++) {
         total += drain(ev + total, 64 - total);

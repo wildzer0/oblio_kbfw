@@ -1,6 +1,4 @@
 #include "usb.h"
-#include "diag.h"
-#include "tick.h"
 #include "usb_device.h"
 #include "usb_reports.h"
 #include "raw_hid.h"
@@ -8,6 +6,13 @@
 static volatile bool event;     // a bus reset or a configuration change: see usb_hw_take_event()
 static volatile bool suspended;
 static volatile bool setup_seen;
+
+// The buffers the interrupt copies the endpoint data into. They are static, not locals: with --stack-auto a local lives on the
+// 8051 stack in the internal RAM, of which only ~38 bytes were free, and the interrupt runs on top of whatever the main loop
+// was doing. (Static, they go to XDATA with --model-large. The interrupt is not reentrant, so one copy of each is enough.)
+static uint8_t isr_setup[USB_SETUP_SIZE];
+static uint8_t isr_ep0[EP0_BUF_SIZE];
+static uint8_t isr_raw[RAW_HID_SIZE];
 
 // ---- endpoint control ----
 static void ep0_count(uint8_t n)
@@ -176,10 +181,6 @@ void usb_isr(void) __interrupt(7)
 {
     const uint8_t if1 = USBIF1;
 
-    if ((if1 & ~USBIF1_SOFIF) || USBIF2) {
-        diag_inc(DIAG_USB_IRQS);
-    }
-
     if (if1 & (USBIF1_USBRSTIF | USBIF1_PUPIF)) {
         USBIF1 &= (uint8_t) ~(USBIF1_USBRSTIF | USBIF1_PUPIF);
         bus_reset();
@@ -189,18 +190,6 @@ void usb_isr(void) __interrupt(7)
     if (if1 & USBIF1_SOFIF) {
         USBIF1 &= (uint8_t)~USBIF1_SOFIF;
         suspended = false; // a start-of-frame means the host is driving the bus again
-
-        // The bus gives a start-of-frame every millisecond exactly: the one reference there is to check the timer against
-        static uint8_t sof_count;
-        static uint8_t ms_at_start;
-
-        if (++sof_count == 50u) {
-            const uint8_t now = tick_ms_now();
-
-            diag_set(DIAG_MS_PER_50_SOF, (uint8_t)(now - ms_at_start));
-            ms_at_start = now;
-            sof_count   = 0;
-        }
     }
 
     if (if1 & USBIF1_RESMIF) {
@@ -216,7 +205,7 @@ void usb_isr(void) __interrupt(7)
     }
 
     if (if1 & USBIF1_SETUPIF) {
-        uint8_t packet[USB_SETUP_SIZE];
+        uint8_t *packet = isr_setup;
 
         setup_seen = true;
 
@@ -237,8 +226,8 @@ void usb_isr(void) __interrupt(7)
     const uint8_t if2 = USBIF2;
 
     if (if2 & USBIF2_OEP0IF) {
-        uint8_t data[EP0_BUF_SIZE];
-        const uint8_t n = OEP0CNT & 0x0F;
+        uint8_t      *data = isr_ep0;
+        const uint8_t n    = OEP0CNT & 0x0F;
 
         USBIF2 &= (uint8_t)~USBIF2_OEP0IF;
 
@@ -255,8 +244,8 @@ void usb_isr(void) __interrupt(7)
     }
 
     if (if2 & USBIF2_OEP2IF) {
-        uint8_t       data[RAW_HID_SIZE];
-        const uint8_t n = OEP2CNT & 0x7F;
+        uint8_t      *data = isr_raw;
+        const uint8_t n    = OEP2CNT & 0x7F;
 
         USBIF2 &= (uint8_t)~USBIF2_OEP2IF;
 

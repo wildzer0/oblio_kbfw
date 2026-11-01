@@ -19,8 +19,9 @@ credited in `NOTICE.md` and `README.md`. License GPL-2.0-or-later. Repo: github.
 | Radio | **BK3632** on a serial port (UART0, 260870 baud, `P5.5/P5.6`, select `P0.2`, attention `P4.7`) for 2.4G and Bluetooth (3 BT slots) |
 | Matrix | 16 columns (strobes, active low) × 5 rows (inputs with pull-up). The column lines are **also the sinks of the RGB backlight**, so a key scan and a backlight subframe can never overlap |
 | Backlight | RGB under the keys, 15 PWM channels (3 colours × 5 key rows), one column lit at a time |
-| Other | encoder on `P0.6/P0.7`; mode selector near the USB-C port on `P0.4` (2.4G) / `P0.3` (Bluetooth), both high = USB; a second **Win/Mac switch exists on the keyboard and is not used yet** (pin unknown, see §9) |
-| Flash map | application up to **0xAC00** (44032 B budget); profiles 0–3 (2 copies × 4 sectors) 0xAC00–0xEBFF; settings 0xEC00; 0xEE00 untouched; **stock bootloader at 0xF000, never written** (`hal/flash.c` refuses addresses outside 0xAC00–0xF000) |
+| Other | encoder on `P0.6/P0.7`; mode selector near the USB-C port on `P0.4` (2.4G) / `P0.3` (Bluetooth), both high = USB; a second **Win/Mac switch exists on the keyboard and is not used yet**: the presumed pin is `P7.0`, the one input the stock firmware reads with the matrix rows without it being a row (see §9, item 2) |
+| Flash map | application up to **0xAC00** (44032 B budget); profiles 0–3 (2 copies × 4 sectors) 0xAC00–0xEBFF; settings at 0xEC00 (a log of 56 records: a save appends, it does not erase); 0xEE00 is the
+bootloader's marker sector and is **not touched**; **stock bootloader at 0xF000, never written** (`hal/flash.c` refuses addresses outside 0xAC00–0xF000) |
 | Recovery | hold **Esc+1+2 while plugging the USB cable**: the firmware jumps to the stock ISP bootloader before USB or radio start. There is **no ICP programmer** — this is the only way back |
 | Flashing | `sinowisp write --platform sh68f90 --vendor_id 0x258a --product_id 0xdead --format ihex --isp_iface_num 0 -f build/oblio.hex` |
 
@@ -85,8 +86,9 @@ nix develop --command make sim               # ~50 s: the real hex in the chip s
 nix develop --command make stages            # staged builds, see below
 ```
 
-Current budget: **flash 43803 / 44032 (229 B of margin — very tight), XDATA 3711 / 4096**. Check the `flash` line before every commit; a failed link leaves no
-stale `.ihx` any more (`.DELETE_ON_ERROR`). SDCC pitfalls seen here: `%`, `/` and loops with a variable count are very costly; use typed `XDATA` pointers
+Current budget: **flash 43718 / 44032 (314 B of margin — still tight), XDATA 3767 / 4096**; the stack is the other tight one (internal RAM, 223 B
+from 0x21 up; the USB interrupt used to keep 48 B of buffers on it, now static in XDATA). Check the `flash` line before every commit; a failed link
+leaves no stale `.ihx` any more (`.DELETE_ON_ERROR`). SDCC pitfalls seen here: `%`, `/` and loops with a variable count are very costly; use typed `XDATA` pointers
 (`core/platform.h`), constant addresses in interrupts, `--std-c23 --Werror` (an empty `if` body is an error 110).
 
 **Staged builds** (`OBLIO_STAGE=1..4`, `board/stage.h`) for bring-up on the keyboard: 1 matrix + USB + Vial; 2 + backlight; 3 + radio and selector; 4 = release
@@ -105,7 +107,8 @@ durations. It has a guard on instructions per interrupt (backlight subframe < 12
 | Keyboard on USB: backlight | **verified by the user**: stable after the timing fix (it flickered before) |
 | 2.4G and Bluetooth | user reported "everything works normally" without the cable, on a build before the final timing change; **re-check on the current hex** |
 | Vial app, HUD app, profiles survive power-off, encoder, tap-hold/macros on the keyboard | **not yet tested** on hardware |
-| Sleep, battery gauge | **not tested**; the battery percentage source is unknown |
+| Sleep | **tested by the user**: it sleeps and wakes, but the LEDs stayed dark until a power cycle (cause found and fixed on 2026-11-01: `led_hw_init()` dropped the backlight permission and `led_app_task()` compared it against its own copy). Re-test pending |
+| Battery gauge | **not tested**; the battery percentage source is unknown |
 
 ## 7. What went wrong on the hardware, and why (read before touching interrupts)
 
@@ -124,18 +127,20 @@ durations. It has a guard on instructions per interrupt (backlight subframe < 12
 Works without unlocking Vial. Linux: `/dev/hidraw`, no dependencies. **Windows/macOS: `py -m pip install hidapi`**, then `py tools\diag.py [--watch 1]`
 (keep the script in sync with the repo: an old copy prints wrong labels, because the order of the counters changes). Counters, in order: reset cause
 (RSTSTAT, 0 = power-on), stack used (bytes of 223; ~185 on USB), LED slots late, scans overwritten (harmless), slowest main-loop pass (ms), USB report queue
-overflows, own ms per 50 USB SOF (**50 = the timer runs as assumed**; 48–50 seen), longest LED slot work (µs; 93), longest scan (µs; 609–625), main passes between
-the last two scans, scans with no main pass (harmless), backlight back-offs (rare), USB interrupts other than SOF, scan slots late (0). `--radio` / `--monitor`
-(unlock needed) dump the radio's status bytes and last `08` frame, for decoding the battery. The 32-byte packet holds at most **14** counters; adding one means
-dropping one.
+overflows, longest LED slot work (µs; 93), longest scan (µs; 609–625), main passes between the last two scans, backlight back-offs (rare), scan slots
+late (0). `--radio` / `--monitor` (unlock needed) dump the radio's status bytes and last `08` frame, for decoding the battery. `--ports` (no unlock)
+answers the Win/Mac switch question: the raw bytes of P0…P7 and the columns in which P7.0 reads low. The 32-byte packet holds at most **14** counters;
+adding one means dropping one.
 
 ## 9. Open items, in priority order
 
 1. **Functional test on the keyboard** per `docs/first-boot.md`: Vial app connects and saves a change, HUD app connects, profiles, encoder, 2.4G/BT with the
    current hex, then sleep. Report any failure with `diag.py --watch 1` output.
-2. **Win/Mac switch (unused).** Proposal agreed to be discussed with the user: the switch selects which base layer is the default (`layer_set_default`), the Mac
-   layer swapping Alt/Win. **Pin unknown**; hypothesis `P7.0` (the stock reads it together with the rows but it is not a matrix row, and it is an input with
-   pull-up). Verify by adding raw `P0/P5/P7` bytes to the diagnostics and reading them in both positions. Waiting for the user's choice of use.
+2. **Win/Mac switch (unused, investigation ready).** The only input the stock firmware reads besides the matrix rows, the mode selector, the encoder and
+   the radio's attention line is **P7.0** (`mov a,P7; anl a,#0F` at the two confirmation readings of the Timer 2 ISR): it is the presumed pin. The
+   diagnostic kind 3 (2026-11-01) reports the raw `P0…P7` bytes and the columns in which P7.0 reads low, which tells a switch to ground (low in every
+   column) from one wired onto a column (a single cell). **Waiting for the user to run `diag.py --ports` in both positions**, then the function is chosen
+   (proposal: the switch selects the base layer, `layer_set_default`, the Mac layer swapping Alt/Win).
 3. **Battery percentage source unknown.** The stock firmware only clears `LPDCON/LPDSEL` (low-voltage detector); the BK3632's `08` frame may carry it. Needs data
    from `diag.py --radio` while the battery discharges/charges. The gauge UI is done and reads `battery_hook_percent()`; do not invent a scale.
 4. **The scan takes ~610 µs instead of the ~440 estimated** (32 busy-waits of 10 µs are 320 µs of it). Unexplained, harmless now; the clock check says the
@@ -143,7 +148,8 @@ dropping one.
 5. **The main loop is slow**: 0–5 passes per scan period; a pass is ~1170 instructions in the simulator, 37 % of it `matrix_any_pressed()` called twice per pass
    (`store_task`, `settings_task`). Typing latency is not visible, so no action required; calling it once would save ~215 instructions. A counter of passes per
    second would give the real pass time.
-6. **Flash margin is 229 B.** Before adding features, remove instrumentation that has answered its question (diag counters) or shrink code.
+6. **Flash margin is 314 B** (after freeing ~340 B of dead code, three answered diag counters and the LED settings cache on 2026-11-01). Before adding
+   features, check whether another counter or the diagnostic kind 3 can go.
 
 ## 10. Working agreements with the user
 

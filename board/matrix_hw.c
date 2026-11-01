@@ -19,6 +19,7 @@ static const __code uint8_t col_p6[MATRIX_COLS] = {0x01, 0x02, 0x04, 0x08, 0x10,
 
 #define SETTLE_US 10u // let the row lines settle after a strobe, and between the two readings
 
+
 // Rows into bits 0..4, pressed = 0; the bits above are forced to 1 so that they read as "not pressed".
 static uint8_t read_rows(void)
 {
@@ -108,5 +109,6 @@ void matrix_hw_scan(uint8_t raw[MATRIX_COLS])
         GPIO_HIGH(6, m6);
 
         raw[col] = (first == second) ? (uint8_t)(~first & MATRIX_ROW_MASK) : 0u;
+
     }
 }

@@ -25,12 +25,17 @@ uint8_t led_hook_profile(void)
 
 void led_app_task(uint16_t now)
 {
-    static bool last;
+    static bool waited; // the 500 ms from power-on have gone by at some point (the clock wraps every 65 s)
 
-    const bool on = link_wireless() || (usb_device_configured() && !usb_hw_suspended()) || (!usb_hw_setup_seen() && now >= NO_HOST_MS);
+    if (!waited && now >= NO_HOST_MS) {
+        waited = true;
+    }
 
-    if (on != last) {
-        last = on;
+    const bool on = link_wireless() || (usb_device_configured() && !usb_hw_suspended()) || (!usb_hw_setup_seen() && waited);
+
+    // Compared against the driver's own state, not against a copy kept here: a wake from sleep calls led_hw_init(), which takes the
+    // permission away, and the backlight has to come back on its own after it (it did not: the LEDs stayed dark until a power cycle).
+    if (on != led_hw_enabled()) {
         led_hw_enable(on);
     }
 }

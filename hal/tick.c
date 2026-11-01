@@ -103,8 +103,6 @@ void tick_isr(void) __interrupt(INT_TIMER2)
         diag_set(DIAG_PASSES_LAST, (uint8_t)(alive - seen_alive));
 
         if (alive == seen_alive) {
-            diag_inc(DIAG_NO_PASS);
-
             if (++starved >= STARVED_SCANS) {
                 if (!back_off) {
                     diag_inc(DIAG_BACKOFF);
@@ -150,11 +148,6 @@ void tick_isr(void) __interrupt(INT_TIMER2)
     } else {
         prev_len = (uint16_t)(SCHED_COUNTS_PER_US * SCHED_LED_US);
     }
-}
-
-uint8_t tick_ms_now(void)
-{
-    return ticks;
 }
 
 void tick_alive(void)

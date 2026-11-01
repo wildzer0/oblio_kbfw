@@ -1,16 +1,20 @@
 #pragma once
 
-// Settings that belong to the keyboard, not to a profile: the profile in use, the sleep time and the Bluetooth slot. One record in
-// the sector at 0xEC00, with a magic, a version and a CRC; it is rewritten (sector erased, record programmed) a moment after a
-// change. The profiles themselves are in store.h.
+// Settings that belong to the keyboard, not to a profile: the profile in use, the sleep time and the Bluetooth slot. A small record
+// with a magic, a version and a CRC, written as a LOG in its own sector at 0xEC00: every save appends at the first erased slot and
+// the last complete record wins. A save therefore never erases anything (no power cut can lose the previous settings, and the sector
+// is erased once every SETTINGS_SLOTS saves instead of at each one). The profiles themselves are in store.h.
+//
+// The sector after it (0xEE00) is left alone: the SMK port and the stock bootloader keep the "app bootable" marker there.
 //
 // The flash is reached through the hooks of store.h (read, erase, program).
 
 #include <stdbool.h>
 #include <stdint.h>
 
-#define SETTINGS_ADDR       0xEC00u // the sector after the profiles
+#define SETTINGS_ADDR       0xEC00u // the sector after the profiles (0xEE00 holds the bootloader's marker: never touched)
 #define SETTINGS_SECTOR     512u
+#define SETTINGS_SLOTS      56u     // 9-byte records back to back in the sector
 #define SETTINGS_QUIET_MS   500u    // changes are written once nothing has changed for this long and no key is down
 #define SETTINGS_SLEEP_DEFAULT 2     // 10 minutes (the levels are listed in sleep.h)
 

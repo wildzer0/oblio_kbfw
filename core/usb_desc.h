@@ -14,7 +14,7 @@
 
 #define USB_VID        0x258Au // the keyboard's own, so that sinowisp and Vial find it by the same ids as the SMK port
 #define USB_PID        0xDEADu
-#define USB_BCD_DEVICE 0x0200u
+#define USB_BCD_DEVICE 0x0201u // 0201: the consumer report range covers every usage (Windows caches on this)
 
 #define USB_EP0_SIZE 8
 #define USB_EP1_SIZE 16

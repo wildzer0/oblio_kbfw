@@ -41,4 +41,3 @@ bool matrix_any_pressed(void);
 
 // Times a change was held back because the event queue was full. The change is not lost: it is accepted on a
 // later scan, once the queue has room.
-uint8_t matrix_deferred(void);

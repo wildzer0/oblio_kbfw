@@ -64,6 +64,9 @@ void diag_receive(XDATA uint8_t *data, uint8_t length)
     } else if (kind == 2) {
         diag_hook_radio_monitor(data[2] != 0);
         data[2] = (data[2] != 0) ? 1 : 0;
+    } else if (kind == 3) {
+        memset(&data[2], 0, (size_t)(length - 2));
+        diag_hook_ports(&data[2]);
     } else {
         data[0] = 0xFF;
     }

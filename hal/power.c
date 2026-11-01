@@ -5,8 +5,6 @@
 #include "usb.h"
 #include "watchdog.h"
 
-static volatile bool woke_by_int4;
-
 static void int4_clear(void)
 {
     EXF1 = 0;
@@ -29,7 +27,6 @@ void power_wake_disable(void)
 void power_int4_isr(void) __interrupt(INT_INT4)
 {
     int4_clear();
-    woke_by_int4 = true;
 }
 
 // The key write and PCON.PD must be consecutive instructions; nothing may come between them.
@@ -66,7 +63,6 @@ void power_enter_powerdown(void)
     REGCON &= (uint8_t)~REGCON_REGEN;
 
     watchdog_kick();
-    woke_by_int4 = false;
 
     halt_until_wake();
 

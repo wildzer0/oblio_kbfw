@@ -5,3 +5,4 @@ tests/host/test_*
 *.ihx
 *.Zone.Identifier
 .vscode/
+__pycache__/

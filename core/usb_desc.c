@@ -48,8 +48,8 @@ static const ROM uint8_t report_desc_keyboard[] = {
 
     PAGE(0x0C), USAGE(0x01), COLLECTION_APP,        // Consumer, Consumer Control
         REPORT_ID(REPORT_ID_CONSUMER),
-        USAGE_MIN(0x00), USAGE_MAX16(0x023C),
-        LOGICAL_MIN(0), LOGICAL_MAX16(0x023C), REPORT_SIZE(16), REPORT_COUNT(1), INPUT(DATA_ARRAY),
+        USAGE_MIN(0x00), USAGE_MAX16(0x03FF), // up to KC_LPAD (0x2A0) in core/report.c: a host drops what is past this
+        LOGICAL_MIN(0), LOGICAL_MAX16(0x03FF), REPORT_SIZE(16), REPORT_COUNT(1), INPUT(DATA_ARRAY),
     END_COLLECTION,
 
     PAGE16(0xFF00), USAGE(0x01), COLLECTION_APP,    // vendor: the ISP command

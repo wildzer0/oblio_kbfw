@@ -17,13 +17,10 @@ typedef enum {
     DIAG_SCAN_LOST,        // scans overwritten before the main loop took them: harmless, the matrix is a state (as in the SMK port), only the debounce is slower
     DIAG_LOOP_MAX_MS,      // the slowest pass of the main loop
     DIAG_USB_OVERFLOW,     // USB report packets that replaced or pushed out another
-    DIAG_MS_PER_50_SOF,    // milliseconds of our own clock that pass in 50 start-of-frames of the USB bus (1 ms each): 50 if the timer runs as assumed
     DIAG_LED_US_MAX,       // longest LED slot, from its start to the end of its work, in us (the slot is 400; more means it ran late)
     DIAG_SCAN_US_MAX,      // the same for the scan slot (500)
     DIAG_PASSES_LAST,      // passes of the main loop between the last two scans
-    DIAG_NO_PASS,          // scans after which the main loop had not come round once since the one before
     DIAG_BACKOFF,          // times the main loop was found starved and the backlight stood aside
-    DIAG_USB_IRQS,         // USB interrupts other than the start of frame
     DIAG_SCAN_LATE,        // the same as DIAG_SLOT_LATE, for the scan slots
     DIAG_COUNT
 } diag_id_t;
@@ -41,10 +38,17 @@ uint16_t diag_get(diag_id_t id);
 //   kind 0: [0xF1, 0, DIAG_COUNT, counter 0 (lo, hi), counter 1, ...]
 //   kind 1: the radio: [0xF1, 1, 6 status bytes, 22 bytes of the last 08 frame]
 //   kind 2: [0xF1, 2, on]: listen to the radio with the cable in (on = 1), or stop; the reply echoes `on`
+//   kind 3: [0xF1, 3, P0 .. P7, mask low, mask high]: the raw ports and the columns in which P7.0 reads low, to find out what a
+//           physical switch that is not in the matrix is wired to
 //   anything else: [0xFF, ...] (unhandled)
 void diag_receive(XDATA uint8_t *data, uint8_t length);
 
 void diag_hook_radio_monitor(bool on); // provided by the board
+
+// Provided by the board: the raw bytes of P0 .. P7, then the mask of the columns during which P7.0 read low (columns 0-7, 8-15).
+// A switch wired into the matrix shows up as one column, a switch to ground as all of them.
+#define DIAG_PORT_BYTES 8u
+void diag_hook_ports(XDATA uint8_t *out);
 
 // Provided by the board: the radio's last status bytes (6) and last 08 frame (22), for kind 1
 const uint8_t *diag_hook_radio_status(void);

@@ -53,7 +53,7 @@ static void set_duty(uint8_t k, uint16_t duty1, uint16_t duty2)
 
 void led_hw_init(void)
 {
-    allowed = false;
+    allowed = false; // the caller asks again: see led_hw_enabled()
 
     for (uint8_t bank = 0; bank < 3; bank++) {
         PWM_PERDH(bank) = PWM_PERIOD_H;
@@ -74,6 +74,11 @@ void led_hw_enable(bool on)
     if (!on) {
         led_hw_pause();
     }
+}
+
+bool led_hw_enabled(void)
+{
+    return allowed;
 }
 
 void led_hw_pause(void)

@@ -16,7 +16,6 @@ static void test_boot_report_keeps_the_order_and_six_keys(void)
     report_build_boot(out);
     CHECK(out[0] == 0 && out[1] == 0);
     CHECK(out[2] == KC_A && out[7] == KC_F);
-    CHECK(report_key_pressed(KC_G)); // but the NKRO bitmap has it
 
     report_del_key(KC_B);
     report_add_key(KC_H); // takes the free slot
@@ -33,29 +32,7 @@ static void test_boot_report_keeps_the_order_and_six_keys(void)
 
     report_clear_keys();
     report_build_boot(out);
-    CHECK(out[2] == 0 && !report_key_pressed(KC_A));
-}
-
-static void test_nkro_bitmap(void)
-{
-    uint8_t out[REPORT_NKRO_SIZE];
-
-    report_init();
-    report_add_key(KC_A);                 // usage 4: byte 0, bit 4
-    report_add_key(KC_F12);               // usage 0x45: byte 8, bit 5
-    report_add_key(REPORT_NKRO_BITS - 1); // the last one in the bitmap
-    report_add_key(REPORT_NKRO_BITS);     // outside it: ignored by the bitmap, fine for the boot report
-    report_add_mods(0x42);
-
-    report_build_nkro(out);
-    CHECK(out[0] == 0x42);
-    CHECK(out[1 + 0] == (1u << 4));
-    CHECK(out[1 + 8] == (1u << 5));
-    CHECK(out[1 + REPORT_NKRO_BYTES - 1] == 0x80);
-
-    report_del_key(KC_A);
-    report_build_nkro(out);
-    CHECK(out[1] == 0);
+    CHECK(out[2] == 0);
 }
 
 static void test_modifiers(void)
@@ -111,7 +88,6 @@ static void test_usages(void)
 int main(void)
 {
     test_boot_report_keeps_the_order_and_six_keys();
-    test_nkro_bitmap();
     test_modifiers();
     test_keycode_encoding();
     test_usages();

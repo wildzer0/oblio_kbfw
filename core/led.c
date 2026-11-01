@@ -123,17 +123,31 @@ static void set(uint8_t field, uint16_t value)
 }
 
 // ---- painting ----
+// The settings of the profile in use, read once per repaint: a repaint paints 8 LEDs per pass of the main loop, and reading them from the
+// keymap (with the range check) for each of the three channels of each LED was most of what a pass cost. A change during the repaint asks
+// for another one (set() sets dirty), so nothing is left painted with the old settings.
+static uint8_t cur_effect;
+static uint8_t cur_brightness;
+static uint8_t cur_color;
+
+static void read_settings(void)
+{
+    cur_effect     = effect();
+    cur_brightness = brightness();
+    cur_color      = color();
+}
+
 static void paint_one(void)
 {
     uint8_t rgb[3] = {0, 0, 0};
 
-    if (effect() == FX_SOLID && color() != 0) {
-        led_color_wheel((uint8_t)((color() - 1u) * 16u), rgb);
+    if (cur_effect == FX_SOLID && cur_color != 0) {
+        led_color_wheel((uint8_t)((cur_color - 1u) * 16u), rgb);
 
         for (uint8_t c = 0; c < 3; c++) {
-            rgb[c] = (uint8_t)(((uint16_t)rgb[c] * brightness()) >> 8);
+            rgb[c] = (uint8_t)(((uint16_t)rgb[c] * cur_brightness) >> 8);
         }
-    } else if (!led_effect_rgb((led_effect_t)effect(), paint_row, paint_col, phase, brightness(), rgb)) {
+    } else if (!led_effect_rgb((led_effect_t)cur_effect, paint_row, paint_col, phase, cur_brightness, rgb)) {
         rgb[0] = rgb[1] = rgb[2] = 0; // the effect is off
     }
 
@@ -248,6 +262,8 @@ void led_task(void)
 
         dirty      = false; // cleared first: a step of the phase during the repaint asks for another
         paint_left = (uint8_t)(LED_ROWS * LED_COLS);
+
+        read_settings(); // once for the whole repaint, not once per LED
     }
 
     for (uint8_t i = 0; i < RENDER_CHUNK && paint_left; i++, paint_left--) {
@@ -255,13 +271,9 @@ void led_task(void)
     }
 }
 
-void led_render_all(void)
+void led_refresh(void)
 {
     dirty = true;
-
-    for (uint8_t guard = 0; guard < 2 * LED_ROWS * LED_COLS / RENDER_CHUNK; guard++) {
-        led_task();
-    }
 }
 
 void led_show_battery(uint8_t percent)

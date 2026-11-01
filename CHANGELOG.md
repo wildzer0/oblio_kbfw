@@ -12,6 +12,71 @@
 
 Il controllo di recupero Esc+1+2 va all'inizio del `main`, prima di USB e radio.
 
+## 2026-11-01 (sera, dopo la prova dello sleep: LED morti al risveglio)
+
+### Il difetto segnalato: al risveglio i LED restano spenti fino al power cycle
+- **Causa (dal codice, non un'ipotesi):** `sleep_and_wake()` richiama `led_hw_init()` per rimettere a posto i canali PWM, e quella funzione
+  azzera il permesso di accendere (`allowed`). `led_app_task()` confrontava il permesso con **una propria copia** (`static bool last`), che
+  restava `true`: `on == last`, nessuno riaccendeva, e il backlight rimaneva spento fino al riavvio.
+- `board/led_hw.[ch]`: nuovo `led_hw_enabled()`; `board/led_app.c` confronta con lo stato vero del driver, quindi dopo ogni
+  re-inizializzazione il backlight torna su da solo.
+- **Da riprovare sull'hardware**: Fn+Tab (o attesa) in 2.4G/BT e risveglio con un tasto.
+
+### Sonno: altri due difetti della stessa area
+- `board/sleep_hw.c`: il conteggio dell'inattività riparte solo sugli **eventi** di un tasto, quindi un tasto tenuto fermo non lo azzerava e la
+  tastiera poteva addormentarsi sotto il dito: ora `sleep_hw_task()` non dorme se `matrix_any_pressed()`.
+- `board/sleep_hw.c`: al risveglio lo stato del report viene azzerato (`report_clear_keys/mods`). Prima un tasto premuto al sonno e rilasciato
+  durante il sonno poteva restare «appeso» all'host radio (nessun evento, nessun report).
+
+### Salvataggio in flash
+- `core/store.[ch]`, `board/store_hw.c`: la pausa di timer e backlight è **una sola per tutto il salvataggio** (`store_hook_flush_begin/end`)
+  invece di una per ognuno dei ~30 blocchi da 64 byte: meno sfarfallio del backlight, meno lavoro, e il clock perde un intervallo solo.
+- `board/store_hw.c`: `watchdog_kick()` prima di ogni cancellazione e di ogni programmazione. Il main loop, che è quello che lo calcia, resta
+  bloccato qui dentro: un erase lento poteva far resettare la tastiera a metà salvataggio.
+- `core/settings.[ch]`: le impostazioni (profilo in uso, tempo di sonno, slot BT) sono ora un **log nel solo settore 0xEC00**: ogni salvataggio si
+  aggiunge alla prima cella cancellata (56 record da 9 byte) e vince l'ultimo record completo. Un salvataggio non cancella più niente, quindi una
+  caduta di corrente lascia le impostazioni precedenti invece dei valori predefiniti, e il settore si cancella una volta ogni 56 salvataggi invece
+  che ad ognuno (usura). **Nota:** la prima idea era una seconda copia a 0xEE00, ma quel settore è quello del *marker* del bootloader (la `LJMP` a
+  0xEFFB: `docs/architecture.md` del porting SMK): non si tocca.
+
+### Altri difetti corretti
+- `hal/usb.c`: i tre buffer dell'interrupt USB (`SETUP` 8 B, EP0 8 B, raw HID 32 B) erano **locali**: con `--stack-auto` finivano sullo stack
+  interno, che aveva ~38 byte liberi, sopra quello che stava facendo il main loop. Ora sono statici (vanno in XDATA).
+- `core/usb_desc.c`: il report consumer dichiarava usages fino a 0x023C, ma `KC_MCTL` (0x29F) e `KC_LPAD` (0x2A0) stanno oltre: un host li
+  scarta. Ora 0x03FF. `bcdDevice` 0x0200 → **0x0201** (Windows tiene in cache i descrittori per VID:PID:bcdDevice).
+- `core/report.[ch]`: tolto il codice NKRO morto (bitmap mantenuta e mai inviata, `report_build_nkro`, `report_key_pressed`): 16 byte di XDATA e
+  un po' di flash. Il limite vero (6 tasti in USB) è ora scritto nel commento.
+- `core/radio.c`: la coda dei report passa da 4 a 8 stati, così una sequenza rapida premuto/rilasciato/premuto non sovrascrive uno stato
+  intermedio.
+- `board/main.c`: `matrix_any_pressed()` una volta per giro invece di due (era il 37% del costo di un giro secondo il report).
+- `core/vial.c`: tolta una condizione sempre falsa in `get_definition()`.
+- `hal/power.c`: tolta `woke_by_int4` (scritta e mai letta).
+- Codice morto rimosso per fare spazio: `crc16_word` (usa due volte `crc16_byte`), `matrix_deferred()` e il suo contatore, `led_render_all`
+  (sostituita da `led_refresh()`, il test pompa `led_task()`), `clamp()` delle impostazioni (in linea nel caricamento), e tre contatori
+  diagnostici che avevano risposto alla loro domanda (`DIAG_MS_PER_50_SOF` con `tick_ms_now()`, `DIAG_USB_IRQS`, `DIAG_NO_PASS`).
+- `tests/host`: aggiornati i test toccati (report, radio, impostazioni con le due copie, led, matrice, diag) e i nuovi stub dei hook.
+
+### Diagnostica per lo switch Win/Mac (indagine, non ancora una funzione)
+- `core/diag.[ch]` kind 3 + `board/diag_hw.c`: la risposta riporta i byte grezzi di **P0…P7** e la maschera delle colonne in cui **P7.0** legge
+  basso. P7.0 è l'unico ingresso che il firmware stock legge insieme alle righe della matrice senza essere una riga (dump: `mov a,P7; anl a,#0F`
+  alle due letture di conferma della ISR del Timer2), ed è quindi il candidato per lo switch. La maschera distingue uno switch verso massa (basso
+  in tutte le colonne) da uno cablato su una colonna (una sola cella).
+- Il comando non richiede lo sblocco Vial (come i contatori); `tools/diag.py --ports` lo legge.
+- **Cosa serve dall'utente:** `py tools\diag.py --ports` (o `python3 tools/diag.py --ports` su Linux) con lo switch in **entrambe** le posizioni.
+
+### Ultime rifiniture della stessa sessione
+- `core/led.c`: le impostazioni dell'effetto (effetto, luminosità, colore) si leggono **una volta per repaint** invece di tre `keymap_cfg_get()`
+  per ognuno degli 8 LED di un giro del main. Contro ogni aspettativa fa **risparmiare flash** (-140 B: SDCC non le ricopia in linea nel percorso del
+  disegno) e toglie lavoro al main loop.
+- `board/led_app.c`: il «dopo 500 ms senza host» ora è un flag che si chiude una volta invece di `now >= 500`: con l'orologio a 16 bit che gira
+  ogni 65 s, il confronto spegneva il backlight per mezzo secondo a ogni giro quando non c'era host.
+- `board/sleep_hw.c`: prima di dormire si scrivono i profili e le impostazioni in sospeso (`store_flush`/`settings_flush`): su batteria la tastiera
+  può non tornare, e una modifica fatta mezzo secondo prima del sonno andrebbe persa.
+- `.gitignore` + `git rm --cached`: `tests/sim/__pycache__/` non è più tracciato (era nel repo per errore).
+
+Budget: flash **43718/44032** (314 B liberi), XDATA **3767/4096**. `make test` 22/22, `make check-interrupts` ok, `make sim` 24/24
+(sottoquadro 433, scansione 8305 istruzioni; stack usato nel simulatore 87 byte su 223).
+
 ## 2026-11-01
 - Repo creato. Documenti hardware, radio e LED portati dal porting SMK (`docs/`).
 
