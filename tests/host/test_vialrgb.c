@@ -105,7 +105,7 @@ static void test_the_mode_reads_and_writes_the_profile(void)
     cfg[CFG_LED_EFFECT] = FX_HORIZONTAL;
     cfg[CFG_LED_SPEED]  = 7;
     cfg[CFG_LED_BRIGHT] = 128;
-    cfg[CFG_LED_COLOR]  = 129; // hue 128 of the wheel
+    cfg[CFG_LED_COLOR]  = (uint16_t)(((uint16_t)255 << 8) | 128); // hue 128, fully saturated
 
     get(0x41, 0);
     CHECK(packet[2] == 5);   // the id of the effect in use
@@ -126,7 +126,7 @@ static void test_choosing_from_the_app(void)
     set_mode(4, 3, 0, 255, 200); // gradient up down, red, bright
     CHECK(cfg[CFG_LED_EFFECT] == FX_VERTICAL);
     CHECK(cfg[CFG_LED_SPEED] == 3 && cfg[CFG_LED_BRIGHT] == 200);
-    CHECK(cfg[CFG_LED_COLOR] == 1); // hue 0: red
+    CHECK(cfg[CFG_LED_COLOR] == ((uint16_t)255 << 8)); // hue 0, saturated: red
 
     set_mode(0, 3, 0, 0, 200); // off
     CHECK(cfg[CFG_LED_EFFECT] == FX_OFF);
@@ -135,7 +135,12 @@ static void test_choosing_from_the_app(void)
     CHECK(cfg[CFG_LED_EFFECT] == FX_SOLID && cfg[CFG_LED_COLOR] == 0);
 
     set_mode(2, 3, 32, 255, 200); // solid, orange (hue 32): kept as it is, not rounded to a palette
-    CHECK(cfg[CFG_LED_COLOR] == 33);
+    CHECK(cfg[CFG_LED_COLOR] == (uint16_t)((255u << 8) | 32));
+
+    set_mode(2, 3, 32, 128, 200); // the same hue, half saturated: that is kept too
+    CHECK(cfg[CFG_LED_COLOR] == (uint16_t)((128u << 8) | 32));
+    get(0x41, 0);
+    CHECK(packet[5] == 32 && packet[6] == 128);
 
     set_mode(99, 3, 0, 255, 200); // an id this keyboard does not have: off, rather than something random
     CHECK(cfg[CFG_LED_EFFECT] == FX_OFF);
@@ -147,11 +152,12 @@ static void test_a_colour_comes_back_the_same(void)
 
     for (uint16_t step = 0; step < 255; step += 17) {
         const uint8_t hue = (uint8_t)step;
+        const uint8_t sat = (uint8_t)(255u - step);
 
-        set_mode(2, 3, hue, 255, 200);
+        set_mode(2, 3, hue, sat, 200);
         get(0x41, 0);
 
-        CHECK(packet[5] == hue); // the same hue goes back to the app, to the step
+        CHECK(packet[5] == hue && packet[6] == sat); // hue and saturation go back to the app, to the step
     }
 }
 

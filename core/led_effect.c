@@ -39,6 +39,28 @@ uint8_t led_effect_index(led_effect_t fx, uint8_t row, uint8_t col, uint8_t phas
     }
 }
 
+// Hue, saturation and value, the way a colour picker means them: the hue is the side of the wheel (red, yellow, green, cyan, blue, magenta), the
+// saturation how far from white it goes (0 is white, 255 the pure colour) and the value how bright. Taking the pure colour from the wheel and
+// mixing it with white costs far less code than six sides of arithmetic: what an LED shows does not tell the difference (the divisions are by
+// 256, which is a shift).
+void led_color_hsv(uint8_t hue, uint8_t saturation, uint8_t value, uint8_t out[3])
+{
+    if (saturation == 0) { // no colour at all: white, at this brightness
+        out[0] = out[1] = out[2] = value;
+        return;
+    }
+
+    led_color_wheel(hue, out);
+
+    const uint16_t white = (uint16_t)(255u - saturation); // how much white is mixed in
+
+    for (uint8_t c = 0; c < 3; c++) {
+        const uint16_t mixed = (uint16_t)(white + (uint16_t)(((uint16_t)out[c] * saturation) >> 8));
+
+        out[c] = (uint8_t)((((uint16_t)value * mixed)) >> 8);
+    }
+}
+
 // The wheel of an HSV colour picker: red, yellow, green, cyan, blue, magenta and back to red, in six sides of 43 steps each. It used to run
 // red -> blue -> green, which is a wheel of its own: a colour chosen in the Vial app (whose picker is HSV) came out as another one - orange
 // arrived as purple.

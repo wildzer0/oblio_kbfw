@@ -105,11 +105,14 @@ static uint8_t speed(void)
     return (v < LED_SPEED_MIN) ? LED_SPEED_MIN : (v > LED_SPEED_MAX) ? LED_SPEED_MAX : (uint8_t)v;
 }
 
-static uint8_t color(void)
+static uint8_t hue(void)
 {
-    const uint16_t c = keymap_cfg_get(CFG_LED_COLOR);
+    return (uint8_t)(keymap_cfg_get(CFG_LED_COLOR) & 0xFFu);
+}
 
-    return (c >= LED_COLORS) ? 0 : (uint8_t)c;
+static uint8_t saturation(void)
+{
+    return (uint8_t)(keymap_cfg_get(CFG_LED_COLOR) >> 8);
 }
 
 static void set(uint8_t field, uint16_t value)
@@ -124,25 +127,23 @@ static void set(uint8_t field, uint16_t value)
 // for another one (set() sets dirty), so nothing is left painted with the old settings.
 static uint8_t cur_effect;
 static uint8_t cur_brightness;
-static uint8_t cur_color;
+static uint8_t cur_color; // the hue
+static uint8_t cur_sat;   // its saturation
 
 static void read_settings(void)
 {
     cur_effect     = effect();
     cur_brightness = brightness();
-    cur_color      = color();
+    cur_color      = hue();
+    cur_sat        = saturation();
 }
 
 static void paint_one(void)
 {
     uint8_t rgb[3] = {0, 0, 0};
 
-    if (cur_effect == FX_SOLID && cur_color != 0) {
-        led_color_wheel((uint8_t)(cur_color - 1u), rgb);
-
-        for (uint8_t c = 0; c < 3; c++) {
-            rgb[c] = (uint8_t)(((uint16_t)rgb[c] * cur_brightness) >> 8);
-        }
+    if (cur_effect == FX_SOLID) { // the colour of the profile: a hue and a saturation, at the brightness of the profile
+        led_color_hsv(cur_color, cur_sat, cur_brightness, rgb);
     } else if (!led_effect_rgb((led_effect_t)cur_effect, paint_row, paint_col, phase, cur_brightness, rgb)) {
         rgb[0] = rgb[1] = rgb[2] = 0; // the effect is off
     }
@@ -317,18 +318,36 @@ void led_brightness_down(void)
     set(CFG_LED_BRIGHT, (v < LED_BRIGHTNESS_STEP) ? 0 : (uint8_t)(v - LED_BRIGHTNESS_STEP));
 }
 
+// The two keys of the colour walk the hue at full saturation, and white is the step after the last hue (as when the colour was one of seventeen)
+static void set_color(uint8_t h, uint8_t s)
+{
+    set(CFG_LED_COLOR, (uint16_t)(((uint16_t)s << 8) | h));
+}
+
 void led_color_up(void)
 {
-    const uint8_t c = color();
+    const uint8_t h = hue();
 
-    set(CFG_LED_COLOR, (c + LED_COLOR_STEP >= LED_COLORS) ? 0 : (uint8_t)(c + LED_COLOR_STEP));
+    if (saturation() == 0) {
+        set_color(0, LED_SAT_FULL); // white -> the first colour
+    } else if ((uint16_t)(h + LED_HUE_STEP) > 255u) {
+        set_color(0, 0); // past the last one -> white
+    } else {
+        set_color((uint8_t)(h + LED_HUE_STEP), LED_SAT_FULL);
+    }
 }
 
 void led_color_down(void)
 {
-    const uint8_t c = color();
+    const uint8_t h = hue();
 
-    set(CFG_LED_COLOR, (c < LED_COLOR_STEP) ? (uint8_t)(LED_COLORS - LED_COLOR_STEP) : (uint8_t)(c - LED_COLOR_STEP));
+    if (saturation() == 0) {
+        set_color((uint8_t)(255u - LED_HUE_STEP), LED_SAT_FULL); // white -> the last colour
+    } else if (h < LED_HUE_STEP) {
+        set_color(0, 0); // before the first one -> white
+    } else {
+        set_color((uint8_t)(h - LED_HUE_STEP), LED_SAT_FULL);
+    }
 }
 
 void led_speed_up(void)

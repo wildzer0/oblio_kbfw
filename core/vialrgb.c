@@ -64,20 +64,10 @@ uint8_t vialrgb_effect_of(uint8_t id)
     return FX_OFF; // an id this keyboard does not have
 }
 
-// The colour of the profile is a hue already (0 is white, 1..255 the wheel), so what the app sends is what is kept - the effects are at full
-// saturation, so a pastel from the picker comes out as its pure hue.
-static uint8_t color_from_hsv(uint8_t hue, uint8_t sat)
+// The colour of the profile is a hue and a saturation in one word (core/keymap.h), so what the picker sends is what is kept, to the step.
+static uint16_t color_from_hsv(uint8_t hue, uint8_t sat)
 {
-    if (sat == 0) {
-        return 0; // white
-    }
-
-    return (uint8_t)(hue + 1u); // hue 255 arrives as 256, which the one-byte field takes as 255: one step, at the seam of the wheel
-}
-
-static uint8_t hue_of_color(uint8_t color)
-{
-    return (color == 0) ? 0 : (uint8_t)(color - 1u);
+    return (uint16_t)(((uint16_t)sat << 8) | hue);
 }
 
 void vialrgb_get_value(XDATA uint8_t *data)
@@ -94,14 +84,13 @@ void vialrgb_get_value(XDATA uint8_t *data)
             break;
 
         case LIGHTING_GET_MODE: {
-            const uint8_t id    = vialrgb_id_of((uint8_t)keymap_cfg_get(CFG_LED_EFFECT));
-            const uint8_t color = (uint8_t)keymap_cfg_get(CFG_LED_COLOR);
+            const uint16_t color = keymap_cfg_get(CFG_LED_COLOR);
 
-            args[0] = id;
+            args[0] = vialrgb_id_of((uint8_t)keymap_cfg_get(CFG_LED_EFFECT));
             args[1] = 0;
             args[2] = (uint8_t)keymap_cfg_get(CFG_LED_SPEED);
-            args[3] = hue_of_color(color);
-            args[4] = (color == 0) ? 0 : 255; // saturation
+            args[3] = (uint8_t)(color & 0xFFu);  // the hue
+            args[4] = (uint8_t)(color >> 8);     // the saturation
             args[5] = (uint8_t)keymap_cfg_get(CFG_LED_BRIGHT);
             break;
         }

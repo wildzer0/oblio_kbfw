@@ -12,6 +12,21 @@
 
 Il controllo di recupero Esc+1+2 va all'inizio del `main`, prima di USB e radio.
 
+## 2026-11-03 — colore completo: tinta **e** saturazione, a costo zero di memoria
+
+- **Il conto, prima di farlo**: il colore del profilo era già una parola da 16 bit che ne usava otto (la tinta, con 0 = bianco). La saturazione
+  sta nell'altro byte: **0 byte di RAM, 0 di XDATA, 0 di deposito**. Il costo è solo codice.
+- **Costo vero, misurato**: **+333 B di flash** (51321 → 51654) e **+1 B di XDATA** (una variabile di stato). Il primo tentativo, con la conversione
+  HSV scritta a sei lati, costava **+1605 B**: riscritta come "prendi il colore puro dalla ruota e mescolalo col bianco" (divisioni per 256, cioè
+  shift) è costata un quinto.
+- `core/led_effect.c`: `led_color_hsv(hue, saturation, value, out)`; `core/led.c`: il colore del profilo si legge come tinta (byte basso) e
+  saturazione (byte alto), e l'effetto tinta unita usa la conversione. I tasti Fn+U/I camminano la tinta a saturazione piena e passano dal bianco
+  dopo l'ultima, come prima.
+- `core/vialrgb.c`: la tinta **e** la saturazione della tavolozza si salvano e si rileggono uguali, al passo di 1/255.
+- Test aggiornati: colore del profilo con saturazione, giro tinta+saturazione → profilo → tinta+saturazione, tasti del colore.
+
+Budget: flash **51654/56320** (4,7 KB liberi), XDATA **3721/4096**. `make test` 27/27, `make sim` 24/24, `make stages` 1–3 ok.
+
 ## 2026-11-03 — il colore scelto da Vial non era quello che usciva
 
 - **Causa**: la ruota colori del firmware girava **rosso → blu → verde** (un ordine suo), mentre la tavolozza di Vial è HSV: **rosso → giallo →

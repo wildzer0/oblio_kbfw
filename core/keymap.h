@@ -90,7 +90,7 @@ bool     keymap_override_set(uint8_t index, uint8_t field, uint16_t value);
 #define CFG_LED_BRIGHT   1
 #define CFG_LED_SPEED    2
 #define CFG_TAP_TERM     3 // ms, 0 = KEYMAP_TAPPING_TERM_DEFAULT
-#define CFG_LED_COLOR    4 // colour of the plain (solid) effect: 0 white, 1-16 the colour wheel in steps of 16
+#define CFG_LED_COLOR    4 // colour of the plain effect: the hue in the low byte, the saturation in the high one (0 = white)
 
 // Provided by the board (or a test): the compiled-in value of a setting.
 uint16_t keymap_default_cfg(uint8_t field);

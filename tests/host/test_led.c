@@ -221,12 +221,12 @@ static void test_plain_effect_in_a_colour(void)
 {
     reset(FX_SOLID);
     cfg_defaults[CFG_LED_COLOR] = 0;
-    keymap_cfg_set(CFG_LED_COLOR, 81); // the wheel at hue 80
+    keymap_cfg_set(CFG_LED_COLOR, (uint16_t)(((uint16_t)LED_SAT_FULL << 8) | 80)); // hue 80, full saturation
     settle();
 
-    uint8_t wheel[3];
-    led_color_wheel(80, wheel);
-    CHECK(is(0, 5, (uint8_t)((wheel[0] * 160u) >> 8), (uint8_t)((wheel[1] * 160u) >> 8), (uint8_t)((wheel[2] * 160u) >> 8)));
+    uint8_t mixed[3];
+    led_color_hsv(80, LED_SAT_FULL, 160, mixed);
+    CHECK(is(0, 5, mixed[0], mixed[1], mixed[2]));
 }
 
 static void test_widths_stay_inside_the_pwm_period(void)
@@ -458,11 +458,16 @@ static void test_the_keys_of_the_lighting(void)
     led_speed_up();
     CHECK(keymap_cfg_get(CFG_LED_SPEED) == LED_SPEED_MIN + 1);
 
-    keymap_cfg_set(CFG_LED_COLOR, LED_COLORS - LED_COLOR_STEP);
-    led_color_up(); // past the end of the wheel: white, and round again
-    CHECK(keymap_cfg_get(CFG_LED_COLOR) == 0);
+    // the colour keys walk the hue at full saturation, and white is the step after the last hue
+    keymap_cfg_set(CFG_LED_COLOR, 0); // white
+    led_color_up();
+    CHECK(keymap_cfg_get(CFG_LED_COLOR) == ((uint16_t)LED_SAT_FULL << 8)); // hue 0
     led_color_down();
-    CHECK(keymap_cfg_get(CFG_LED_COLOR) == LED_COLORS - LED_COLOR_STEP);
+    CHECK(keymap_cfg_get(CFG_LED_COLOR) == 0); // and back to white
+
+    keymap_cfg_set(CFG_LED_COLOR, (uint16_t)(((uint16_t)LED_SAT_FULL << 8) | 240)); // the last hue of the walk
+    led_color_up();
+    CHECK(keymap_cfg_get(CFG_LED_COLOR) == 0); // past it: white
 }
 
 static void test_settings_out_of_range_are_tamed(void)
