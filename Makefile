@@ -17,7 +17,7 @@ FW_SRC    := $(filter-out $(NOT_LINKED),$(wildcard core/*.c hal/*.c board/*.c))
 FW_REL    := $(patsubst %.c,build/%.rel,$(FW_SRC)) build/vial_data.rel
 CHECK_REL := $(patsubst %.c,build/%.rel,$(NOT_LINKED))
 
-.PHONY: test fw size clean check-vial
+.PHONY: test fw size clean check check-vial check-interrupts
 .DELETE_ON_ERROR: # a failed build must not leave a half-made file that make takes for up to date
 
 test: $(HOST_TESTS) check-vial
@@ -59,6 +59,12 @@ build/vial_data.c: board/vial.json tools/vial_gen.py
 
 build/vial_data.rel: build/vial_data.c $(HEADERS)
 	$(SDCC) $(SDCCFLAGS) -Icore -c $< -o $@
+
+# the linked firmware: the interrupt vectors are the intended ones, and the static overlay is empty
+check-interrupts: build/oblio.hex
+	python3 tools/check_interrupts.py build/oblio.hex build/oblio.map
+
+check: check-vial check-interrupts
 
 check-vial:
 	python3 tools/check_vial.py board/vial.json board/keymap_default.c board/b68_keys.h core/matrix.h "$(VIAL_UNLOCK)"
