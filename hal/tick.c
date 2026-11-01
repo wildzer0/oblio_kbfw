@@ -9,7 +9,7 @@
 #define BACK_OFF_SLOTS 32u
 #define STARVED_SCANS  3u
 
-#define RELOAD(us) ((uint16_t)(65536u - 2u * (us)))
+#define RELOAD(us) ((uint16_t)(65536u - SCHED_COUNTS_PER_US * (us)))
 
 static volatile uint8_t ticks;
 static uint8_t          taken;
@@ -19,25 +19,40 @@ static volatile bool    scan_ready;
 static uint8_t          back_off; // LED slots still to be given up after the main loop was starved
 static volatile uint8_t alive;    // passes of the main loop
 static uint8_t          seen_alive;
-static uint16_t         slot_start; // the count the running slot began from (what the timer reloaded)
-static uint8_t          starved;  // scans in a row in which the main loop did not come round
+static uint8_t          starved; // scans in a row in which the main loop did not come round
 
-static uint16_t         next_start;
+// The timer is restarted at the start of every slot (as in the SMK port), so each slot is timed from its own interrupt. The next
+// interrupt comes when the timer overflows, or at once after a scan, which ends its own slot.
+static uint16_t pending_reload; // what the timer is armed with at the next interrupt: the length of the slot that starts then
+static uint16_t prev_reload;    // the same for the slot that began at the previous interrupt: the count the timer reloaded to
+static uint16_t prev_len;       // how long that slot was, in counts, from its start to its end
 
-static void set_reload(slot_t slot)
+static uint16_t timer_count(void)
 {
-    const uint16_t reload = RELOAD(sched_slot_us(slot));
+    uint8_t high;
+    uint8_t low;
 
-    next_start = reload;
+    do {
+        high = TH2;
+        low  = TL2;
+    } while (high != TH2);
 
+    return (uint16_t)((uint16_t)high << 8 | low);
+}
+
+// Stopped while it is loaded, so that the count and the reload value agree
+static void timer_start(uint16_t reload)
+{
+    TR2    = 0;
     RCAP2H = (uint8_t)(reload >> 8);
     RCAP2L = (uint8_t)(reload & 0xFF);
+    TH2    = (uint8_t)(reload >> 8);
+    TL2    = (uint8_t)(reload & 0xFF);
+    TR2    = 1;
 }
 
 void tick_init(void)
 {
-    const uint16_t first = RELOAD(sched_slot_us(SLOT_LED));
-
     ticks      = 0;
     taken      = 0;
     alive      = 0;
@@ -46,34 +61,36 @@ void tick_init(void)
     back_off   = 0;
     scan_ready = false;
     sched_init();
-    slot_start = first;
+
+    pending_reload = RELOAD(sched_slot_us(SLOT_LED));
+    prev_reload    = pending_reload;
+    prev_len       = SCHED_LED_US * SCHED_COUNTS_PER_US; // the start-up period before the first interrupt counts as an LED slot
 
     TR2   = 0;
     T2CON = 0; // 16-bit auto-reload on overflow
     T2MOD = 0;
-    set_reload(SLOT_LED);
-    TH2 = (uint8_t)(first >> 8);
-    TL2 = (uint8_t)(first & 0xFF);
+    timer_start(pending_reload);
     TF2 = 0;
     ET2 = 1;
-    TR2 = 1;
 }
 
-// The slot that begins now is played, and the timer is told how long the one after it is: that is the value it reloads at the next
-// overflow. The matrix scan and the LED subframe are in the board's hooks.
+// The slot that begins now is played. The timer is restarted at once for its length, so the next interrupt is that long after this one began
+// (or, after a scan, as soon as the scan has finished). The matrix scan and the LED subframe are in the board's hooks.
 void tick_isr(void) __interrupt(INT_TIMER2)
 {
-    bool millisecond;
+    uint8_t milliseconds;
 
     TF2 = 0;
 
-    const slot_t slot = sched_step(&millisecond);
+    const uint16_t entered = timer_count(); // counted from the overflow that brought us here: the latency of the interrupt
+    const uint16_t reload  = pending_reload;
 
-    if (millisecond) {
-        ticks++;
-    }
+    timer_start(reload);
 
-    set_reload(sched_upcoming());
+    const slot_t slot = sched_step((uint16_t)(prev_len + (uint16_t)(entered - prev_reload)), &milliseconds);
+
+    ticks += milliseconds;
+    pending_reload = RELOAD(sched_slot_us(sched_upcoming()));
 
     if (slot == SLOT_SCAN) {
         if (scan_ready) {
@@ -97,8 +114,8 @@ void tick_isr(void) __interrupt(INT_TIMER2)
 
         seen_alive = alive;
     } else {
-        // A slot that ran late means the work of the interrupt does not fit its time, and the main loop is starved of the CPU (no keys, and
-        // finally the watchdog). The backlight is the part that can wait: it steps aside for a while and the keys keep working.
+        // The main loop being starved of the CPU (no keys, and finally the watchdog) is what a backlight that takes too much of it
+        // does. The backlight is the part that can wait: it steps aside for a while and the keys keep working.
         tick_hook_led(back_off != 0);
 
         if (back_off) {
@@ -106,26 +123,29 @@ void tick_isr(void) __interrupt(INT_TIMER2)
         }
     }
 
-    // How long the slot took, from the overflow that began it, in us (the timer counts at 2 MHz)
-    uint8_t  high;
-    uint8_t  low;
-    uint16_t count;
+    // How long the work took, from the restart, in counts
+    uint16_t used = (uint16_t)(timer_count() - reload);
 
-    do {
-        high  = TH2;
-        low   = TL2;
-        count = (uint16_t)((uint16_t)high << 8 | low);
-    } while (high != TH2);
-
-    uint16_t elapsed = (uint16_t)(count - slot_start);
-
-    if (TF2) {
-        diag_inc(slot == SLOT_SCAN ? DIAG_SCAN_LATE : DIAG_SLOT_LATE); // the next overflow came while this slot's work was still running
-        elapsed = (uint16_t)((uint16_t)(0u - slot_start) + (uint16_t)(count - next_start));
+    if (TF2) { // the timer overflowed again before the work was done: the slot is over its length
+        diag_inc(slot == SLOT_SCAN ? DIAG_SCAN_LATE : DIAG_SLOT_LATE);
+        used = (uint16_t)(SCHED_COUNTS_PER_US * sched_slot_us(slot));
     }
 
-    diag_max(slot == SLOT_SCAN ? DIAG_SCAN_US_MAX : DIAG_LED_US_MAX, (uint16_t)(elapsed >> 1));
-    slot_start = next_start;
+    diag_max(slot == SLOT_SCAN ? DIAG_SCAN_US_MAX : DIAG_LED_US_MAX, (uint16_t)(used / SCHED_COUNTS_PER_US));
+
+    prev_reload = reload;
+
+    if (slot == SLOT_SCAN) {
+        prev_len = used;
+        // the scan is over: the next slot starts now, not when the timer would have run out. The counter is set one count short of the
+        // overflow; RCAP2 still holds `reload`, which is what it reloads to
+        TR2 = 0;
+        TH2 = 0xFFu;
+        TL2 = 0xFFu;
+        TR2 = 1;
+    } else {
+        prev_len = (uint16_t)(SCHED_COUNTS_PER_US * SCHED_LED_US);
+    }
 }
 
 uint8_t tick_ms_now(void)

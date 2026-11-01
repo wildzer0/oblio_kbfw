@@ -1,35 +1,32 @@
 #include "sched.h"
 
-static slot_t   current;      // the slot that starts at the next interrupt
-static uint16_t previous_us;  // the length of the slot that has just ended
-static uint16_t accumulated;  // microseconds not yet counted into a millisecond
-static uint8_t  subframes;    // LED slots since the last scan
+static slot_t   current;     // the slot that starts at the next interrupt
+static uint16_t accumulated; // timer counts not yet counted into a millisecond
+static uint8_t  subframes;   // LED slots since the last scan
 
 uint16_t sched_slot_us(slot_t slot)
 {
-    return slot == SLOT_SCAN ? SCHED_SCAN_US : SCHED_LED_US;
+    return slot == SLOT_SCAN ? SCHED_SCAN_MAX_US : SCHED_LED_US;
 }
 
 void sched_init(void)
 {
     current     = SLOT_LED;
-    previous_us = SCHED_LED_US; // the start-up period before the first interrupt counts as a slot of that length
     accumulated = 0;
     subframes   = 0;
 }
 
-slot_t sched_step(bool *millisecond)
+slot_t sched_step(uint16_t elapsed, uint8_t *milliseconds)
 {
     const slot_t now = current;
 
-    accumulated = (uint16_t)(accumulated + previous_us);
-    *millisecond = accumulated >= 1000u;
+    accumulated = (uint16_t)(accumulated + elapsed);
+    *milliseconds = 0;
 
-    if (*millisecond) {
-        accumulated = (uint16_t)(accumulated - 1000u);
+    while (accumulated >= SCHED_COUNTS_PER_MS) {
+        accumulated = (uint16_t)(accumulated - SCHED_COUNTS_PER_MS);
+        (*milliseconds)++;
     }
-
-    previous_us = sched_slot_us(now);
 
     if (now == SLOT_SCAN) {
         subframes = 0;

@@ -1,8 +1,8 @@
 #pragma once
 
 // Timer 2 drives the whole timing of the keyboard: it plays the slots of core/sched.h (an LED subframe, or a scan of the key matrix)
-// and counts milliseconds from their lengths. Auto-reload mode: the length of a slot is the value the timer reloads when the slot
-// begins, so the slots are exact whatever the latency of the interrupt.
+// and counts milliseconds from the time that really passes. Each interrupt restarts the timer for the slot that begins, as the SMK port
+// does, so a long scan never cuts the LED slot after it short.
 //
 // The handler is declared here because SDCC builds the vector table from the module that defines main(): main.c must include
 // this header.
@@ -12,7 +12,7 @@
 
 void tick_isr(void) __interrupt(0); // INT_TIMER2
 
-// Provided by the board: the work of the two kinds of slots. They run inside the interrupt and must fit in their slot (400 / 450 us).
+// Provided by the board: the work of the two kinds of slots. They run inside the interrupt and are timed from the start of their own interrupt (core/sched.h).
 void tick_hook_scan(uint8_t raw[16]); // scan the key matrix: raw[col] has bit `row` set for a pressed key
 void tick_hook_led(bool give_up);     // play one subframe of the backlight; `give_up`: the timer is running late, switch the backlight off instead
 

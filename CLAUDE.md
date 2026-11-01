@@ -62,3 +62,4 @@ Recupero: Esc+1+2 mentre si inserisce l'USB.
 
 ## Aggiornamento 2026-11-01 (sera)
 - Il gradino 2 sull'hardware ha fallito (LED a scatti, nessun tasto): causa = ISR troppo lunghe (4697/8963 istruzioni). Corretto con tabella DUTY2 precalcolata, ISR a indirizzi costanti, slot di scansione 500 µs, ritiro dei LED se il main non gira, contatori diag senza sblocco. Flash 43477/44032, XDATA 3703/4096. **Da riprovare sull'hardware**; se fallisce, `tools/diag.py` (senza sblocco) dice causa reset, slot in ritardo, scansioni perse.
+- Flicker in USB (2026-11-01): la griglia fissa di slot troncava lo slot LED dopo ogni scansione lunga (~800 µs misurati). Ora gli slot sono temporizzati dall'inizio della propria ISR come in SMK (core/sched, hal/tick); orologio ms dal tempo reale. Non provato sull'hardware; flash 43814/44032. Dati utili: `py diag.py --watch 1` (con `hidapi` su Windows).
