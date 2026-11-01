@@ -73,11 +73,18 @@ const uint8_t *radio_status(void);
 // 2.4G): byte 4 read 0xff (awake, level 7 of 7) and byte 1 carried the LEDs. If the gauge ever sticks at 0 or never moves, those two offsets
 // are the one line to change.
 #define RADIO_STATUS_FLAGS_AT   1u // LEDs in bits 0-2, connected bit 3, paired bit 4, low power bit 7
-#define RADIO_STATUS_BATTERY_AT 4u // level in bits 0-2, "awake" in bit 7
+#define RADIO_STATUS_BATTERY_AT 4u // level in bits 0-2, "awake" in bit 7 - and 0xFF, the whole byte, while the cable charges the battery
 
-#define RADIO_BATTERY_NONE 0xFFu // no answer has come yet
+#define RADIO_BATTERY_NONE 0xFFu // no answer has come yet, or the byte the level lives in says nothing
 
 uint8_t radio_battery_level(void); // 0..7, or RADIO_BATTERY_NONE
+
+// The whole status answer as it was last seen *on battery* (no cable): the only way to look at it, since the diagnostics themselves need the
+// cable, and with the cable the radio says something else (its battery byte reads 0xFF). Zeros until one has come.
+const uint8_t *radio_status_on_battery(void);
+
+// Provided by the caller: is the keyboard running on its battery (a wireless mode, no cable)?
+bool radio_hook_on_battery(void);
 bool    radio_low_power(void);     // the radio says the battery is critically low
 uint8_t radio_host_leds(void);     // bit 0 num lock, bit 1 caps lock, bit 2 scroll lock
 

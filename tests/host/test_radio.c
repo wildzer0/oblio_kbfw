@@ -3,6 +3,10 @@
 #include "radio.h"
 #include <string.h>
 
+static bool on_battery; // the radio's status counts as "on battery" when this is set
+
+bool radio_hook_on_battery(void) { return on_battery; }
+
 // ---- a simulated radio and serial port ----
 static bool     att;
 static uint16_t now;
@@ -440,6 +444,30 @@ static void test_the_status_answer_carries_the_battery_and_the_host_leds(void)
     CHECK(radio_battery_level() == 5);
     CHECK(radio_host_leds() == 2); // bit 1: caps lock
     CHECK(!radio_low_power());
+
+    // with the cable the radio answers 0xFF in the battery byte: not a level (7 of 7 would be "full" at any charge), a sentinel
+    const uint8_t charging[10] = {0x02, 0x06, 0x00, 0x01, 0x00, 0x03, 0xFF, 0x03, 0x01, 0};
+
+    memcpy(f, charging, 10);
+    f[9] = radio_checksum(f, 9);
+    inject(f, 10);
+    run(2);
+    CHECK(radio_battery_level() == RADIO_BATTERY_NONE);
+    CHECK(radio_status_on_battery() == 0); // and nothing was noted down: that answer came with the cable
+
+    // the same byte while on battery is the level, and it is kept for the diagnostics to show (the cable is what reads them)
+    on_battery = true;
+
+    const uint8_t on_batt[10] = {0x02, 0x06, 0x00, 0x01, 0x00, 0x03, 0x03, 0x03, 0x01, 0};
+
+    memcpy(f, on_batt, 10);
+    f[9] = radio_checksum(f, 9);
+    inject(f, 10);
+    run(2);
+    CHECK(radio_battery_level() == 3);
+    CHECK(radio_status_on_battery() != 0 && radio_status_on_battery()[RADIO_STATUS_BATTERY_AT] == 0x03);
+
+    on_battery = false;
 
     // the radio says the battery is critically low, and the cable gives us num lock instead of caps
     const uint8_t low[10] = {0x02, 0x06, 0x00, 0x81, 0x00, 0x03, 0x81, 0x00, 0x01, 0};

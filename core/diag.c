@@ -61,6 +61,7 @@ void diag_receive(XDATA uint8_t *data, uint8_t length)
         memset(&data[2], 0, (size_t)(length - 2));
         memcpy(&data[2], diag_hook_radio_status(), 6);
         memcpy(&data[8], diag_hook_radio_info(), DIAG_RADIO_INFO_LEN);
+        diag_hook_radio_on_battery(&data[30], &data[31]); // the status seen on battery: the answer that has the battery in it
     } else if (kind == 2) {
         diag_hook_radio_monitor(data[2] != 0);
         data[2] = (data[2] != 0) ? 1 : 0;

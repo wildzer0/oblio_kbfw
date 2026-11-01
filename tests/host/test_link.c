@@ -6,6 +6,10 @@
 #include "store.h"
 #include <string.h>
 
+static bool on_battery; // the radio's status counts as "on battery" when this is set
+
+bool radio_hook_on_battery(void) { return on_battery; }
+
 // ---- the board's side ----
 static link_mode_t selector;
 static uint16_t    now;

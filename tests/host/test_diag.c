@@ -78,6 +78,13 @@ static void test_radio_reply(void)
     CHECK(data[0] == 0xF1 && data[1] == 1);
     CHECK(data[2] == 1 && data[7] == 6); // the six status bytes
     CHECK(data[8] == 0x08 && data[29] == 0x99); // the 22 bytes of the last 08 frame
+    CHECK(data[30] == 0x03 && data[31] == 0x01); // and the status as last seen on battery
+}
+
+void diag_hook_radio_on_battery(uint8_t *battery, uint8_t *flags)
+{
+    *battery = 0x03;
+    *flags   = 0x01;
 }
 
 static bool monitoring;

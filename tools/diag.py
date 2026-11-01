@@ -141,6 +141,13 @@ def radio(keyboard):
     print("radio status bytes : " + " ".join("{:02x}".format(b) for b in reply[2:8]))
     print("last 08 frame      : " + " ".join("{:02x}".format(b) for b in reply[8:30]))
 
+    # the status as last seen on battery: the one that carries the level (with the cable the radio answers 0xFF there)
+    battery, flags = reply[30], reply[31]
+    if battery == 0xFF and flags == 0xFF:
+        print("on battery         : never seen (no status answer has come with the cable out)")
+    else:
+        print("on battery         : battery byte {:#04x} (level {}), flags byte {:#04x}".format(battery, battery & 0x07, flags))
+
 
 def main():
     args = sys.argv[1:]

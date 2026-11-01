@@ -47,6 +47,14 @@ const uint8_t *diag_hook_radio_info(void)
     return radio_last_info();
 }
 
+void diag_hook_radio_on_battery(uint8_t *battery, uint8_t *flags)
+{
+    const uint8_t *on_battery = radio_status_on_battery();
+
+    *battery = on_battery ? on_battery[RADIO_STATUS_BATTERY_AT] : 0xFFu;
+    *flags   = on_battery ? on_battery[RADIO_STATUS_FLAGS_AT] : 0xFFu;
+}
+
 void diag_hook_radio_monitor(bool on)
 {
     link_monitor(on);

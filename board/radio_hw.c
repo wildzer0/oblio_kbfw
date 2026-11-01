@@ -1,9 +1,11 @@
 #include "radio_hw.h"
 #include "gpio.h"
 #include "delay.h"
+#include "link.h"
 #include "radio.h"
 #include "sh68f90.h"
 #include "timebase.h"
+#include "usb_device.h"
 #include <string.h>
 
 // The EUART in mode 1 (asynchronous 8N1) as the stock firmware sets it up: SCON = 0x50, PCON.SSTAT (the top bits of SCON are then
@@ -122,4 +124,10 @@ uint16_t radio_hook_now_ms(void)
 void radio_hook_delay_ms(uint8_t ms)
 {
     delay_ms(ms);
+}
+
+// A battery, and no cable seen by a host: the state in which the radio's status answer carries the battery level.
+bool radio_hook_on_battery(void)
+{
+    return link_wireless() && !usb_device_configured();
 }

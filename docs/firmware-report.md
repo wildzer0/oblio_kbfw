@@ -74,7 +74,9 @@ The USB device enumerates as `258a:dead`, product name "Oblio B68", with a keybo
   (`core/led.c` keeps a ready-made `duty2` table, `board/led_hw.c` writes it with constant-address code). **Battery gauge** (Fn+Backspace, number keys
   green/red for 3 s): the level comes from the radio's status answer, seven steps in three bits (`core/radio.h`), shown as even steps of a
   percentage; the radio's "critically low" flag turns it red. In USB mode there is no radio reading and the gauge says "unknown" (white blinking).
-  **The host Caps Lock is shown on its key in the wireless modes too**, from the same status byte.
+  **The host Caps Lock is shown on its key in the wireless modes too**, from the same status byte. **While the cable charges the battery the radio
+  answers `0xFF` in the battery byte**, which read as a level would be "full" at any charge: it is a sentinel (measured on the keyboard
+  2026-11-03), so the gauge ignores it and shows the last level it saw on battery.
 - **Wireless:** 2.4G and Bluetooth through the BK3632 (`core/radio.c`, `core/link.c`, `board/radio_hw.c`): frames, flow control, mode, slots, pairing.
   The mode selector is read with a 50 ms stability filter. Keys go to the radio queues when `link_wireless()`, otherwise to the USB queue.
 - **Sleep:** in wireless modes only, after 1/5/10/30 min or never (default 10), or on demand; power-down with INT4 wake-up. Never sleeps on USB.
@@ -177,11 +179,13 @@ adding one means dropping one.
    Mac, which is a copy of the base with Alt and GUI swapped. **To be tried on the keyboard**: on Mac the key labelled Win must send Command
    and the one labelled Alt must send Option, and Vial must show layer 7 editable. `P7.0` stays unused (the stock reads it with the rows but it
    is not a row and it does not follow the switch).
-3. **Battery percentage — from the radio (2026-11-02), to be checked on the keyboard.** The reference driver for the same radio (NuPhy,
-   `src/peripherals/bk3632/rf_controller.c` of the port) already decodes it: level in the low three bits of one status byte, "awake" in its bit 7,
-   and the LEDs/connected/paired/low-power flags in another — the stock firmware of this board copies that flag byte into the host-LED state at
-   `0x06B6`. Which of the six bytes of this board's answer is the battery one is a documented hypothesis (byte 4, which read `0xff` at full
-   charge); if the gauge sticks at 0 or never moves, that offset in `core/radio.h` is the one line to change.
+3. **Battery percentage — the byte is right, the meaning is not settled.** The reference driver for the same radio (NuPhy) decodes the level in
+   the low three bits of one status byte with "awake" in bit 7, and the LEDs/connected/paired/low-power flags in another; the stock firmware of
+   this board copies that flag byte into the host-LED state at `0x06B6`. Byte 4 is that byte on this board, but what it says is not a level yet:
+   measured on the keyboard it reads `0xFF` with the cable (charging - a sentinel, now ignored), `0x03` after a while on battery and `0x01` right
+   after power-on, which is not how a battery discharges. **`diag.py --radio` now prints the status as it was last seen on battery** (the two
+   free bytes of that reply), which is the reading that has the level in it and can only be captured with the cable out. Two or three such
+   readings at known charge levels will settle the scale; until then the gauge is a guess and the report says so.
 4. **The scan takes ~610 µs instead of the ~440 estimated** (32 busy-waits of 10 µs are 320 µs of it). Unexplained, harmless now; the clock check says the
    timer is right. If it were found, the backlight frame would go from ~9.6 to ~8 ms.
 5. **The main loop is slow**: 0–5 passes per scan period; a pass is ~1170 instructions in the simulator, 37 % of it `matrix_any_pressed()` called twice per pass

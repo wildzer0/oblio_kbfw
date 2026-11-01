@@ -12,6 +12,23 @@
 
 Il controllo di recupero Esc+1+2 va all'inizio del `main`, prima di USB e radio.
 
+## 2026-11-03 — la batteria: 0xFF col cavo, e lo stato a batteria adesso si può leggere
+
+- **Dati dell'utente** (carica reale ~metà): con il cavo e selettore 2.4G la ghiera diceva **tutte e dieci** (100%), senza cavo **cinque** (43%),
+  appena accesa **due rosse** (14%). Quindi il byte che leggiamo vale `0xFF` col cavo, `0x03` in uso, `0x01` all'accensione: **non è una carica che
+  scende**, e col cavo `0xFF & 7 = 7` fingeva una batteria piena.
+- **`core/radio.[ch]`**: `0xFF` in quel byte è una **sentinella** (in carica), non un livello: `radio_battery_level()` risponde "nessuna lettura".
+  Nuovo `radio_status_on_battery()`: l'ultimo stato ricevuto **mentre la tastiera è a batteria**, con l'hook `radio_hook_on_battery()` (scheda:
+  wireless e nessun cavo configurato).
+- **`board/battery.c`**: la ghiera tiene l'**ultimo livello buono** — col cavo non dice più 100%, mostra quello che aveva visto a batteria; senza
+  nessuna lettura dice "sconosciuta".
+- **`core/diag.c` kind 1**: nei due byte liberi della risposta ora ci sono **il byte batteria e il byte dei flag come erano a batteria** — è
+  l'unico modo di guardare una lettura che richiede il cavo per essere letta. `tools/diag.py` stampa una riga `on battery: ...`.
+- **Come si chiude la misura**: staccare il cavo, usarla un po' (la radio interroga lo stato ogni 200 ms), riattaccare e lanciare
+  `py .\diag.py --radio`: la riga `on battery` dice cosa leggeva a batteria. Due o tre letture a cariche diverse, e la scala si ricava.
+
+Budget: flash **52017/56320** (4,3 KB liberi), XDATA **3729/4096**. `make test` 27/27, `make sim` 24/24.
+
 ## 2026-11-03 — colore completo: tinta **e** saturazione, a costo zero di memoria
 
 - **Il conto, prima di farlo**: il colore del profilo era già una parola da 16 bit che ne usava otto (la tinta, con 0 = bianco). La saturazione

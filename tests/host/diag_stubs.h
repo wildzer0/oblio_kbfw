@@ -10,3 +10,4 @@ const uint8_t *diag_hook_radio_status(void) { return diag_stub_zeros; }
 const uint8_t *diag_hook_radio_info(void) { return diag_stub_zeros; }
 void diag_hook_radio_monitor(bool on) { (void)on; }
 void diag_hook_ports(uint8_t *out) { (void)out; }
+void diag_hook_radio_on_battery(uint8_t *battery, uint8_t *flags) { (void)battery; (void)flags; }

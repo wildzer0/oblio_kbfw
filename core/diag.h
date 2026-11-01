@@ -39,7 +39,8 @@ uint16_t diag_get(diag_id_t id);
 
 // VIA command 0xF1: the request is in `data` (32 bytes) and becomes the reply. [0xF1, kind, ...]
 //   kind 0: [0xF1, 0, DIAG_COUNT, counter 0 (lo, hi), counter 1, ...]
-//   kind 1: the radio: [0xF1, 1, 6 status bytes, 22 bytes of the last 08 frame]; read-only, so it needs no unlock either
+//   kind 1: the radio: [0xF1, 1, 6 status bytes, 22 bytes of the last 08 frame, the battery byte and the flags byte as last seen on battery];
+//           read-only, so it needs no unlock either
 //   kind 2: [0xF1, 2, on]: listen to the radio with the cable in (on = 1), or stop; the reply echoes `on`
 //   kind 3: [0xF1, 3, P0, P1, P2, P3, P4, P5, P6, P7]: the raw port bytes, for finding out what an input that is not in the matrix does
 //   anything else: [0xFF, ...] (unhandled)
@@ -54,3 +55,7 @@ void diag_hook_ports(XDATA uint8_t *out);
 // Provided by the board: the radio's last status bytes (6) and last 08 frame (22), for kind 1
 const uint8_t *diag_hook_radio_status(void);
 const uint8_t *diag_hook_radio_info(void);
+
+// Provided by the board: two bytes of the last status answer seen while the keyboard was on its battery - the battery byte and the flags byte.
+// They are the two free bytes of the kind 1 reply, and they are the only way to look at a reading that needs no cable.
+void diag_hook_radio_on_battery(uint8_t *battery, uint8_t *flags);
