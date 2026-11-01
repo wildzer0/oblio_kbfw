@@ -20,3 +20,6 @@ bool usb_hw_take_event(void);
 
 // The bus is suspended (no start-of-frame for a while).
 bool usb_hw_suspended(void);
+
+// The host has sent at least one SETUP packet since power-on: something is driving the bus.
+bool usb_hw_setup_seen(void);

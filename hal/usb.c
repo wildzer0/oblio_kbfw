@@ -5,6 +5,7 @@
 
 static volatile bool event;     // a bus reset or a configuration change: see usb_hw_take_event()
 static volatile bool suspended;
+static volatile bool setup_seen;
 
 // ---- endpoint control ----
 static void ep0_count(uint8_t n)
@@ -127,6 +128,11 @@ bool usb_hw_take_event(void)
     return taken;
 }
 
+bool usb_hw_setup_seen(void)
+{
+    return setup_seen;
+}
+
 bool usb_hw_suspended(void)
 {
     return suspended;
@@ -186,6 +192,8 @@ void usb_isr(void) __interrupt(7)
 
     if (if1 & USBIF1_SETUPIF) {
         uint8_t packet[USB_SETUP_SIZE];
+
+        setup_seen = true;
 
         USBIF1 &= (uint8_t) ~USBIF1_SETUPIF;
         USBIF1 &= (uint8_t) ~(USBIF1_OVERIF | USBIF1_OW);

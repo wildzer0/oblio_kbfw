@@ -1,5 +1,5 @@
-// Oblio entry point: clock, pins, recovery check, tick, the debounced key matrix, the key logic behind it and the USB side.
-// The logic is being added step by step (phase 3): layers, report, tapping, macros and profiles.
+// Oblio entry point: clock, pins, recovery check, then the timer interrupt (backlight subframes and matrix scans), and a main loop
+// that debounces the keys, runs the key logic and looks after USB, profiles, settings and the backlight.
 
 #include "clock.h"
 #include "usb.h" // declares the USB handler, for the same reason
@@ -7,6 +7,8 @@
 #include "watchdog.h"
 #include "keyboard.h"
 #include "led.h"
+#include "led_app.h"
+#include "led_hw.h"
 #include "matrix.h"
 #include "matrix_hw.h"
 #include "recovery.h"
@@ -40,7 +42,8 @@ static void init(void)
     store_init(settings.profile); // the profile in use at power-off, from flash, or the defaults
     encoder_init();
     led_init();
-    tick_init();
+    led_hw_init();
+    tick_init(); // from here on the timer plays the slots: LED subframes and scans (see core/sched.h)
 
     usb_device_reset();
     usb_reports_init();
@@ -61,13 +64,16 @@ void main(void)
     for (;;) {
         watchdog_kick();
 
-        if (tick_take()) {
+        while (tick_take()) { // a millisecond has passed
             now_ms++;
             uptime_ms++;
-            matrix_hw_scan(raw);
-            matrix_feed(raw);
-            encoder_poll();
         }
+
+        if (tick_scan_take(raw)) { // the interrupt scanned the matrix
+            matrix_feed(raw);
+        }
+
+        encoder_poll(); // every pass: the knob's lines are read much faster than a scan
 
         while (matrix_event_pop(&event)) {
             keyboard_event(&event, now_ms);
@@ -78,5 +84,6 @@ void main(void)
         settings_task(now_ms, matrix_any_pressed());
         usb_task(now_ms);
         led_task();
+        led_app_task(now_ms);
     }
 }

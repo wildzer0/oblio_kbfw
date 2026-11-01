@@ -71,6 +71,22 @@ void board_gpio_init(void)
     DRVCON = DRVCON_LOCK;
 }
 
+// All the columns high: nothing is a sink
+void matrix_hw_cols_off(void)
+{
+    GPIO_HIGH(4, 0x2D); // C12 C13 C14 C15
+    GPIO_HIGH(5, 0x87); // C8 C9 C10 C11
+    GPIO_HIGH(6, 0xFF); // C0-C7
+}
+
+// One column low: its LEDs can light (and its keys are the ones a scan would read)
+void matrix_hw_col_on(uint8_t col)
+{
+    GPIO_LOW(4, col_p4[col]);
+    GPIO_LOW(5, col_p5[col]);
+    GPIO_LOW(6, col_p6[col]);
+}
+
 void matrix_hw_scan(uint8_t raw[MATRIX_COLS])
 {
     for (uint8_t col = 0; col < MATRIX_COLS; col++) {

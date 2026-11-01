@@ -11,8 +11,8 @@
 #define MATRIX_ROWS 5
 #define MATRIX_COLS 16
 
-// Scans (one per tick, 1 ms) a column must hold a new value before it counts.
-#define MATRIX_DEBOUNCE_SCANS 5
+// Scans a column must hold a new value before it counts. A scan comes every ~2 ms (core/sched.h), so this is ~6 ms.
+#define MATRIX_DEBOUNCE_SCANS 3
 
 #define MATRIX_ROW_MASK ((uint8_t)((1u << MATRIX_ROWS) - 1u))
 

@@ -28,6 +28,8 @@ void flash_read(uint16_t addr, uint8_t *dst, uint8_t len)
 
 static void ssp_run(uint16_t addr, uint8_t op, uint8_t data)
 {
+    const bool interrupts = EA; // the caller may be running with interrupts off (start-up)
+
     EA = 0;
 
     FLASHCON  = 0;
@@ -67,7 +69,7 @@ static void ssp_run(uint16_t addr, uint8_t op, uint8_t data)
     XPAGE    = 0;
     FLASHCON = 0;
 
-    EA = 1;
+    EA = interrupts;
 }
 
 bool flash_erase_sector(uint16_t addr)

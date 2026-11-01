@@ -1,0 +1,21 @@
+#pragma once
+
+#include <stdbool.h>
+
+// The backlight on the chip: the PWM channels P1.3-5 / P2.0-5 / P3.0-5 as colour sources, the column strobes as sinks.
+//
+// A subframe lights the keys of one column: the previous column goes off, the 15 pulse widths of this column are loaded, the strobe of
+// the column goes low and the PWM outputs are enabled last, so the column lights at once. A column with nothing to show is left dark.
+
+void led_hw_init(void);
+
+// Whether the backlight is allowed to light: it is not while the keyboard waits for the USB host to enumerate it (a bus-powered
+// device must stay within 100 mA until configured) or while the bus is suspended.
+void led_hw_enable(bool on);
+
+// One subframe, from the timer interrupt (constant time).
+void led_hw_subframe(void);
+
+// The PWM paused / resumed around a matrix scan and a flash write: outputs off, strobes off.
+void led_hw_pause(void);
+void led_hw_resume(void);

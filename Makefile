@@ -53,7 +53,7 @@ build/vial_data.c: board/vial.json tools/vial_gen.py
 	@mkdir -p build
 	python3 tools/vial_gen.py board/vial.json $(VIAL_UID) "$(VIAL_UNLOCK)" > $@
 
-build/vial_data.rel: build/vial_data.c
+build/vial_data.rel: build/vial_data.c $(HEADERS)
 	$(SDCC) $(SDCCFLAGS) -Icore -c $< -o $@
 
 check-vial:
@@ -61,7 +61,10 @@ check-vial:
 
 fw: build/oblio.hex
 
-build/%.rel: %.c
+# every object depends on every header: coarse, but a changed header can never leave a stale object behind
+HEADERS := $(wildcard core/*.h hal/*.h board/*.h)
+
+build/%.rel: %.c $(HEADERS)
 	@mkdir -p $(dir $@)
 	$(SDCC) $(SDCCFLAGS) -Icore -Ihal -Iboard -c $< -o $@
 
