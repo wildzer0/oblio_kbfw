@@ -1,9 +1,10 @@
-// Oblio entry point. Phase 2: clock, pins, recovery check, tick and the debounced key matrix.
-// The key events are drained and discarded for now; the layers and report logic of phase 3 take them over.
+// Oblio entry point: clock, pins, recovery check, tick, the debounced key matrix and the key logic behind it.
+// The logic is being added step by step (phase 3): layers so far; the HID report, tapping, macros and profiles follow.
 
 #include "clock.h"
 #include "tick.h" // declares the Timer 2 handler: SDCC wants it visible in the module that defines main()
 #include "watchdog.h"
+#include "keyboard.h"
 #include "matrix.h"
 #include "matrix_hw.h"
 #include "recovery.h"
@@ -17,6 +18,7 @@ static void init(void)
     recovery_check(); // before USB and radio, so that a broken later stage can always be recovered
 
     matrix_init();
+    keyboard_init();
     tick_init();
 
     EA = 1;
@@ -26,6 +28,7 @@ void main(void)
 {
     uint8_t        raw[MATRIX_COLS];
     matrix_event_t event;
+    uint16_t       now_ms = 0;
 
     init();
 
@@ -33,11 +36,13 @@ void main(void)
         watchdog_kick();
 
         if (tick_take()) {
+            now_ms++;
             matrix_hw_scan(raw);
             matrix_feed(raw);
         }
 
         while (matrix_event_pop(&event)) {
+            keyboard_event(&event, now_ms);
         }
     }
 }

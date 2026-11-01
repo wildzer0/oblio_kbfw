@@ -19,9 +19,18 @@ test: $(HOST_TESTS)
 	@for t in $(HOST_TESTS); do echo "== $$t"; ./$$t || exit 1; done
 	@echo "host tests: $(words $(HOST_TESTS)) ok"
 
-# test_X.c tests core/X.c
-tests/host/test_%: tests/host/test_%.c core/%.c
-	$(CC) -std=c11 -Wall -Wextra -Werror -Icore -Itests/host -o $@ $^
+# test_X.c tests core/X.c; the modules it needs besides are listed in LINK_X. The tests are rebuilt every time (they are quick).
+LINK_layer := core/keymap.c
+
+.PHONY: FORCE
+FORCE:
+
+tests/host/test_%: tests/host/test_%.c core/%.c FORCE
+	$(CC) -std=c11 -Wall -Wextra -Werror -Icore -Itests/host -o $@ $< core/$*.c $(LINK_$*)
+
+# the default keymap is board data, but plain C: checked against the matrix measured on the board
+tests/host/test_default_keymap: tests/host/test_default_keymap.c board/keymap_default.c core/keymap.c FORCE
+	$(CC) -std=c11 -Wall -Wextra -Werror -Icore -Iboard -Itests/host -o $@ $(filter %.c,$^)
 
 fw: build/oblio.hex
 

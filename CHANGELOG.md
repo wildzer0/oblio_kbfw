@@ -34,3 +34,14 @@ Si procede senza aspettare l'ICP, riscrivendo ciò che il porting SMK già fa; l
 - `tests/host/test_matrix.c` e `tests/host/check.h`: 7 test (pressione/rilascio dopo il debounce, rimbalzi, glitch che riavvia la finestra, due tasti nella stessa colonna e ordine, colonne indipendenti, bit oltre l'ultima riga, coda piena senza perdite).
 - `Makefile`: i sorgenti del firmware sono `core/`, `hal/`, `board/`; `test_X.c` si compila con `core/X.c`.
 - Verifica: `make test` 1 file, 7 test OK; `make fw size` → flash 1821/44032, XDATA 101/4096; vettori controllati nell'hex (0x0000 → startup, 0x0003 → `tick_isr`). Simulatore non usato. Non verificati: periodo del tick, ritardi, recupero, timing della scansione (tutto richiede l'hardware). Non portati ancora: LDO per l'USB, trappola per interrupt inattesi.
+
+### Fase 3, passo 1 — codici tasto, keymap in RAM, layer
+- `core/keycodes.h`: codici a 16 bit con gli stessi intervalli di QMK/Vial (servono già alla fase 5), solo ciò che si usa: intervalli, macro MO/TO/TG/DF/OSL/OSM/TT/TD/LT/MT/LM con relativa decodifica, maschere dei modificatori, tasti della mappa predefinita.
+- `core/keymap.[ch]`: 8 layer × 5×16 e i due codici di rotazione dell'encoder per layer, in RAM (1280 B + 32 B); parte dalla mappa predefinita fornita dalla scheda; contatore di versione per le modifiche.
+- `core/layer.[ch]`: layer attivi sopra il layer predefinito, trasparenza, MO/TO/TG/DF/OSL/OSM/TT/LM; il codice trovato alla pressione è quello usato al rilascio (nessun tasto resta bloccato se il layer cambia nel frattempo). Il tempo entra come argomento (`now`), il core non legge nessun timer.
+- `core/keyboard.[ch]`: collega gli eventi della matrice ai layer; cerca il tasto *prima* di `layer_key_pressed()` perché un OSL deve ancora essere attivo per il tasto che aspetta. Gli hook dei modificatori sono vuoti finché non c'è il report (passo 2).
+- `core/platform.h`: unica differenza tra 8051 e host per il codice puro (`ROM` = `__code` su SDCC).
+- `board/keymap_default.c` e `board/b68_keys.h`: mappa predefinita della B68 (base + Fn, encoder = volume, tap dance 0 sul tasto dell'encoder) e codici personalizzati 0x7E00–0x7E13, stessi numeri del porting SMK.
+- `board/main.c`: contatore dei millisecondi, gli eventi della matrice vanno a `keyboard_event`.
+- Test: `test_layer.c` (11 test: ricerca, trasparenza, rilascio con lo stesso codice, TG/TO/DF, layer non valido, OSL, OSM anche a destra, LM, TT con 5 tocchi e con pausa, encoder) e `test_default_keymap.c` (67 celle come misurate sulla scheda, nessun tasto Fn dove la base è vuota). Il `Makefile` ricompila sempre i test e accetta moduli extra per test (`LINK_x`).
+- Verifica: `make test` 3 file OK; `make fw size` → flash 5031/44032, XDATA 1590/4096. Simulatore non usato; nessuna prova sull'hardware.
