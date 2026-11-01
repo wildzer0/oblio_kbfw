@@ -32,6 +32,11 @@ Il controllo di recupero Esc+1+2 va all'inizio del `main`, prima di USB e radio.
 - `tools/diag.py`: funziona anche su Windows/macOS con `hidapi`.
 - Strumentazione nuova: durata massima misurata dal Timer 2 (2 MHz) di uno slot LED e di uno slot di scansione, dall'overflow che lo ha iniziato alla fine del lavoro (`DIAG_LED_US_MAX`, `DIAG_SCAN_US_MAX`; se lo slot è in ritardo include il ritardo), e conteggio degli interrupt USB diversi dal SOF (`DIAG_USB_IRQS`). Tolti i contatori radio «rifiuti» e «TX scaduti» (a zero) e i cambi di permesso. Flash 43672/44032 (margine 360 B).
 
+### Led in USB: seconda lettura e conteggi separati
+- Seconda lettura (il `diag.py` locale dell'utente era una copia vecchia, i nomi erano sfasati; qui i valori giusti): slot LED più lungo **409 µs** (previsti 400), slot di scansione più lungo **816 µs** (previsti 500), 736 interrupt USB non-SOF, 4 back-off, 13769 slot in ritardo, 5330 scansioni perse, giro del main 17 ms.
+- Nel simulatore (`usbcost`) `usb_isr` costa 688–1801 istruzioni per evento (SET_ADDRESS … raw HID OUT): su questo core sono fino a ~200 µs, abbastanza per spiegare un picco di 816 µs sulla scansione quando arriva all'inizio dello slot. Ma un massimo sporcato da un evento isolato non dice cosa succede a regime: **causa del flicker ancora non dimostrata**.
+- `DIAG_SLOT_LATE` conta solo gli slot LED in ritardo; nuovo `DIAG_SCAN_LATE` per le scansioni; tolto `DIAG_RADIO_EVENTS`. Con `diag.py --watch 1` si vedono i tassi al secondo mentre i LED flickerano. Flash 43674/44032.
+
 ### Fase 1 — build, budget, release
 - `board/main.c`: `main` segnaposto (loop vuoto) per esercitare compilatore, linker e budget; lo sostituisce la fase 2.
 - `Makefile`: nuovi target `fw` (SDCC → `build/oblio.ihx` e `build/oblio.hex` con `packihx`), `size` (controllo budget); `clean` rimuove anche `build/`. Flag SDCC ripresi dal vecchio repo: modello large, `--stack-auto`, XDATA 4096, codice fino a 0xAC00.

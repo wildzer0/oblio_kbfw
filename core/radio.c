@@ -390,7 +390,6 @@ static void rx_frame_done(void)
 
     switch (rx_frame[0]) {
         case HEADER_EVENT:
-            diag_inc(DIAG_RADIO_EVENTS);
             ack_event = true;
             break;
 

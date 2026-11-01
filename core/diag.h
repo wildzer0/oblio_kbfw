@@ -13,18 +13,18 @@
 typedef enum {
     DIAG_RESET_CAUSE,      // RSTSTAT as read at power-on, before the first watchdog kick
     DIAG_STACK_USED,       // bytes of the stack used at most (internal RAM from 0x21 up)
-    DIAG_SLOT_LATE,        // timer slots whose work ran past their end (the timer had already overflowed again)
+    DIAG_SLOT_LATE,        // LED slots whose work ran past their end (the timer had already overflowed again)
     DIAG_SCAN_LOST,        // scans overwritten before the main loop took them
     DIAG_LOOP_MAX_MS,      // the slowest pass of the main loop
     DIAG_USB_OVERFLOW,     // USB report packets that replaced or pushed out another
     DIAG_MATRIX_DEFERRED,  // key changes held back because the event queue was full
     DIAG_LED_US_MAX,       // longest LED slot, from its start to the end of its work, in us (the slot is 400; more means it ran late)
     DIAG_SCAN_US_MAX,      // the same for the scan slot (500)
-    DIAG_RADIO_EVENTS,     // 03 frames from the radio
     DIAG_RADIO_INFOS,      // 08 frames from the radio
     DIAG_RADIO_STATUS,     // changes of the radio's status bytes
     DIAG_BACKOFF,          // times the main loop was found starved and the backlight stood aside
     DIAG_USB_IRQS,         // USB interrupts other than the start of frame
+    DIAG_SCAN_LATE,        // the same as DIAG_SLOT_LATE, for the scan slots
     DIAG_COUNT
 } diag_id_t;
 

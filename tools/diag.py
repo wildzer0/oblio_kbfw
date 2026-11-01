@@ -36,18 +36,18 @@ RAW_SIZE = 32
 NAMES = [
     ("reset cause (RSTSTAT)", "{:#04x}"),
     ("stack used (bytes of 223)", "{}"),
-    ("timer slots that ran late", "{}"),
+    ("LED slots that ran late", "{}"),
     ("scans lost", "{}"),
     ("slowest main-loop pass (ms)", "{}"),
     ("USB report queue overflows", "{}"),
     ("matrix changes deferred", "{}"),
     ("longest LED slot (us, of 400)", "{}"),
     ("longest scan slot (us, of 500)", "{}"),
-    ("radio: 03 frames", "{}"),
     ("radio: 08 frames", "{}"),
     ("radio: status changes", "{}"),
     ("backlight back-offs (starved)", "{}"),
     ("USB interrupts (not SOF)", "{}"),
+    ("scan slots that ran late", "{}"),
 ]
 
 

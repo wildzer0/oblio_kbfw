@@ -120,7 +120,7 @@ void tick_isr(void) __interrupt(INT_TIMER2)
     uint16_t elapsed = (uint16_t)(count - slot_start);
 
     if (TF2) {
-        diag_inc(DIAG_SLOT_LATE); // the next overflow came while this slot's work was still running
+        diag_inc(slot == SLOT_SCAN ? DIAG_SCAN_LATE : DIAG_SLOT_LATE); // the next overflow came while this slot's work was still running
         elapsed = (uint16_t)((uint16_t)(0u - slot_start) + (uint16_t)(count - next_start));
     }
 
