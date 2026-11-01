@@ -6,6 +6,7 @@
 #include "tick.h" // declares the Timer 2 handler: SDCC wants it visible in the module that defines main()
 #include "watchdog.h"
 #include "keyboard.h"
+#include "led.h"
 #include "matrix.h"
 #include "matrix_hw.h"
 #include "recovery.h"
@@ -38,6 +39,7 @@ static void init(void)
     settings_load();
     store_init(settings.profile); // the profile in use at power-off, from flash, or the defaults
     encoder_init();
+    led_init();
     tick_init();
 
     usb_device_reset();
@@ -75,5 +77,6 @@ void main(void)
         store_task(now_ms, matrix_any_pressed());
         settings_task(now_ms, matrix_any_pressed());
         usb_task(now_ms);
+        led_task();
     }
 }
