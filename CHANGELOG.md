@@ -12,6 +12,19 @@
 
 Il controllo di recupero Esc+1+2 va all'inizio del `main`, prima di USB e radio.
 
+## 2026-11-03 — il colore scelto da Vial non era quello che usciva
+
+- **Causa**: la ruota colori del firmware girava **rosso → blu → verde** (un ordine suo), mentre la tavolozza di Vial è HSV: **rosso → giallo →
+  verde → ciano → blu → magenta**. Con la mappatura hue → indice, l'arancione (hue ~32) finiva sul viola. `core/led_effect.c`: la ruota è ora
+  quella standard, in sei lati da 43 passi — e anche gli effetti arcobaleno ci guadagnano, perché ora sono arcobaleni veri.
+- **Seconda correzione, la precisione**: il colore del profilo era un **indice di 17 colori** (0 = bianco, 1–16 la ruota a passi di 16), quindi
+  qualunque tinta finiva sulla più vicina di sedici. Ora `CFG_LED_COLOR` è **la tinta stessa** (0 = bianco, 1–255 la ruota): quello che scegli
+  esce, e rileggendolo torna uguale (`vialrgb.c`). I tasti Fn+U/I continuano a saltare di 16, come prima.
+- I colori degli effetti sono a saturazione piena: un colore pastello dalla tavolozza esce come la sua tinta pura (documentato in `docs/vial.md`).
+- Test aggiornati: la ruota (rosso/giallo/verde/ciano/blu/magenta), i passi dei tasti luce, il giro tinta → profilo → tinta.
+
+Budget: flash **51321/56320**, XDATA 3720/4096. `make test` 27/27, `make sim` 24/24, `make stages` 1–3 ok.
+
 ## 2026-11-03 — il backlight che si spegne e si riaccende
 
 - **Sintomo riportato**: ogni tanto la retroilluminazione si spegne e torna. Due cause possibili, e questa build le riduce entrambe:

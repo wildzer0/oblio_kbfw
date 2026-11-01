@@ -64,21 +64,20 @@ uint8_t vialrgb_effect_of(uint8_t id)
     return FX_OFF; // an id this keyboard does not have
 }
 
-// The effects colour themselves with one of seventeen colours (white, then the wheel in steps of 16). The app sends hue and saturation: this
-// is the nearest of them, and reading it back gives the same hue, so a colour picked in the app stays put.
+// The colour of the profile is a hue already (0 is white, 1..255 the wheel), so what the app sends is what is kept - the effects are at full
+// saturation, so a pastel from the picker comes out as its pure hue.
 static uint8_t color_from_hsv(uint8_t hue, uint8_t sat)
 {
     if (sat == 0) {
         return 0; // white
     }
 
-    // hue 0..255 divides into 0..15, so the index is 1..16: the last colour the wheel has, with no clamping to do
-    return (uint8_t)(hue / 16u + 1u);
+    return (uint8_t)(hue + 1u); // hue 255 arrives as 256, which the one-byte field takes as 255: one step, at the seam of the wheel
 }
 
 static uint8_t hue_of_color(uint8_t color)
 {
-    return (color == 0) ? 0 : (uint8_t)((color - 1u) * 16u);
+    return (color == 0) ? 0 : (uint8_t)(color - 1u);
 }
 
 void vialrgb_get_value(XDATA uint8_t *data)

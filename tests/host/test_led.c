@@ -108,14 +108,21 @@ static void test_the_wheel_and_the_effects(void)
 {
     uint8_t rgb[3];
 
+    // the wheel of an HSV picker: red, yellow, green, cyan, blue, magenta, red (the order the Vial app sends hues in)
     led_color_wheel(0, rgb);
-    CHECK(rgb[0] == 255 && rgb[1] == 0 && rgb[2] == 0);
+    CHECK(rgb[0] == 255 && rgb[1] == 0 && rgb[2] == 0); // red
+    led_color_wheel(43, rgb);
+    CHECK(rgb[0] == 255 && rgb[1] > 240 && rgb[2] == 0); // yellow
     led_color_wheel(85, rgb);
-    CHECK(rgb[0] == 0 && rgb[1] == 0 && rgb[2] == 255);
+    CHECK(rgb[0] < 16 && rgb[1] == 255 && rgb[2] == 0); // green
+    led_color_wheel(128, rgb);
+    CHECK(rgb[0] == 0 && rgb[1] > 240 && rgb[2] > 240); // cyan
     led_color_wheel(170, rgb);
-    CHECK(rgb[0] == 0 && rgb[1] == 255 && rgb[2] == 0);
-    led_color_wheel(84, rgb);
-    CHECK(rgb[0] == 3 && rgb[2] == 252);
+    CHECK(rgb[0] == 0 && rgb[1] < 16 && rgb[2] == 255); // blue
+    led_color_wheel(213, rgb);
+    CHECK(rgb[0] > 240 && rgb[1] == 0 && rgb[2] == 255); // magenta
+    led_color_wheel(255, rgb);
+    CHECK(rgb[0] == 255 && rgb[2] < 24); // and back towards red
 
     CHECK(led_effect_rgb(FX_SOLID, 0, 0, 7, 100, rgb) && rgb[0] == 100 && rgb[1] == 100 && rgb[2] == 100);
     CHECK(!led_effect_rgb((led_effect_t)FX_OFF, 0, 0, 0, 255, rgb));
@@ -214,7 +221,7 @@ static void test_plain_effect_in_a_colour(void)
 {
     reset(FX_SOLID);
     cfg_defaults[CFG_LED_COLOR] = 0;
-    keymap_cfg_set(CFG_LED_COLOR, 6); // the wheel at (6 - 1) * 16 = 80
+    keymap_cfg_set(CFG_LED_COLOR, 81); // the wheel at hue 80
     settle();
 
     uint8_t wheel[3];
@@ -451,11 +458,11 @@ static void test_the_keys_of_the_lighting(void)
     led_speed_up();
     CHECK(keymap_cfg_get(CFG_LED_SPEED) == LED_SPEED_MIN + 1);
 
-    keymap_cfg_set(CFG_LED_COLOR, LED_COLORS - 1);
-    led_color_up();
+    keymap_cfg_set(CFG_LED_COLOR, LED_COLORS - LED_COLOR_STEP);
+    led_color_up(); // past the end of the wheel: white, and round again
     CHECK(keymap_cfg_get(CFG_LED_COLOR) == 0);
     led_color_down();
-    CHECK(keymap_cfg_get(CFG_LED_COLOR) == LED_COLORS - 1);
+    CHECK(keymap_cfg_get(CFG_LED_COLOR) == LED_COLORS - LED_COLOR_STEP);
 }
 
 static void test_settings_out_of_range_are_tamed(void)

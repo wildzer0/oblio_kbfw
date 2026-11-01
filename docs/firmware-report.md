@@ -67,7 +67,9 @@ The USB device enumerates as `258a:dead`, product name "Oblio B68", with a keybo
 - **The keymap in flash:** one keyboard (keys, encoders, macros, tap dances, lighting settings) in two copies with a CRC; it survives power-off and
   a power cut during a save. There were four switchable profiles until 2026-11-01: they cost 16 KB of the chip's flash for layouts nobody used, and
   with one keyboard the store moved to the end of the flash and the code got those 12 KB back (43935 → 43528 B used, 56320 B available).
-- **Backlight:** effects, brightness, speed, colour, **or the per-key picture painted in Vial** (`FX_VIAL`), all driven from the main loop into a framebuffer; the timer interrupt only copies pre-computed PWM widths
+- **Backlight:** effects, brightness, speed, colour (the colour of the plain effect is a **hue**, 0 = white and 1-255 the wheel, so a colour
+  picked in the Vial app is the colour that comes out; the wheel is the HSV one, red-yellow-green-cyan-blue-magenta — it used to run
+  red-blue-green, which turned an orange into a purple), **or the per-key picture painted in Vial** (`FX_VIAL`), all driven from the main loop into a framebuffer; the timer interrupt only copies pre-computed PWM widths
   (`core/led.c` keeps a ready-made `duty2` table, `board/led_hw.c` writes it with constant-address code). **Battery gauge** (Fn+Backspace, number keys
   green/red for 3 s): the level comes from the radio's status answer, seven steps in three bits (`core/radio.h`), shown as even steps of a
   percentage; the radio's "critically low" flag turns it red. In USB mode there is no radio reading and the gauge says "unknown" (white blinking).

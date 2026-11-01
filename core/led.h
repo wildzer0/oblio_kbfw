@@ -34,7 +34,11 @@
 #define LED_SPEED_MIN 1
 #define LED_SPEED_MAX 16
 #define LED_BRIGHTNESS_STEP 32
-#define LED_COLORS 17u // plain effect: 0 = white, 1-16 = the wheel in steps of 16
+
+// The colour of the plain effect, as a hue: 0 is white, and 1 to 255 are the wheel itself (value - 1 = hue), so that a colour picked in the Vial
+// app is the colour that comes out. The lighting keys step by LED_COLOR_STEP, as a picker with sixteen steps did before.
+#define LED_COLORS     256u
+#define LED_COLOR_STEP 16u
 
 // Provided by the board (or a test).
 bool led_hook_caps_lock(void); // the host's caps lock is on

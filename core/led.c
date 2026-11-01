@@ -138,7 +138,7 @@ static void paint_one(void)
     uint8_t rgb[3] = {0, 0, 0};
 
     if (cur_effect == FX_SOLID && cur_color != 0) {
-        led_color_wheel((uint8_t)((cur_color - 1u) * 16u), rgb);
+        led_color_wheel((uint8_t)(cur_color - 1u), rgb);
 
         for (uint8_t c = 0; c < 3; c++) {
             rgb[c] = (uint8_t)(((uint16_t)rgb[c] * cur_brightness) >> 8);
@@ -321,14 +321,14 @@ void led_color_up(void)
 {
     const uint8_t c = color();
 
-    set(CFG_LED_COLOR, (c + 1u >= LED_COLORS) ? 0 : (uint8_t)(c + 1u));
+    set(CFG_LED_COLOR, (c + LED_COLOR_STEP >= LED_COLORS) ? 0 : (uint8_t)(c + LED_COLOR_STEP));
 }
 
 void led_color_down(void)
 {
     const uint8_t c = color();
 
-    set(CFG_LED_COLOR, (c == 0) ? (LED_COLORS - 1u) : (uint8_t)(c - 1u));
+    set(CFG_LED_COLOR, (c < LED_COLOR_STEP) ? (uint8_t)(LED_COLORS - LED_COLOR_STEP) : (uint8_t)(c - LED_COLOR_STEP));
 }
 
 void led_speed_up(void)

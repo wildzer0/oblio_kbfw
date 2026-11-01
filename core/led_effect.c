@@ -39,22 +39,21 @@ uint8_t led_effect_index(led_effect_t fx, uint8_t row, uint8_t col, uint8_t phas
     }
 }
 
+// The wheel of an HSV colour picker: red, yellow, green, cyan, blue, magenta and back to red, in six sides of 43 steps each. It used to run
+// red -> blue -> green, which is a wheel of its own: a colour chosen in the Vial app (whose picker is HSV) came out as another one - orange
+// arrived as purple.
 void led_color_wheel(uint8_t index, uint8_t out[3])
 {
-    if (index < 85) {
-        out[0] = (uint8_t)(255 - index * 3);
-        out[1] = 0;
-        out[2] = (uint8_t)(index * 3);
-    } else if (index < 170) {
-        index  = (uint8_t)(index - 85);
-        out[0] = 0;
-        out[1] = (uint8_t)(index * 3);
-        out[2] = (uint8_t)(255 - index * 3);
-    } else {
-        index  = (uint8_t)(index - 170);
-        out[0] = (uint8_t)(index * 3);
-        out[1] = (uint8_t)(255 - index * 3);
-        out[2] = 0;
+    const uint8_t side = (uint8_t)(index / 43u);               // 0..5, which side of the wheel
+    const uint8_t rest = (uint8_t)((index - side * 43u) * 6u); // 0..255, how far along it
+
+    switch (side) {
+        case 0:  out[0] = 255; out[1] = rest; out[2] = 0; break;                    // red -> yellow
+        case 1:  out[0] = (uint8_t)(255 - rest); out[1] = 255; out[2] = 0; break;   // yellow -> green
+        case 2:  out[0] = 0; out[1] = 255; out[2] = rest; break;                    // green -> cyan
+        case 3:  out[0] = 0; out[1] = (uint8_t)(255 - rest); out[2] = 255; break;   // cyan -> blue
+        case 4:  out[0] = rest; out[1] = 0; out[2] = 255; break;                    // blue -> magenta
+        default: out[0] = 255; out[1] = 0; out[2] = (uint8_t)(255 - rest); break;   // magenta -> red
     }
 }
 
