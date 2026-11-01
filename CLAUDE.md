@@ -68,6 +68,9 @@ Recupero: Esc+1+2 mentre si inserisce l'USB.
   Windows usa i layer 0/1, Mac i layer **7/6** (base con Alt↔GUI scambiati e **Fn suo**), tutti e quattro editabili da Vial.
 - **Prossimo passo deciso dall'utente**: batteria + Caps Lock wireless dal frame `08` della radio (mai decodificato), poi combos/key overrides,
   mouse dall'encoder, Vial RGB. Serve la misura: `diag.py --radio` a carica piena / uso normale / quasi scarica.
+  **Fatto il 2026-11-02**: mouse dall'encoder (`core/mouse.c`, report ID 7, solo USB). Flash 44945/56320, XDATA 3788/4096, test host 23.
+  Il protocollo Vial autentico (opcode `dynamic_vial_*`, struct `vial_combo_entry_t` 10 B, `vial_key_override_entry_t` 10 B) è in `docs/vial.md`:
+  serve per combos e key overrides.
 - Bluetooth: funziona (il telefono vede `OBLIO`), il PC dell'utente no — sospetto un legame vecchio su Windows, non il firmware.
 
 ## Aggiornamento 2026-11-01 (sera)

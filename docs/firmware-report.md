@@ -26,7 +26,8 @@ bootloader's marker sector and is **not touched**; **stock bootloader at 0xF000,
 | Flashing | `sinowisp write --platform sh68f90 --vendor_id 0x258a --product_id 0xdead --format ihex --isp_iface_num 0 -f build/oblio.hex` |
 
 The USB device enumerates as `258a:dead`, product name "Oblio B68", with a keyboard interface (EP1) and a raw HID interface (usage page 0xFF60, EP2,
-32-byte packets) used by Vial, VIA, the HUD app and the diagnostics.
+32-byte packets) used by Vial, VIA, the HUD app and the diagnostics. On interface 0 the report IDs are: keyboard 3, system 1, consumer 2,
+**mouse 7** (five buttons, X and Y in 16 bits, wheel — as the stock firmware had it) and the ISP feature report 5.
 
 ## 3. What the firmware does
 
@@ -35,6 +36,10 @@ The USB device enumerates as `258a:dead`, product name "Oblio B68", with a keybo
   key of the Mac side going to 6), both fully editable in Vial. The Mac base is a copy of the Windows base with Alt and GUI swapped; its Fn layer
   starts as a copy of the Windows one, and changing it changes nothing on the Windows side. This is what the stock firmware does with its second
   set of keymap tables. Switching does not write to flash: the switch is the source of truth.
+- **Mouse keys** (`core/mouse.c`): the QMK `KC_MS_*` keycodes (0xCD–0xDF, so Vial knows them) move a pointer: a direction held steps every 8 ms and
+  accelerates, `MS_ACCEL1/2` make the step longer, the wheel scrolls and buttons 1-5 hold their bit. That is what makes the encoder a scroll wheel:
+  assign `MS_WH_UP` / `MS_WH_DOWN` to its two directions in Vial. **USB only**: the radio protocol has no mouse frame, so in 2.4G and Bluetooth
+  those keycodes do nothing (the report is dropped in `board/transport.c`).
 - **Keys:** matrix scan + debounce (3 scans in a row), 8 layers in RAM (`KEYMAP_LAYERS`), layer keys, tap-hold (LT/MT/OSM/OSL), tap dance, macros, encoder.
   Default keymap in `board/keymap_default.c`: layer 0 = ANSI-ish B68 layout with the encoder push as tap dance 0 (tap mute, hold play/pause, double tap next
   track) and the encoder turning volume; layer 1 (Fn) as below.
@@ -66,7 +71,8 @@ hal/    SH68F90A registers and drivers: tick (Timer 2), usb, flash, power, clock
 board/  B68 specific: pinout, matrix scan, LED PWM, radio hardware, selector, sleep, default keymap, custom keys, main.c, vial.json
 tools/  vial_gen.py, check_vial.py, check_interrupts.py, budget.py, diag.py
 tests/host/  22 test programs (plain gcc, -Wall -Wextra -Werror)       tests/sim/  simulation of the real hex in a patched ucsim
-docs/   architecture.md, first-boot.md, hud-protocol-v2.md, keyboards/ (pin maps, stock firmware analysis, radio protocol), recovery-icp.md
+docs/   architecture.md, first-boot.md, hud-protocol-v2.md, vial.md (the Vial protocol as the app speaks it), keyboards/ (pin maps, stock firmware
+       analysis, radio protocol), recovery-icp.md
 ```
 
 `board/main.c`: `init()` (clock → GPIO → recovery check → matrix/keyboard/settings/store/encoder/LED/radio/sleep → `tick_init` → USB → `EA=1`), then a flat
@@ -93,7 +99,7 @@ nix develop --command make sim               # ~50 s: the real hex in the chip s
 nix develop --command make stages            # staged builds, see below
 ```
 
-Current budget: **flash 43528 / 56320 (12.8 KB of margin), XDATA 3772 / 4096**; the stack is the other tight one (internal RAM, 223 B
+Current budget: **flash 44945 / 56320 (11.4 KB of margin), XDATA 3788 / 4096**; the stack is the other tight one (internal RAM, 223 B
 from 0x21 up; the USB interrupt used to keep 48 B of buffers on it, now static in XDATA). Check the `flash` line before every commit; a failed link
 leaves no stale `.ihx` any more (`.DELETE_ON_ERROR`). SDCC pitfalls seen here: `%`, `/` and loops with a variable count are very costly; use typed `XDATA` pointers
 (`core/platform.h`), constant addresses in interrupts, `--std-c23 --Werror` (an empty `if` body is an error 110).
@@ -160,9 +166,9 @@ adding one means dropping one.
 6. **Flash margin is 12.8 KB** (2026-11-01: the four profiles went and the store moved to the end of the flash). The next features fit; the limit to
    watch is now XDATA (324 B free) and the stack.
 7. **What is still missing, in the order a user would notice it:** the battery percentage (the gauge is there and always says "unknown"); the host
-   Caps Lock on the radio (the `08` frame probably carries it, like the battery); more than six keys at once on USB (no NKRO report, the radio has
-   one); per-key RGB from Vial (vialrgb) and combos/key overrides, which the Vial app would show as tabs; a mouse report (the stock firmware had a
-   pointer interface, Oblio has none).
+   Caps Lock on the radio (the `08` frame probably carries it, like the battery); combos, key overrides and per-key RGB (vialrgb) from Vial — the
+   `06` protocol version in use answers the dynamic-entry request with tap dances only, and the entry structs and opcodes are in `docs/vial.md`
+   now, so those tabs are a matter of implementing them; more than six keys at once on USB (no NKRO report, the radio has one).
 
 ## 10. Working agreements with the user
 

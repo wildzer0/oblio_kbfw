@@ -71,6 +71,15 @@ static uint8_t build(packet_t *packet, report_kind_t kind)
             packet->data[1] = (uint8_t)(report_consumer() & 0xFF);
             packet->data[2] = (uint8_t)(report_consumer() >> 8);
             return 3;
+
+        case REPORT_MOUSE:
+            if (usb_reports_hook_protocol() == 0) {
+                return 0; // a BIOS has no pointing device
+            }
+
+            packet->data[0] = REPORT_ID_MOUSE;
+            report_build_mouse(&packet->data[1]); // and the movement is used up by this packet
+            return 1 + REPORT_MOUSE_SIZE;
     }
 
     return 0;

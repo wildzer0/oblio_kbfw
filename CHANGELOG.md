@@ -12,6 +12,24 @@
 
 Il controllo di recupero Esc+1+2 va all'inizio del `main`, prima di USB e radio.
 
+## 2026-11-02 — mouse dall'encoder (prima delle feature rimaste)
+
+- **`core/mouse.[ch]`**: i codici mouse di QMK (`KC_MS_UP/DOWN/LEFT/RIGHT`, `KC_MS_BTN1..5`, `KC_MS_WH_UP/DOWN/LEFT/RIGHT`, `KC_MS_ACCEL0..2`,
+  0xCD–0xDF, gli stessi numeri di QMK così Vial li conosce). Una direzione tenuta muove il cursore a passi di 8 ms che si allungano tenendola
+  premuta (fino a 8 unità) e con `MS_ACCEL1/2`; la ghiera scorre (un tocco = uno scatto, tenuta = scatti ogni 48 ms); i pulsanti tengono il loro bit.
+  **Questo è ciò che rende l'encoder una rotella**: in Vial basta assegnare `MS_WH_UP` / `MS_WH_DOWN` alle due direzioni.
+- **`core/report.[ch]`**: stato del mouse (pulsanti, X/Y, ghiera) e `report_build_mouse()`: le due assi sono **relative**, quindi il report le
+  consuma (un movimento non viene mandato due volte) e i delta si fermano a ±127 per non traboccare.
+- **`core/usb_desc.[ch]`**: collezione **Mouse** sull'interfaccia 0, report ID **7**, come quella del firmware stock: 5 pulsanti, X e Y a 16 bit
+  relativi, ghiera. `bcdDevice` 0x0201 → **0x0202** (Windows tiene in cache i descrittori).
+- **`core/keyboard.c`**: i tasti mouse passano da `mouse_process()` (con il trattamento one-shot come gli altri tasti) e `mouse_task()` nel giro.
+- **Radio**: il protocollo non ha un frame per il mouse, quindi in 2.4G/BT i tasti mouse non fanno niente (documentato in `board/transport.c`).
+- **`tests/host/test_mouse.c`** (23° test): passo immediato e ripetizione, accelerazione, ghiera a tocco e tenuta, maschera dei pulsanti,
+  consumo dei delta, e che un tasto non-mouse non venga toccato.
+- Da fare per provarlo: in Vial, sull'encoder, mettere `MS_WH_UP`/`MS_WH_DOWN` (oppure `MS_UP`/`MS_DOWN` per il cursore).
+
+Budget: flash **44945/56320** (11,4 KB liberi), XDATA 3788/4096. `make test` 23/23, `make sim` 24/24, `make stages` 1–3 ok, vettori ok.
+
 ## 2026-11-02 — via i profili: 16 KB di flash tornano al codice
 
 - **La decisione**: i 4 profili occupavano 0xAC00–0xEBFF, cioè **16 KB di indirizzamento**, e nessuno li usava. Con **una sola keymap** (con le sue

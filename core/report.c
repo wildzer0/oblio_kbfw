@@ -8,12 +8,21 @@ static uint8_t  boot_keys[REPORT_BOOT_KEYS]; // in the order the keys went down
 static uint16_t consumer;
 static uint16_t system_usage;
 
+static uint8_t mouse_buttons;
+static int16_t mouse_x;
+static int16_t mouse_y;
+static int8_t  mouse_wheel;
+
 void report_init(void)
 {
     mods = 0;
     memset(boot_keys, 0, sizeof boot_keys);
     consumer     = 0;
     system_usage = 0;
+    mouse_buttons = 0;
+    mouse_x       = 0;
+    mouse_y       = 0;
+    mouse_wheel   = 0;
 }
 
 void report_add_key(uint8_t key)
@@ -102,6 +111,64 @@ void report_set_system(uint16_t usage)
 uint16_t report_system(void)
 {
     return system_usage;
+}
+
+// ---- the mouse ----
+#define MOUSE_LIMIT 127 // the deltas of one report stay well inside the 16-bit field: no overflow, and the host sees a smooth move
+
+static int16_t clamped(int16_t value, int16_t add)
+{
+    const int16_t sum = (int16_t)(value + add);
+
+    if (sum > MOUSE_LIMIT) {
+        return MOUSE_LIMIT;
+    }
+
+    if (sum < -MOUSE_LIMIT) {
+        return -MOUSE_LIMIT;
+    }
+
+    return sum;
+}
+
+void report_mouse_button(uint8_t mask, bool pressed)
+{
+    if (pressed) {
+        mouse_buttons |= mask;
+    } else {
+        mouse_buttons &= (uint8_t)~mask;
+    }
+}
+
+void report_mouse_move(int8_t dx, int8_t dy)
+{
+    mouse_x = clamped(mouse_x, dx);
+    mouse_y = clamped(mouse_y, dy);
+}
+
+void report_mouse_wheel(int8_t delta)
+{
+    mouse_wheel = (int8_t)(mouse_wheel + delta);
+}
+
+uint8_t report_mouse_buttons(void)
+{
+    return mouse_buttons;
+}
+
+void report_build_mouse(uint8_t out[REPORT_MOUSE_SIZE])
+{
+    out[0] = mouse_buttons;
+    out[1] = (uint8_t)(mouse_x & 0xFF);
+    out[2] = (uint8_t)(mouse_x >> 8);
+    out[3] = (uint8_t)(mouse_y & 0xFF);
+    out[4] = (uint8_t)(mouse_y >> 8);
+    out[5] = (uint8_t)mouse_wheel;
+
+    // Sent: the next report starts from nothing (a relative axis must not repeat a movement)
+    mouse_x     = 0;
+    mouse_y     = 0;
+    mouse_wheel = 0;
 }
 
 // Usages of the Consumer page (0x0C) and the Generic Desktop page (0x01), HID Usage Tables 1.12.

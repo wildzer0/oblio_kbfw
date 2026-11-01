@@ -17,6 +17,7 @@ typedef enum {
     REPORT_KEYBOARD,
     REPORT_CONSUMER,
     REPORT_SYSTEM,
+    REPORT_MOUSE,
 } report_kind_t;
 
 // Provided by the caller: the state of `kind` has changed and should reach the host now. Called once per change, so that
@@ -37,6 +38,16 @@ void    report_clear_mods(void);
 uint8_t report_mods(void);
 
 void report_build_boot(uint8_t out[REPORT_BOOT_SIZE]);
+
+// ---- the mouse (core/mouse.c fills it, the transport sends it) ----
+// The buttons are a mask (bit 0 = button 1), the movement and the wheel are relative: they are added up until a report carries them and
+// the build clears them (one report must not send the same movement twice).
+#define REPORT_MOUSE_SIZE 6 // buttons, x (2 bytes), y (2 bytes), wheel
+void    report_mouse_button(uint8_t mask, bool pressed);
+void    report_mouse_move(int8_t dx, int8_t dy);
+void    report_mouse_wheel(int8_t delta);
+uint8_t report_mouse_buttons(void);
+void    report_build_mouse(uint8_t out[REPORT_MOUSE_SIZE]);
 
 // Consumer and system usages: one at a time. 0 = nothing held.
 void     report_set_consumer(uint16_t usage);

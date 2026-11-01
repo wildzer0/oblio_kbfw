@@ -19,5 +19,5 @@ void report_hook_send(report_kind_t kind)
     } else if (kind == REPORT_CONSUMER) {
         radio_send_consumer(report_consumer());
     }
-    // the system keys (power, sleep) are not mapped on the radio
+    // the system keys (power, sleep) and the mouse are not mapped on the radio: REPORT_MOUSE goes nowhere in the wireless modes
 }

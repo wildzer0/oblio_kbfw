@@ -222,6 +222,24 @@
 #define KC_MCTL 0xC1u
 #define KC_LPAD 0xC2u
 
+// mouse: sent on their own report (core/mouse.c, core/report.c). QMK's numbers, so Vial knows them and a saved layout keeps them
+#define KC_MS_UP        0xCDu
+#define KC_MS_DOWN      0xCEu
+#define KC_MS_LEFT      0xCFu
+#define KC_MS_RIGHT     0xD0u
+#define KC_MS_BTN1      0xD1u
+#define KC_MS_BTN2      0xD2u
+#define KC_MS_BTN3      0xD3u
+#define KC_MS_BTN4      0xD4u
+#define KC_MS_BTN5      0xD5u
+#define KC_MS_WH_UP     0xD9u
+#define KC_MS_WH_DOWN   0xDAu
+#define KC_MS_WH_LEFT   0xDBu
+#define KC_MS_WH_RIGHT  0xDCu
+#define KC_MS_ACCEL0    0xDDu
+#define KC_MS_ACCEL1    0xDEu
+#define KC_MS_ACCEL2    0xDFu
+
 #define KC_FIRST_KEY    0x04u // KC_A
 #define KC_LAST_KEY     0xA4u // KC_EXSEL
 #define KC_FIRST_SYSTEM KC_SYSTEM_POWER
@@ -229,7 +247,11 @@
 #define KC_FIRST_MEDIA  KC_MUTE
 #define KC_LAST_MEDIA   KC_LPAD
 
+#define KC_FIRST_MOUSE   KC_MS_UP
+#define KC_LAST_MOUSE    KC_MS_ACCEL2
+
 #define IS_KEY_KEYCODE(code)      IN_RANGE(code, KC_FIRST_KEY, KC_LAST_KEY)
+#define IS_MOUSE_KEYCODE(code)    IN_RANGE(code, KC_FIRST_MOUSE, KC_LAST_MOUSE)
 #define IS_SYSTEM_KEYCODE(code)   IN_RANGE(code, KC_FIRST_SYSTEM, KC_LAST_SYSTEM)
 #define IS_CONSUMER_KEYCODE(code) IN_RANGE(code, KC_FIRST_MEDIA, KC_LAST_MEDIA)
 #define IS_MODIFIER_KEYCODE(code) IN_RANGE(code, KC_LCTL, KC_RGUI)

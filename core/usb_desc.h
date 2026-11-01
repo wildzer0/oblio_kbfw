@@ -14,7 +14,7 @@
 
 #define USB_VID        0x258Au // the keyboard's own, so that sinowisp and Vial find it by the same ids as the SMK port
 #define USB_PID        0xDEADu
-#define USB_BCD_DEVICE 0x0201u // 0201: the consumer report range covers every usage (Windows caches on this)
+#define USB_BCD_DEVICE 0x0202u // 0202: the mouse collection (Windows caches the descriptors on this)
 
 #define USB_EP0_SIZE 8
 #define USB_EP1_SIZE 16
@@ -25,6 +25,7 @@
 #define REPORT_ID_CONSUMER 2
 #define REPORT_ID_KEYBOARD 3
 #define REPORT_ID_ISP      5
+#define REPORT_ID_MOUSE    7 // as the stock firmware: 5 buttons, X and Y (16 bit), wheel
 
 // Descriptor types
 #define USB_DESC_DEVICE        1

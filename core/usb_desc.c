@@ -9,19 +9,22 @@
 #define USAGE_MIN16(u)   0x1A, (uint8_t)((u) & 0xFF), (uint8_t)((u) >> 8)
 #define USAGE_MAX(u)     0x29, (u)
 #define USAGE_MAX16(u)   0x2A, (uint8_t)((u) & 0xFF), (uint8_t)((u) >> 8)
-#define LOGICAL_MIN(v)   0x15, (v)
-#define LOGICAL_MAX(v)   0x25, (v)
-#define LOGICAL_MAX16(v) 0x26, (uint8_t)((v) & 0xFF), (uint8_t)((v) >> 8)
+#define LOGICAL_MIN(v)   0x15, (uint8_t)(v)
+#define LOGICAL_MIN16(v) 0x16, (uint8_t)((uint16_t)(v) & 0xFFu), (uint8_t)((uint16_t)(v) >> 8)
+#define LOGICAL_MAX(v)   0x25, (uint8_t)(v)
+#define LOGICAL_MAX16(v) 0x26, (uint8_t)((uint16_t)(v) & 0xFFu), (uint8_t)((uint16_t)(v) >> 8)
 #define REPORT_SIZE(n)   0x75, (n)
 #define REPORT_COUNT(n)  0x95, (n)
 #define REPORT_ID(n)     0x85, (n)
-#define COLLECTION_APP   0xA1, 0x01
+#define COLLECTION_APP      0xA1, 0x01
+#define COLLECTION_PHYSICAL 0xA1, 0x00
 #define END_COLLECTION   0xC0
 #define INPUT(f)         0x81, (f)
 #define OUTPUT(f)        0x91, (f)
 #define FEATURE(f)       0xB1, (f)
 
 #define DATA_VAR_ABS  0x02 // data, variable, absolute
+#define DATA_VAR_REL  0x06 // data, variable, relative (the mouse's axes)
 #define DATA_ARRAY    0x00
 #define CONSTANT      0x01
 
@@ -50,6 +53,21 @@ static const ROM uint8_t report_desc_keyboard[] = {
         REPORT_ID(REPORT_ID_CONSUMER),
         USAGE_MIN(0x00), USAGE_MAX16(0x03FF), // up to KC_LPAD (0x2A0) in core/report.c: a host drops what is past this
         LOGICAL_MIN(0), LOGICAL_MAX16(0x03FF), REPORT_SIZE(16), REPORT_COUNT(1), INPUT(DATA_ARRAY),
+    END_COLLECTION,
+
+    PAGE(0x01), USAGE(0x02), COLLECTION_APP,        // Generic Desktop, Mouse (as the stock firmware's interface had it)
+        REPORT_ID(REPORT_ID_MOUSE),
+        USAGE(0x01), COLLECTION_PHYSICAL,           // Pointer
+            PAGE(0x09), USAGE_MIN(1), USAGE_MAX(5), // five buttons
+            LOGICAL_MIN(0), LOGICAL_MAX(1), REPORT_SIZE(1), REPORT_COUNT(5), INPUT(DATA_VAR_ABS),
+            REPORT_SIZE(3), REPORT_COUNT(1), INPUT(CONSTANT), // padding to the byte
+            PAGE(0x01), USAGE(0x30), USAGE(0x31),   // X and Y, relative
+            LOGICAL_MIN16(-32767), LOGICAL_MAX16(32767),
+            REPORT_SIZE(16), REPORT_COUNT(2), INPUT(DATA_VAR_REL),
+            USAGE(0x38),                            // wheel
+            LOGICAL_MIN(-127), LOGICAL_MAX(127),
+            REPORT_SIZE(8), REPORT_COUNT(1), INPUT(DATA_VAR_REL),
+        END_COLLECTION,
     END_COLLECTION,
 
     PAGE16(0xFF00), USAGE(0x01), COLLECTION_APP,    // vendor: the ISP command

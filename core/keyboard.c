@@ -4,6 +4,7 @@
 #include "encoder.h"
 #include "layer.h"
 #include "macro.h"
+#include "mouse.h"
 #include "report.h"
 #include "tapping.h"
 
@@ -15,6 +16,7 @@ void keyboard_init(void)
     tapping_init();
     macro_init();
     encoder_init();
+    mouse_init();
 }
 
 // The layer engine holds modifiers (one-shot, layer + mods) through the same report as the keys.
@@ -98,6 +100,19 @@ static void run_keycode(uint16_t keycode, bool pressed)
         return;
     }
 
+    if (IS_MOUSE_KEYCODE(keycode)) { // a direction, a button, a wheel or the acceleration: the mouse owns it
+        if (pressed) {
+            layer_key_pressed();
+        }
+
+        mouse_process(keycode, pressed, current_now);
+
+        if (!pressed) {
+            layer_key_released();
+        }
+        return;
+    }
+
     if (IS_QK_KB(keycode)) {
         if (pressed) {
             layer_key_pressed();
@@ -170,6 +185,7 @@ void keyboard_task(uint16_t now)
     tapping_task(now);
     macro_task(now);
     encoder_task();
+    mouse_task(now);
 }
 
 // ---- what tapping.c needs from the rest of the firmware ----
