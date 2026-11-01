@@ -11,14 +11,13 @@ SDCC      ?= sdcc
 SDCCFLAGS := --std-c23 --Werror -mmcs51 --model-large --stack-auto \
              --xram-loc 0x0000 --xram-size $(XRAM_SIZE) --code-size $(CODE_LIMIT) \
              --opt-code-speed --out-fmt-ihx
-# Compiled to check them with SDCC, linked once the board provides their data and hooks (step 2 of phase 5)
-VIA_NOT_YET := core/via.c core/vial.c
-FW_SRC    := $(filter-out $(VIA_NOT_YET),$(wildcard core/*.c hal/*.c board/*.c))
-FW_REL    := $(patsubst %.c,build/%.rel,$(FW_SRC))
-VIA_REL   := $(patsubst %.c,build/%.rel,$(VIA_NOT_YET))
+FW_SRC    := $(wildcard core/*.c hal/*.c board/*.c)
+FW_REL    := $(patsubst %.c,build/%.rel,$(FW_SRC)) build/vial_data.rel
 
-.PHONY: test fw size clean
-test: $(HOST_TESTS)
+.PHONY: test fw size clean check-vial
+.DELETE_ON_ERROR: # a failed build must not leave a half-made file that make takes for up to date
+
+test: $(HOST_TESTS) check-vial
 	@for t in $(HOST_TESTS); do echo "== $$t"; ./$$t || exit 1; done
 	@echo "host tests: $(words $(HOST_TESTS)) ok"
 
@@ -45,13 +44,27 @@ tests/host/test_usb_device: tests/host/test_usb_device.c core/usb_desc.c FORCE
 tests/host/test_default_keymap: tests/host/test_default_keymap.c board/keymap_default.c core/keymap.c FORCE
 	$(CC) -std=c11 -Wall -Wextra -Werror -Icore -Iboard -Itests/host -o $@ $(filter %.c,$^)
 
+# The Vial definition: board/vial.json compressed, with the keyboard id and the keys held to unlock (Esc + Enter, cells 0,0 and 2,13)
+VIAL_UID    := 0x46ecd0565df84fa8
+VIAL_UNLOCK := 0,0;2,13
+
+build/vial_data.c: board/vial.json tools/vial_gen.py
+	@mkdir -p build
+	python3 tools/vial_gen.py board/vial.json $(VIAL_UID) "$(VIAL_UNLOCK)" > $@
+
+build/vial_data.rel: build/vial_data.c
+	$(SDCC) $(SDCCFLAGS) -Icore -c $< -o $@
+
+check-vial:
+	python3 tools/check_vial.py board/vial.json board/keymap_default.c board/b68_keys.h core/matrix.h "$(VIAL_UNLOCK)"
+
 fw: build/oblio.hex
 
 build/%.rel: %.c
 	@mkdir -p $(dir $@)
 	$(SDCC) $(SDCCFLAGS) -Icore -Ihal -Iboard -c $< -o $@
 
-build/oblio.ihx: $(FW_REL) $(VIA_REL)
+build/oblio.ihx: $(FW_REL)
 	$(SDCC) $(SDCCFLAGS) $(FW_REL) -o $@
 
 build/oblio.hex: build/oblio.ihx

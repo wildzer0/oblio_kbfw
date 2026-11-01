@@ -10,4 +10,7 @@ It would not exist without these, which were read as references (concepts, proto
 - **[QMK](https://qmk.fm)** and **[Vial](https://get.vial.today)**: keycode layout and the VIA/Vial raw HID protocol, which Oblio implements so the Vial GUI works.
 - The B68's stock firmware, analysed for the pinout, the LED driving and the BK3632 radio protocol (see `docs/keyboards/`).
 
+One file is adapted rather than rewritten: `board/vial.json`, the Vial definition of the B68 (matrix size, drawn layout, custom keycode names), comes from
+the B68 port on SMK (GPLv2, by the same author as this repository). Only the `HUD Toggle` entry was changed.
+
 Rule of the project: SMK and the others are read for ideas; modules are written anew. If a file is ever adapted from another project, it keeps that project's licence header and is listed here.

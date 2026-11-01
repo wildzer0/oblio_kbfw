@@ -13,7 +13,16 @@
 #include "usb_app.h"
 #include "usb_device.h"
 #include "usb_reports.h"
+#include "via.h"
 #include "sh68f90.h"
+
+// Milliseconds since power-on, for the uptime the Vial app shows and the unlock steps
+static uint32_t uptime_ms;
+
+uint32_t via_hook_now(void)
+{
+    return uptime_ms;
+}
 
 static void init(void)
 {
@@ -29,6 +38,7 @@ static void init(void)
 
     usb_device_reset();
     usb_reports_init();
+    via_init();
     usb_hw_init();
 
     EA = 1;
@@ -47,6 +57,7 @@ void main(void)
 
         if (tick_take()) {
             now_ms++;
+            uptime_ms++;
             matrix_hw_scan(raw);
             matrix_feed(raw);
         }
@@ -57,6 +68,6 @@ void main(void)
 
         keyboard_task(now_ms);
         store_task(now_ms, matrix_any_pressed());
-        usb_task();
+        usb_task(now_ms);
     }
 }

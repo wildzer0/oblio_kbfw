@@ -3,6 +3,7 @@
 #include "usb.h"
 #include "isp.h"
 #include "raw_hid.h"
+#include "via.h"
 
 // What the USB side hands to the rest of the keyboard.
 static volatile uint8_t host_leds;
@@ -34,8 +35,14 @@ uint8_t usb_reports_hook_protocol(void)
     return usb_device_protocol(0);
 }
 
+// The raw HID reply goes out first, then the jump: the host reads the answer to the command that asked for it.
+#define BOOTLOADER_DELAY_MS 100u
+
+static bool     bootloader_wait;
+static uint16_t bootloader_since;
+
 // From the main loop
-void usb_task(void)
+void usb_task(uint16_t now)
 {
     if (usb_hw_take_event()) {
         usb_reports_flush(); // a bus reset or a new configuration: what was queued is stale
@@ -52,10 +59,19 @@ void usb_task(void)
     if (isp_requested) {
         isp_jump(); // the host asked for the bootloader and the status stage is done
     }
+
+    if (via_bootloader_requested()) { // the unlocked Vial app asked
+        if (!bootloader_wait) {
+            bootloader_wait  = true;
+            bootloader_since = now;
+        } else if ((uint16_t)(now - bootloader_since) >= BOOTLOADER_DELAY_MS) {
+            isp_jump();
+        }
+    }
 }
 
-// Until Vial / VIA arrive (phase 5): every request is answered "unhandled", which both protocols understand (0xFF).
+// Vial / VIA
 void raw_hid_hook_process(uint8_t packet[RAW_HID_SIZE])
 {
-    packet[0] = 0xFF;
+    via_receive(packet, RAW_HID_SIZE);
 }

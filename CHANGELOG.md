@@ -6,7 +6,7 @@
 2. HAL minimo e matrice 5×16 — **scritta, non provata sull'hardware** (build e test host OK)
 3. Logica pura con test sull'host (layer, tapping, report, macro, profili) — **fatta** (passi 1–5, 8 file di test)
 4. USB e raw HID — **scritta, non provata sull'hardware**
-5. Vial/VIA
+5. Vial/VIA — **scritta, non provata sull'hardware**
 6. Radio, LED, profili, sleep
 7. Parità con il porting SMK e passaggio
 
@@ -117,3 +117,14 @@ Enumerazione USB, report HID (6KRO, consumer, system), LED dall'host, canale raw
 - Le modifiche passano tutte da `keymap_*`, quindi lo store le salva da solo grazie al contatore di versione (nessuna chiamata «impostazioni cambiate» come in SMK). `via_init`/`vial_init` riportano lo stato a bloccato.
 - Test `test_via.c` (15 test, richiesta/risposta esatte): versione e valori, lunghezza errata, keycode (anche fuori limite), buffer della keymap (confini, scritture dispari, blocchi troppo grandi), encoder, id/dimensione/pagine della definizione (ultima parziale, oltre la fine), flusso di sblocco con tempo simulato, tasti rilasciati e ritmo, filtro durante lo sblocco, macro/matrice/bootloader protetti, geometria delle macro, stato della matrice (bit per colonna, big-endian), QMK settings, tap dance. Mutazione provata (la protezione dello stato della matrice tolta → il test fallisce).
 - `Makefile`: `core/via.c` e `core/vial.c` sono compilati con SDCC ma non ancora collegati (mancano i dati generati e l'hook del tempo: passo 2). Flash/XDATA invariati (21348/44032, 2594/4096). Simulatore non usato.
+
+### Fase 5, passo 2 — definizione Vial e collegamento
+- `board/vial.json`: la definizione della B68 (matrice 5×16, tasti disegnati, 20 tasti personalizzati) presa dal porting SMK (è un dato descrittivo, non codice; elencata in NOTICE.md). Unica modifica: il primo tasto personalizzato, che nel porting era l'overlay HUD, resta come segnaposto «HUD Toggle (unused)» perché gli altri tasti personalizzati mantengano i loro numeri (0x7E01…).
+- `tools/vial_gen.py` (nuovo): minifica il JSON e lo comprime in LZMA (contenitore xz, quello che Vial si aspetta), scrive `build/vial_data.c` con definizione, UID `0x46ecd0565df84fa8` e tasti di sblocco Esc + Invio (celle 0,0 e 2,13): stessi valori del porting, così le impostazioni salvate in Vial restano valide. Il `Makefile` lo esegue al build.
+- `tools/check_vial.py`, eseguito da `make test` (`check-vial`): le celle disegnate nel layout sono esattamente le 67 celle di `LAYOUT_B68` nella mappa predefinita (gli encoder, marcati con la `e`, sono esclusi), la matrice è 5×16, i tasti di sblocco esistono, i `B68_*` sono contigui da 0x7E00 e tanti quanti i `customKeycodes`, la definizione sopravvive a compressione e decompressione. Verificato che fallisca con un tasto di sblocco inesistente.
+- `board/usb_app.c`: `raw_hid_hook_process` ora è `via_receive`; il salto al bootloader chiesto da Vial parte almeno 100 ms **dopo** la risposta (non bloccante, dal `main`); `board/main.c`: `via_init()`, contatore dell'uptime a 32 bit (`via_hook_now`) e `usb_task(now)`.
+- `Makefile`: `.DELETE_ON_ERROR` (un link fallito lasciava un `.ihx` che `make` considerava aggiornato; me ne sono accorto leggendo una cifra di flash sbagliata e l'ho ricostruita da pulito), il vecchio filtro temporaneo su `via.c`/`vial.c` è tolto.
+- Verifica: `make test` 13 file + `check-vial` OK; `make fw size` da pulito → flash 28733/44032, XDATA 2611/4096 (definizione compressa: 916 B). Simulatore non usato; nessuna prova con l'app Vial sull'hardware: la compatibilità del formato (xz, pagine da 32 B) è quella del porting, che funzionava.
+
+### Fine fase 5
+Vial/VIA completi per quanto serve al porting: tasti, encoder, macro, tap dance, tapping term, sblocco, matrice, bootloader. Restano fuori (come nel porting): combo, key override, altre QMK settings, HUD.

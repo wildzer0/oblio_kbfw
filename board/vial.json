@@ -1,0 +1,235 @@
+{
+  "name": "Yunzii B68",
+  "vendorId": "0x258A",
+  "productId": "0xDEAD",
+  "matrix": {
+    "rows": 5,
+    "cols": 16
+  },
+  "layouts": {
+    "keymap": [
+      [
+        {
+          "x": 14
+        },
+        "0,0\n\n\n\n\n\n\n\n\ne",
+        "0,1\n\n\n\n\n\n\n\n\ne"
+      ],
+      [
+        "0,0",
+        "0,1",
+        "0,2",
+        "0,3",
+        "0,4",
+        "0,5",
+        "0,6",
+        "0,7",
+        "0,8",
+        "0,9",
+        "0,10",
+        "0,11",
+        "0,12",
+        {
+          "w": 2
+        },
+        "0,13",
+        "0,15"
+      ],
+      [
+        {
+          "w": 1.5
+        },
+        "1,0",
+        "1,1",
+        "1,2",
+        "1,3",
+        "1,4",
+        "1,5",
+        "1,6",
+        "1,7",
+        "1,8",
+        "1,9",
+        "1,10",
+        "1,11",
+        "1,12",
+        {
+          "w": 1.5
+        },
+        "1,13",
+        "1,15"
+      ],
+      [
+        {
+          "w": 1.75
+        },
+        "2,0",
+        "2,1",
+        "2,2",
+        "2,3",
+        "2,4",
+        "2,5",
+        "2,6",
+        "2,7",
+        "2,8",
+        "2,9",
+        "2,10",
+        "2,11",
+        {
+          "w": 2.25
+        },
+        "2,13",
+        "2,15"
+      ],
+      [
+        {
+          "w": 2.25
+        },
+        "3,0",
+        "3,1",
+        "3,2",
+        "3,3",
+        "3,4",
+        "3,5",
+        "3,6",
+        "3,7",
+        "3,8",
+        "3,9",
+        "3,10",
+        {
+          "w": 1.75
+        },
+        "3,13",
+        "3,14",
+        "3,15"
+      ],
+      [
+        {
+          "w": 1.25
+        },
+        "4,0",
+        {
+          "w": 1.25
+        },
+        "4,1",
+        {
+          "w": 1.25
+        },
+        "4,2",
+        {
+          "w": 6.25
+        },
+        "4,5",
+        "4,8",
+        "4,9",
+        {
+          "x": 1
+        },
+        "4,13",
+        "4,14",
+        "4,15"
+      ]
+    ]
+  },
+  "customKeycodes": [
+    {
+      "name": "HUD Toggle (unused)",
+      "title": "Reserved: the keyboard HUD overlay is not part of Oblio. The slot stays so that the other custom keycodes keep their numbers",
+      "shortName": "HUD"
+    },
+    {
+      "name": "LED Effect -",
+      "title": "Previous backlight effect",
+      "shortName": "FX-"
+    },
+    {
+      "name": "LED Effect +",
+      "title": "Next backlight effect",
+      "shortName": "FX+"
+    },
+    {
+      "name": "LED Brightness -",
+      "title": "Backlight dimmer",
+      "shortName": "BRI-"
+    },
+    {
+      "name": "LED Brightness +",
+      "title": "Backlight brighter",
+      "shortName": "BRI+"
+    },
+    {
+      "name": "LED Speed -",
+      "title": "Slower animation",
+      "shortName": "SPD-"
+    },
+    {
+      "name": "LED Speed +",
+      "title": "Faster animation",
+      "shortName": "SPD+"
+    },
+    {
+      "name": "Profile 1",
+      "title": "Switch to keyboard profile 1",
+      "shortName": "PF1"
+    },
+    {
+      "name": "Profile 2",
+      "title": "Switch to keyboard profile 2",
+      "shortName": "PF2"
+    },
+    {
+      "name": "Profile 3",
+      "title": "Switch to keyboard profile 3",
+      "shortName": "PF3"
+    },
+    {
+      "name": "Profile 4",
+      "title": "Switch to keyboard profile 4",
+      "shortName": "PF4"
+    },
+    {
+      "name": "LED Colour -",
+      "title": "Previous colour of the plain backlight effect",
+      "shortName": "COL-"
+    },
+    {
+      "name": "LED Colour +",
+      "title": "Next colour of the plain backlight effect",
+      "shortName": "COL+"
+    },
+    {
+      "name": "Bluetooth 1",
+      "title": "Bluetooth slot 1: tap to select, hold 3 s to pair",
+      "shortName": "BT1"
+    },
+    {
+      "name": "Bluetooth 2",
+      "title": "Bluetooth slot 2: tap to select, hold 3 s to pair",
+      "shortName": "BT2"
+    },
+    {
+      "name": "Bluetooth 3",
+      "title": "Bluetooth slot 3: tap to select, hold 3 s to pair",
+      "shortName": "BT3"
+    },
+    {
+      "name": "Radio trace",
+      "title": "Type out the trace of the radio link (counters and the last events) over the cable",
+      "shortName": "TRC"
+    },
+    {
+      "name": "Sleep",
+      "title": "Put the keyboard to sleep now (wireless modes, without the USB cable)",
+      "shortName": "SLP"
+    },
+    {
+      "name": "Sleep time -",
+      "title": "Shorter inactivity time before sleep (1, 5, 10, 30 minutes, never); the key flashes the new step",
+      "shortName": "SL-"
+    },
+    {
+      "name": "Sleep time +",
+      "title": "Longer inactivity time before sleep (1, 5, 10, 30 minutes, never); the key flashes the new step",
+      "shortName": "SL+"
+    }
+  ]
+}
