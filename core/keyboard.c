@@ -1,4 +1,5 @@
 #include "keyboard.h"
+#include "combo.h"
 #include "keymap.h"
 #include "keycodes.h"
 #include "encoder.h"
@@ -17,6 +18,7 @@ void keyboard_init(void)
     macro_init();
     encoder_init();
     mouse_init();
+    combo_init();
 }
 
 // The layer engine holds modifiers (one-shot, layer + mods) through the same report as the keys.
@@ -150,6 +152,10 @@ static void process_key_state(uint8_t row, uint8_t col, bool pressed)
         return; // a tap-or-hold key starts waiting, or lets go after becoming a hold
     }
 
+    if (combo_process(row, col, keycode, pressed, current_now)) {
+        return; // held back for a chord, swallowed as part of one, or turned into the combo's output
+    }
+
     run_keycode(keycode, pressed);
 }
 
@@ -186,6 +192,7 @@ void keyboard_task(uint16_t now)
     macro_task(now);
     encoder_task();
     mouse_task(now);
+    combo_task(now);
 }
 
 // ---- what tapping.c needs from the rest of the firmware ----
@@ -219,6 +226,12 @@ void tapping_hook_layer(uint8_t layer, bool on)
 void tapping_hook_keycode(uint16_t keycode, bool pressed)
 {
     run_keycode(keycode, pressed);
+}
+
+// A chord's keys, once it is decided, are pressed and released from here: the same way a key of the keymap goes out
+void combo_hook_send(uint16_t keycode, bool pressed)
+{
+    send_keycode(keycode, pressed);
 }
 
 void macro_hook_press(uint16_t keycode)

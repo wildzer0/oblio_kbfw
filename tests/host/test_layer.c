@@ -37,6 +37,13 @@ uint16_t keymap_default_tap_dance(uint8_t index, uint8_t field)
     return 0;
 }
 
+uint16_t keymap_default_combo(uint8_t index, uint8_t field)
+{
+    (void)index;
+    (void)field;
+    return 0;
+}
+
 static uint8_t mods;
 
 void layer_hook_mods_add(uint8_t m) { mods |= m; }

@@ -89,7 +89,10 @@ class Session:
                 pass
         except OSError:
             pass
-        self.sock.settimeout(30)
+        # The longest wait is a `run` that covers seconds of simulated time (the backlight test waits for the half second after which the
+        # backlight is allowed): the interpreter needs a while for it, and a GitHub runner is slower than a workstation — 30 s was not
+        # enough there and the test failed with a timeout instead of a result.
+        self.sock.settimeout(180)
         self.cmd('file "%s"' % self.firmware)
 
     def _drain(self):

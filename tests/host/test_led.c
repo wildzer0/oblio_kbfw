@@ -31,6 +31,13 @@ uint16_t keymap_default_tap_dance(uint8_t index, uint8_t field)
     return 0;
 }
 
+uint16_t keymap_default_combo(uint8_t index, uint8_t field)
+{
+    (void)index;
+    (void)field;
+    return 0;
+}
+
 uint16_t keymap_default_cfg(uint8_t field) { return cfg_defaults[field]; }
 
 static bool caps;

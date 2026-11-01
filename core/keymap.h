@@ -52,6 +52,19 @@ uint16_t keymap_default_tap_dance(uint8_t index, uint8_t field);
 uint16_t keymap_tap_dance_get(uint8_t index, uint8_t field);
 bool     keymap_tap_dance_set(uint8_t index, uint8_t field, uint16_t value);
 
+// ---- combos: keys pressed together give one other key, edited from Vial's Combos tab ----
+// The wire format of Vial's combo entry (see docs/vial.md): up to four input keycodes and one output, in words. A combo with an empty output
+// (or no inputs) is not used. The matching engine is in combo.c.
+#define KEYMAP_COMBO_COUNT 8
+#define COMBO_INPUTS       4
+#define COMBO_FIELDS       (COMBO_INPUTS + 1) // input 0-3, then the output
+
+// Provided by the board (or a test): the compiled-in combos (none).
+uint16_t keymap_default_combo(uint8_t index, uint8_t field);
+
+uint16_t keymap_combo_get(uint8_t index, uint8_t field);
+bool     keymap_combo_set(uint8_t index, uint8_t field, uint16_t value);
+
 // ---- settings that belong to a profile, as words ----
 #define KEYMAP_CFG_COUNT 5
 #define CFG_LED_EFFECT   0

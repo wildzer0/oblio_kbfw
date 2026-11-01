@@ -69,8 +69,12 @@ Recupero: Esc+1+2 mentre si inserisce l'USB.
 - **Prossimo passo deciso dall'utente**: batteria + Caps Lock wireless dal frame `08` della radio (mai decodificato), poi combos/key overrides,
   mouse dall'encoder, Vial RGB. Serve la misura: `diag.py --radio` a carica piena / uso normale / quasi scarica.
   **Fatto il 2026-11-02**: mouse dall'encoder (`core/mouse.c`, report ID 7, solo USB). Flash 44945/56320, XDATA 3788/4096, test host 23.
-  Il protocollo Vial autentico (opcode `dynamic_vial_*`, struct `vial_combo_entry_t` 10 B, `vial_key_override_entry_t` 10 B) è in `docs/vial.md`:
-  serve per combos e key overrides.
+  Il protocollo Vial autentico (opcode `dynamic_vial_*`, struct `vial_combo_entry_t` 10 B, `vial_key_override_entry_t` 10 B) è in `docs/vial.md`.
+  **Fatti il 2026-11-02**: mouse dall'encoder (`core/mouse.c`, report ID 7, solo USB) e **combos** (`core/combo.c`, scheda di Vial, 8 accordi da 4
+  tasti, tasti trattenuti al massimo 50 ms). Flash 46989/56320, XDATA 3907/4096, test host 24. Restano: batteria + Caps Lock wireless (serve la
+  misura `diag.py --radio`), key overrides, Vial RGB.
+- CI GitHub: il job `test` passa sempre; il job `simulation` falliva per **timeout** del harness su un runner lento (non un bug del firmware):
+  ora il test aspetta 320 scansioni invece di 900 e il timeout del socket è 180 s.
 - Bluetooth: funziona (il telefono vede `OBLIO`), il PC dell'utente no — sospetto un legame vecchio su Windows, non il firmware.
 
 ## Aggiornamento 2026-11-01 (sera)

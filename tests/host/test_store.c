@@ -23,6 +23,13 @@ uint16_t keymap_default_tap_dance(uint8_t index, uint8_t field)
     return (uint16_t)(index * 10 + field);
 }
 
+uint16_t keymap_default_combo(uint8_t index, uint8_t field)
+{
+    (void)index;
+    (void)field;
+    return 0;
+}
+
 uint16_t keymap_default_cfg(uint8_t field)
 {
     return (uint16_t)(100 + field);
@@ -259,12 +266,15 @@ static void test_a_slot_of_the_smk_port_is_ignored(void)
     CHECK(violations == 0);
 }
 
+// The most operations a save can take: one per erased sector plus one per programmed byte, and the payload is smaller than the slot
+#define CUT_POINTS (STORE_SLOT_SECTORS + (STORE_SLOT_SECTORS * STORE_SECTOR_BYTES) + 40)
+
 static void test_power_cut_leaves_the_old_or_the_new_copy_never_a_mix(void)
 {
     unsigned old_seen = 0;
     unsigned new_seen = 0;
 
-    for (long cut = 0; cut <= STORE_SLOT_SECTORS + 1920 + 40; cut += 7) {
+    for (long cut = 0; cut <= CUT_POINTS; cut += 7) {
         blank_flash();
         boot();
         edit_everything(0x100);
@@ -292,7 +302,7 @@ static void test_power_cut_leaves_the_old_or_the_new_copy_never_a_mix(void)
 
 static void test_power_cut_during_the_very_first_save(void)
 {
-    for (long cut = 0; cut <= STORE_SLOT_SECTORS + 1920 + 40; cut += 53) {
+    for (long cut = 0; cut <= CUT_POINTS; cut += 53) {
         blank_flash();
         boot();
         edit_everything(0x100);

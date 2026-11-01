@@ -12,6 +12,33 @@
 
 Il controllo di recupero Esc+1+2 va all'inizio del `main`, prima di USB e radio.
 
+## 2026-11-02 — combos (Vial), e la CI che falliva
+
+### Combos: più tasti insieme danno un altro tasto
+- **`core/combo.[ch]`**: fino a 8 accordi da 4 codici l'uno (il formato di Vial, `input[4]` + `output`, 10 byte). Un tasto che è ingresso di un
+  accordo configurato viene **trattenuto al massimo 50 ms** in attesa del resto: se l'accordo si chiude i tasti non arrivano all'host e l'uscita
+  viene premuta (e rilasciata quando li si lascia), altrimenti escono normalmente. Solo corrispondenze esatte, un accordo alla volta. Un tasto che
+  non è ingresso di nessun accordo **non paga niente**: passa subito.
+- **`core/keymap.[ch]`**: i combos sono parte della keymap salvata (8 × 5 parole = 80 B), con i predefiniti dalla scheda (nessuno).
+- **`core/store.c`**: nuova sezione del payload (`SEC_COMBOS`) fra tap dance e impostazioni: il payload passa da 1929 a 2009 byte, dentro lo slot da
+  2048. **Una tantum**: cambiando l'impronta dei predefiniti, la keymap salvata riparte dai default un'altra volta.
+- **`core/vial.c`**: l'operazione 0 della richiesta dinamica riporta anche il numero di combos; le operazioni 3 e 4 leggono e scrivono una voce
+  (10 byte), come da `docs/vial.md`. La scheda **Combos** di Vial adesso funziona.
+- **`core/keyboard.c`**: il motore è chiamato fra il tap-hold e l'invio del tasto, e `combo_task()` nel giro; `combo_hook_send()` manda l'uscita
+  dell'accordo per la stessa strada di un tasto normale.
+- **`tests/host/test_combo.c`** (24° test): l'accordo che scatta e i suoi tasti che non arrivano, il termine che li manda, un tasto rilasciato prima,
+  un tasto estraneo che svuota la coda nell'ordine giusto, un accordo da tre, un combo senza uscita, lo stesso tasto due volte.
+- **`tests/host/test_via.c`**, `test_store.c` (limite dei punti di interruzione ora calcolato dallo slot), stub `keymap_default_combo` negli altri test.
+
+### CI: falliva il job della simulazione, non il firmware
+- `tests/sim/test_sim.py`: il test degli slot aspettava 900 scansioni (≈2 s di tempo simulato) prima di misurare; su un runner GitHub più lento di
+  questa macchina lo `run()` superava il timeout del socket e il test falliva per timeout, non per un conteggio sbagliato. Ora aspettano 320
+  scansioni (≈0,55 s, sempre oltre il mezzo secondo dopo cui il backlight è permesso) e `tests/sim/oblio_sim.py` ha il timeout a **180 s** invece
+  di 30. `make sim` scende da 56 a 45 s su questa macchina.
+
+Budget: flash **46989/56320** (9,3 KB liberi), XDATA **3907/4096** (189 B liberi). `make test` 24/24, `make sim` 24/24, `make stages` 1–3 ok,
+vettori ok.
+
 ## 2026-11-02 — mouse dall'encoder (prima delle feature rimaste)
 
 - **`core/mouse.[ch]`**: i codici mouse di QMK (`KC_MS_UP/DOWN/LEFT/RIGHT`, `KC_MS_BTN1..5`, `KC_MS_WH_UP/DOWN/LEFT/RIGHT`, `KC_MS_ACCEL0..2`,

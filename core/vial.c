@@ -127,14 +127,16 @@ static void get_encoder(XDATA uint8_t *data)
     data[3] = (uint8_t)(cw & 0xFFu);
 }
 
-// 0x00 counts the entries (tap dances only: no combos, key overrides or alt repeat keys), 0x01 reads one (status, then its five
-// words), 0x02 writes one (index in data[3], the five words from data[4])
+// 0x00 counts the entries (tap dances and combos; no key overrides or alt repeat keys), 0x01/0x02 read and write a tap dance (status, then
+// its five words), 0x03/0x04 the same for a combo (status, then four input keycodes and the output). Index in data[3], the entry from
+// data[4]; see docs/vial.md.
 static void dynamic_entry(XDATA uint8_t *data, uint8_t length)
 {
     switch (data[2]) {
         case 0x00:
             memset(data, 0, length);
             data[0] = KEYMAP_TAP_DANCE_COUNT;
+            data[1] = KEYMAP_COMBO_COUNT;
             break;
 
         case 0x01: {
@@ -163,6 +165,39 @@ static void dynamic_entry(XDATA uint8_t *data, uint8_t length)
             if (!status) {
                 for (uint8_t field = 0; field < TD_FIELDS; field++) {
                     keymap_tap_dance_set(index, field, u16_le(&data[4 + field * 2]));
+                }
+            }
+
+            data[0] = status;
+            break;
+        }
+
+        case 0x03: { // combo: four input keycodes, then the output (10 bytes, the layout of docs/vial.md)
+            const uint8_t index = data[3];
+
+            memset(data, 0, length);
+
+            if (index >= KEYMAP_COMBO_COUNT) {
+                data[0] = 1;
+                break;
+            }
+
+            for (uint8_t field = 0; field < COMBO_FIELDS; field++) {
+                const uint16_t word = keymap_combo_get(index, field);
+
+                data[1 + field * 2] = (uint8_t)(word & 0xFFu);
+                data[2 + field * 2] = (uint8_t)(word >> 8);
+            }
+            break;
+        }
+
+        case 0x04: {
+            const uint8_t index  = data[3];
+            const uint8_t status = (index >= KEYMAP_COMBO_COUNT) ? 1 : 0;
+
+            if (!status) {
+                for (uint8_t field = 0; field < COMBO_FIELDS; field++) {
+                    keymap_combo_set(index, field, u16_le(&data[4 + field * 2]));
                 }
             }
 

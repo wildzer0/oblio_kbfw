@@ -25,6 +25,13 @@ uint16_t keymap_default_tap_dance(uint8_t index, uint8_t field)
     return (uint16_t)(index * 16 + field);
 }
 
+uint16_t keymap_default_combo(uint8_t index, uint8_t field)
+{
+    (void)index;
+    (void)field;
+    return 0;
+}
+
 uint8_t hud_hook_host_leds(void) { return 0; }
 void layer_hook_mods_add(uint8_t m) { (void)m; }
 void layer_hook_mods_del(uint8_t m) { (void)m; }
@@ -384,7 +391,7 @@ static void test_tap_dances(void)
     reset();
 
     REQUEST(0xFE, vial_dynamic_entry_op, 0x00);
-    CHECK(buf[0] == KEYMAP_TAP_DANCE_COUNT && buf[1] == 0 && buf[2] == 0);
+    CHECK(buf[0] == KEYMAP_TAP_DANCE_COUNT && buf[1] == KEYMAP_COMBO_COUNT && buf[2] == 0); // combos, no key overrides
 
     REQUEST(0xFE, vial_dynamic_entry_op, 0x01, 2); // tap dance 2: words 32..36
     CHECK(buf[0] == 0 && buf[1] == 32 && buf[2] == 0 && buf[9] == 36 && buf[10] == 0);
@@ -397,6 +404,23 @@ static void test_tap_dances(void)
     REQUEST(0xFE, vial_dynamic_entry_op, 0x01, KEYMAP_TAP_DANCE_COUNT); // no such entry
     CHECK(buf[0] == 1);
     REQUEST(0xFE, vial_dynamic_entry_op, 0x02, KEYMAP_TAP_DANCE_COUNT, 9, 9);
+    CHECK(buf[0] == 1);
+
+    // combos: four input keycodes then the output, 10 bytes
+    REQUEST(0xFE, vial_dynamic_entry_op, 0x03, 1);
+    CHECK(buf[0] == 0 && buf[1] == 0 && buf[9] == 0);
+
+    REQUEST(0xFE, vial_dynamic_entry_op, 0x04, 1, KC_J, 0, KC_K, 0, 0, 0, 0, 0, KC_ESC, 0);
+    CHECK(buf[0] == 0);
+    CHECK(keymap_combo_get(1, 0) == KC_J && keymap_combo_get(1, 1) == KC_K && keymap_combo_get(1, 3) == 0);
+    CHECK(keymap_combo_get(1, COMBO_INPUTS) == KC_ESC);
+
+    REQUEST(0xFE, vial_dynamic_entry_op, 0x03, 1);
+    CHECK(buf[0] == 0 && buf[1] == KC_J && buf[2] == 0 && buf[3] == KC_K && buf[9] == KC_ESC && buf[10] == 0);
+
+    REQUEST(0xFE, vial_dynamic_entry_op, 0x03, KEYMAP_COMBO_COUNT); // no such entry
+    CHECK(buf[0] == 1);
+    REQUEST(0xFE, vial_dynamic_entry_op, 0x04, KEYMAP_COMBO_COUNT, KC_A, 0);
     CHECK(buf[0] == 1);
 
     REQUEST(0xFE, vial_dynamic_entry_op, 0x7F); // an operation we do not know: echoed

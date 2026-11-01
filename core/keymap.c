@@ -4,6 +4,7 @@
 static uint16_t keys[KEYMAP_LAYERS][MATRIX_ROWS][MATRIX_COLS];
 static uint16_t encoder_keys[KEYMAP_LAYERS][ENCODER_COUNT][2];
 static uint16_t tap_dances[KEYMAP_TAP_DANCE_COUNT][TD_FIELDS];
+static uint16_t combos[KEYMAP_COMBO_COUNT][COMBO_FIELDS];
 static uint16_t cfg[KEYMAP_CFG_COUNT];
 static uint8_t  macros[KEYMAP_MACRO_BYTES];
 static uint8_t  version;
@@ -26,6 +27,12 @@ static void load_defaults(void)
     for (uint8_t index = 0; index < KEYMAP_TAP_DANCE_COUNT; index++) {
         for (uint8_t field = 0; field < TD_FIELDS; field++) {
             tap_dances[index][field] = keymap_default_tap_dance(index, field);
+        }
+    }
+
+    for (uint8_t index = 0; index < KEYMAP_COMBO_COUNT; index++) {
+        for (uint8_t field = 0; field < COMBO_FIELDS; field++) {
+            combos[index][field] = keymap_default_combo(index, field);
         }
     }
 
@@ -112,6 +119,26 @@ bool keymap_tap_dance_set(uint8_t index, uint8_t field, uint16_t value)
     }
 
     tap_dances[index][field] = value;
+    version++;
+    return true;
+}
+
+uint16_t keymap_combo_get(uint8_t index, uint8_t field)
+{
+    if (index >= KEYMAP_COMBO_COUNT || field >= COMBO_FIELDS) {
+        return 0;
+    }
+
+    return combos[index][field];
+}
+
+bool keymap_combo_set(uint8_t index, uint8_t field, uint16_t value)
+{
+    if (index >= KEYMAP_COMBO_COUNT || field >= COMBO_FIELDS) {
+        return false;
+    }
+
+    combos[index][field] = value;
     version++;
     return true;
 }

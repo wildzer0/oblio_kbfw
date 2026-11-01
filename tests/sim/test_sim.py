@@ -82,7 +82,10 @@ class TestBoot(SimCase):
         # In the simulator the instruction counts are exact, the time per instruction is not: the guard is on the count. The first version
         # of the backlight took 4697 instructions for a subframe and 8963 for a scan and starved the main loop on the real keyboard (no
         # keys, then watchdog resets). A scan includes ~6400 instructions of deliberate waiting (16 columns x 2 readings x 10 us).
-        self.sim.break_at(SYMBOLS["tick_hook_scan"], hits=900)  # past the half second after which the backlight is allowed
+        # A scan comes once every four LED slots, so a frame is ~8.8 ms of simulated time and 320 scans are past the half second after
+        # which the backlight is allowed (it was 900: the same point twice as late, and the time to get there is what timed the test out
+        # on the CI runners).
+        self.sim.break_at(SYMBOLS["tick_hook_scan"], hits=320)
         self.sim.run()
         self.sim.clear_breaks()
         isr = self._isr_calls()

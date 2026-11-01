@@ -6,9 +6,10 @@
 #define ENCODER_WORDS ((uint16_t)(KEYMAP_LAYERS * ENCODER_COUNT * 2))
 #define MACRO_WORDS   ((uint16_t)(KEYMAP_MACRO_BYTES / 2))
 #define TD_WORDS      ((uint16_t)(KEYMAP_TAP_DANCE_COUNT * TD_FIELDS))
+#define COMBO_WORDS   ((uint16_t)(KEYMAP_COMBO_COUNT * COMBO_FIELDS))
 #define CFG_WORDS     ((uint16_t)KEYMAP_CFG_COUNT)
 
-#define WORDS      ((uint16_t)(KEY_WORDS + ENCODER_WORDS + MACRO_WORDS + TD_WORDS + CFG_WORDS))
+#define WORDS      ((uint16_t)(KEY_WORDS + ENCODER_WORDS + MACRO_WORDS + TD_WORDS + COMBO_WORDS + CFG_WORDS))
 #define PAYLOAD    ((uint16_t)(WORDS * 2u))
 #define HEADER     15u
 #define SLOT_BYTES ((uint16_t)(STORE_SLOT_SECTORS * STORE_SECTOR_BYTES))
@@ -60,7 +61,7 @@ static uint16_t crc16_byte(uint16_t crc, uint8_t byte)
 // ---- the payload as a run of words ----
 // In order: the keys (layer, row, column), the encoders (layer, encoder, direction), the macros (two bytes a word, little-endian), the
 // tap dances (index, field), the settings. A cursor walks it by counting, so no word needs a division to find its place.
-typedef enum { SEC_KEYS, SEC_ENCODERS, SEC_MACROS, SEC_TAP_DANCES, SEC_CFG, SEC_END } section_t;
+typedef enum { SEC_KEYS, SEC_ENCODERS, SEC_MACROS, SEC_TAP_DANCES, SEC_COMBOS, SEC_CFG, SEC_END } section_t;
 
 static section_t sec;
 static uint8_t   ca, cb, cc;  // the position in the section
@@ -110,6 +111,15 @@ static void cursor_advance(void)
             if (++cb >= TD_FIELDS) {
                 cb = 0;
                 if (++ca >= KEYMAP_TAP_DANCE_COUNT) {
+                    sec = SEC_COMBOS;
+                    ca = 0;
+                }
+            }
+            break;
+        case SEC_COMBOS:
+            if (++cb >= COMBO_FIELDS) {
+                cb = 0;
+                if (++ca >= KEYMAP_COMBO_COUNT) {
                     sec = SEC_CFG;
                     ca = 0;
                 }
@@ -133,6 +143,7 @@ static uint16_t cursor_get(void)
         case SEC_ENCODERS:   return keymap_get_encoder(ca, cb, cc != 0);
         case SEC_MACROS:     return (uint16_t)(keymap_macro_byte((uint16_t)(cm * 2u)) | ((uint16_t)keymap_macro_byte((uint16_t)(cm * 2u + 1u)) << 8));
         case SEC_TAP_DANCES: return keymap_tap_dance_get(ca, cb);
+        case SEC_COMBOS:     return keymap_combo_get(ca, cb);
         case SEC_CFG:        return keymap_cfg_get(ca);
         default:             return 0;
     }
@@ -145,6 +156,7 @@ static uint16_t cursor_default(void)
         case SEC_KEYS:       return keymap_default(ca, cb, cc);
         case SEC_ENCODERS:   return keymap_default_encoder(ca, cb, cc != 0);
         case SEC_TAP_DANCES: return keymap_default_tap_dance(ca, cb);
+        case SEC_COMBOS:     return keymap_default_combo(ca, cb);
         case SEC_CFG:        return keymap_default_cfg(ca);
         default:             return 0;
     }
@@ -167,6 +179,9 @@ static void cursor_set(uint16_t value)
         }
         case SEC_TAP_DANCES:
             keymap_tap_dance_set(ca, cb, value);
+            break;
+        case SEC_COMBOS:
+            keymap_combo_set(ca, cb, value);
             break;
         case SEC_CFG:
             keymap_cfg_set(ca, value);
