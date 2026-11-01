@@ -17,7 +17,7 @@ typedef enum {
     DIAG_SCAN_LOST,        // scans overwritten before the main loop took them
     DIAG_LOOP_MAX_MS,      // the slowest pass of the main loop
     DIAG_USB_OVERFLOW,     // USB report packets that replaced or pushed out another
-    DIAG_MATRIX_DEFERRED,  // key changes held back because the event queue was full
+    DIAG_MS_PER_50_SOF,    // milliseconds of our own clock that pass in 50 start-of-frames of the USB bus (1 ms each): 50 if the timer runs as assumed
     DIAG_LED_US_MAX,       // longest LED slot, from its start to the end of its work, in us (the slot is 400; more means it ran late)
     DIAG_SCAN_US_MAX,      // the same for the scan slot (500)
     DIAG_RADIO_INFOS,      // 08 frames from the radio

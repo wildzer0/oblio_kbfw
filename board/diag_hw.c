@@ -32,7 +32,6 @@ void diag_hook_refresh(void)
 
     diag_set(DIAG_STACK_USED, (uint16_t)(a - STACK_BASE + 1u));
     diag_set(DIAG_USB_OVERFLOW, usb_reports_overflows());
-    diag_set(DIAG_MATRIX_DEFERRED, matrix_deferred());
 }
 
 const uint8_t *diag_hook_radio_status(void)

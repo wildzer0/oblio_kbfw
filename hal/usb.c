@@ -1,5 +1,6 @@
 #include "usb.h"
 #include "diag.h"
+#include "tick.h"
 #include "usb_device.h"
 #include "usb_reports.h"
 #include "raw_hid.h"
@@ -188,6 +189,18 @@ void usb_isr(void) __interrupt(7)
     if (if1 & USBIF1_SOFIF) {
         USBIF1 &= (uint8_t)~USBIF1_SOFIF;
         suspended = false; // a start-of-frame means the host is driving the bus again
+
+        // The bus gives a start-of-frame every millisecond exactly: the one reference there is to check the timer against
+        static uint8_t sof_count;
+        static uint8_t ms_at_start;
+
+        if (++sof_count == 50u) {
+            const uint8_t now = tick_ms_now();
+
+            diag_set(DIAG_MS_PER_50_SOF, (uint8_t)(now - ms_at_start));
+            ms_at_start = now;
+            sof_count   = 0;
+        }
     }
 
     if (if1 & USBIF1_RESMIF) {

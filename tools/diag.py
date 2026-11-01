@@ -40,7 +40,7 @@ NAMES = [
     ("scans lost", "{}"),
     ("slowest main-loop pass (ms)", "{}"),
     ("USB report queue overflows", "{}"),
-    ("matrix changes deferred", "{}"),
+    ("own ms per 50 USB SOF (50 = ok)", "{}"),
     ("longest LED slot (us, of 400)", "{}"),
     ("longest scan slot (us, of 500)", "{}"),
     ("radio: 08 frames", "{}"),

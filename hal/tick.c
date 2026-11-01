@@ -128,6 +128,11 @@ void tick_isr(void) __interrupt(INT_TIMER2)
     slot_start = next_start;
 }
 
+uint8_t tick_ms_now(void)
+{
+    return ticks;
+}
+
 void tick_alive(void)
 {
     alive++;

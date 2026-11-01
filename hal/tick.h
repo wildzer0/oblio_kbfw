@@ -25,6 +25,9 @@ void tick_resume(void);
 // True once for every millisecond that has passed and has not been taken.
 bool tick_take(void);
 
+// The millisecond count of the interrupt, modulo 256 (for the USB start-of-frame to compare its own clock against the bus).
+uint8_t tick_ms_now(void);
+
 // True once for every scan of the matrix not yet taken; its result is copied to `raw`.
 bool tick_scan_take(uint8_t raw[16]);
 

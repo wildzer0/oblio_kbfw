@@ -37,6 +37,10 @@ Il controllo di recupero Esc+1+2 va all'inizio del `main`, prima di USB e radio.
 - Nel simulatore (`usbcost`) `usb_isr` costa 688–1801 istruzioni per evento (SET_ADDRESS … raw HID OUT): su questo core sono fino a ~200 µs, abbastanza per spiegare un picco di 816 µs sulla scansione quando arriva all'inizio dello slot. Ma un massimo sporcato da un evento isolato non dice cosa succede a regime: **causa del flicker ancora non dimostrata**.
 - `DIAG_SLOT_LATE` conta solo gli slot LED in ritardo; nuovo `DIAG_SCAN_LATE` per le scansioni; tolto `DIAG_RADIO_EVENTS`. Con `diag.py --watch 1` si vedono i tassi al secondo mentre i LED flickerano. Flash 43674/44032.
 
+### Led in USB: la scansione sfora sempre (terza lettura)
+- A tastiera ferma col cavo (`diag.py --watch 1`): ~479 scansioni in ritardo al secondo, cioè **tutte** (una ogni 2,1 ms); slot LED in ritardo: 1 in tutto; ~185 scansioni perse al secondo; 2 interrupt USB non-SOF al secondo (le richieste di diag). La scansione dura ~800 µs, non i ~440 attesi (il porting SMK la misurò a ~0,35 ms). Un slot LED che segue una scansione così lunga parte in ritardo e resta acceso molto meno: ogni 5 slot una colonna dimezzata, da qui il flicker. Era anche la causa del gradino 2 (slot di scansione 450 µs).
+- Non si sa ancora perché dura il doppio e mezzo, né perché non si veda in wireless. Ipotesi da verificare: il Timer 2 non conta ai 2 MHz assunti (allora i miei «µs» non sono µs reali) oppure le istruzioni durano più di quanto assunto. Nuovo contatore `DIAG_MS_PER_50_SOF`: i millisecondi del nostro orologio che passano in 50 SOF dell'USB (1 ms esatto ciascuno): 50 se il timer va come assunto. Al posto di `DIAG_MATRIX_DEFERRED`. Flash 43720/44032.
+
 ### Fase 1 — build, budget, release
 - `board/main.c`: `main` segnaposto (loop vuoto) per esercitare compilatore, linker e budget; lo sostituisce la fase 2.
 - `Makefile`: nuovi target `fw` (SDCC → `build/oblio.ihx` e `build/oblio.hex` con `packihx`), `size` (controllo budget); `clean` rimuove anche `build/`. Flag SDCC ripresi dal vecchio repo: modello large, `--stack-auto`, XDATA 4096, codice fino a 0xAC00.
