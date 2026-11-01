@@ -138,6 +138,7 @@ static void dynamic_entry(XDATA uint8_t *data, uint8_t length)
             data[0] = KEYMAP_TAP_DANCE_COUNT;
             data[1] = KEYMAP_COMBO_COUNT;
             data[2] = KEYMAP_KEY_OVERRIDE_COUNT;
+            data[length - 1] = 0x01; // the features it has: bit 0 = Caps Word (the app shows the keycode only if it is set)
             break;
 
         case 0x01: {

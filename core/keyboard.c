@@ -1,6 +1,7 @@
 #include "keyboard.h"
 #include "combo.h"
 #include "keymap.h"
+#include "leader.h"
 #include "keycodes.h"
 #include "encoder.h"
 #include "layer.h"
@@ -10,8 +11,14 @@
 #include "report.h"
 #include "tapping.h"
 
+// Caps Word (see caps_word_before below for what it does)
+static bool caps_word;
+static bool caps_shift; // the Shift we added for the letter that is down
+
 void keyboard_init(void)
 {
+    caps_word  = false;
+    caps_shift = false;
     keymap_init();
     layer_init();
     report_init();
@@ -21,6 +28,7 @@ void keyboard_init(void)
     mouse_init();
     combo_init();
     override_init();
+    leader_init();
 }
 
 // The layer engine holds modifiers (one-shot, layer + mods) through the same report as the keys.
@@ -84,12 +92,73 @@ static void send_keycode(uint16_t keycode, bool pressed)
     }
 }
 
+// ---- Caps Word (QMK's "capitalises until the end of the word") ----
+// While it is on, every letter goes out with Shift, and it ends by itself at the first key that is not part of a word (a space, a symbol, the
+// arrow keys...). Keys that keep it going: the letters themselves, the digits, minus, backspace and delete - so "hello-world" can be typed
+// without touching Shift, and a typo fixed, without it switching off.
+static bool caps_word_letter(uint16_t keycode)
+{
+    return keycode >= KC_A && keycode <= KC_Z;
+}
+
+static bool caps_word_keeps(uint16_t keycode)
+{
+    return caps_word_letter(keycode) || (keycode >= KC_1 && keycode <= KC_0) || keycode == KC_MINS || keycode == KC_BSPC
+        || keycode == KC_DEL;
+}
+
+// Before the key goes out: the Shift for a letter, and the end of the word for anything else
+static void caps_word_before(uint16_t keycode, bool pressed)
+{
+    if (!caps_word) {
+        return;
+    }
+
+    if (!pressed) {
+        return;
+    }
+
+    if (caps_word_letter(keycode)) {
+        if (!caps_shift) {
+            caps_shift = true;
+            layer_hook_mods_add(MOD_LSFT);
+        }
+    } else if (!caps_word_keeps(keycode)) {
+        caps_word = false; // the word is over
+    }
+}
+
+static void caps_word_after(bool pressed)
+{
+    if (!pressed && caps_shift) {
+        caps_shift = false;
+        layer_hook_mods_del(MOD_LSFT);
+    }
+}
+
+bool keyboard_caps_word(void)
+{
+    return caps_word;
+}
+
 // The time of the event being handled, for the hooks that run inside it (queued events replayed by the tapping logic)
 static uint16_t current_now;
 
 // A keycode going down or up, from a key of the keymap or from a tap dance.
 static void run_keycode(uint16_t keycode, bool pressed)
 {
+    if (leader_process(keycode, pressed, current_now)) {
+        return; // the Leader is collecting: this key is part of a sequence, not typing
+    }
+
+    if (IS_QK_CAPS_WORD(keycode)) { // the key of the mode itself: it never reaches the host
+        if (pressed) {
+            caps_word = !caps_word;
+            caps_shift = false;
+        }
+        return;
+    }
+
     if (layer_process(keycode, pressed, current_now)) {
         return;
     }
@@ -135,7 +204,9 @@ static void run_keycode(uint16_t keycode, bool pressed)
         layer_key_pressed();
     }
 
+    caps_word_before(keycode, pressed);
     send_keycode(keycode, pressed);
+    caps_word_after(pressed);
 
     if (!pressed) {
         layer_key_released();
@@ -199,6 +270,7 @@ void keyboard_task(uint16_t now)
     encoder_task();
     mouse_task(now);
     combo_task(now);
+    leader_task(now);
 }
 
 // ---- what tapping.c needs from the rest of the firmware ----
@@ -232,6 +304,15 @@ void tapping_hook_layer(uint8_t layer, bool on)
 void tapping_hook_keycode(uint16_t keycode, bool pressed)
 {
     run_keycode(keycode, pressed);
+}
+
+// The action of a Leader sequence: a tap of a keycode, the same way a key of the keymap goes out
+void keyboard_tap(uint16_t keycode)
+{
+    layer_key_pressed();
+    send_keycode(keycode, true);
+    send_keycode(keycode, false);
+    layer_key_released();
 }
 
 // A chord's keys, once it is decided, are pressed and released from here: the same way a key of the keymap goes out

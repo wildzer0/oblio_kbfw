@@ -34,6 +34,8 @@
 #define QK_TAP_DANCE_MAX      0x57FFu
 #define QK_MACRO              0x7700u
 #define QK_MACRO_MAX          0x777Fu
+#define QK_CAPS_WORD_TOGGLE   0x7C73u // QMK's Caps Word: the next letters are shifted until the word ends
+#define QK_LEADER             0x7C58u // QMK's Leader: the keys after it are a sequence, not typing
 #define QK_KB                 0x7E00u // keyboard-specific keycodes
 #define QK_KB_MAX             0x7E3Fu
 
@@ -54,6 +56,8 @@
 #define IS_QK_TAP_DANCE(code)       IN_RANGE(code, QK_TAP_DANCE, QK_TAP_DANCE_MAX)
 #define IS_QK_MACRO(code)           IN_RANGE(code, QK_MACRO, QK_MACRO_MAX)
 #define IS_QK_KB(code)              IN_RANGE(code, QK_KB, QK_KB_MAX)
+#define IS_QK_CAPS_WORD(code)       ((code) == QK_CAPS_WORD_TOGGLE)
+#define IS_QK_LEADER(code)          ((code) == QK_LEADER)
 
 // ---- keycodes that build on a layer, a modifier set or a number ----
 #define MO(layer)   (QK_MOMENTARY | ((layer) & 0x1Fu))     // layer while the key is down

@@ -41,12 +41,6 @@ uint16_t keymap_default_override(uint8_t index, uint8_t field)
 
 void vialrgb_hook_save(void) {} // the board writes the keymap; here there is no flash
 
-uint16_t keymap_default_led(uint16_t index)
-{
-    (void)index;
-    return 0;
-}
-
 uint8_t hud_hook_host_leds(void) { return 0; }
 void layer_hook_mods_add(uint8_t m) { (void)m; }
 void layer_hook_mods_del(uint8_t m) { (void)m; }

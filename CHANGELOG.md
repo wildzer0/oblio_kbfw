@@ -12,6 +12,43 @@
 
 Il controllo di recupero Esc+1+2 va all'inizio del `main`, prima di USB e radio.
 
+## 2026-11-03 (mattina) — il tab Lighting, NKRO, Caps Word, Leader
+
+### Perché Vial non mostrava il tab Lighting, e cosa può fare davvero
+- **Causa**: l'app non guarda il byte 12 della risposta con l'id — guarda **il campo `"lighting": "vialrgb"` della definizione**
+  (`keyboard_comm.py`: `self.lighting_vialrgb = self.definition["lighting"] == "vialrgb"`). Aggiunto a `board/vial.json`: il tab compare.
+- **Seconda scoperta**: la Vial del 2026-11 **non ha il pittore per tasto**. I suoi comandi sono solo `get_info`, `get_mode`, `get_supported`,
+  `set_mode`: niente `direct_fastset`, `get_number_leds`, `get_led_info` (esistono nel firmware di riferimento, aspettano un'app che li usi). Quindi
+  il "colore per tasto" che avevo scritto l'app non lo usa: **tolto** (via i 160 B di XDATA e la sezione del deposito), e al suo posto
+  `core/vialrgb.c` mappa i **sei effetti** che questa tastiera ha davvero sugli id che l'app conosce (0 spento, 2 tinta unita, 4 gradiente su-giù,
+  5 gradiente sx-dx, 6 respiro, 18 anelli dal centro) e il colore sui diciassette della ruota. La scheda comanda effetto, luminosità, velocità e colore.
+- I **6 layer restano** (decisi ieri per far posto al pittore): lo spazio liberato è andato a NKRO e Caps Word, e nel deposito restano ~340 B
+  (utili per le sequenze del Leader, se vorrai averle modificabili).
+
+### NKRO in USB
+- Il report tastiera (ID 3) ora è la **bitmap NKRO**, e il 6KRO resta solo per il boot protocol (un BIOS non sa cosa farsene). `report.c` tiene la
+  bitmap, `usb_reports.c` sceglie il formato, il descrittore dichiara 112 usages.
+- **112 bit, non 120 come QMK**: il buffer hardware di EP1 è di **16 byte** (`EP1_BUF_SIZE` in `hal/sh68f90.h`) e l'ID ne prende uno; 112 bit
+  arrivano a usage 0x6F e coprono lettere, cifre, F1–F12 e navigazione. `bcdDevice` 0x0202 → **0x0203**.
+- Test nuovo: sette tasti insieme arrivano tutti in report protocol, e in boot protocol il settimo resta fuori (come deve).
+
+### Caps Word e Leader
+- **Caps Word** (`QK_CAPS_WORD_TOGGLE` 0x7C73, il numero di QMK): le lettere escono con Shift finché la parola non finisce — si spegne al primo
+  tasto che non è lettera, cifra, meno, backspace o delete. L'app mostra il tasto solo se il firmware dichiara la feature: `core/vial.c` mette il
+  bit 0 dell'ultimo byte della risposta delle voci dinamiche.
+- **Leader** (`core/leader.[ch]` + `board/leader.c`, il tasto `B68_LEADER` 0x7E10 assegnabile da Vial, la definizione passa a 17 tasti
+  personalizzati): premi il tasto, poi una sequenza; le sequenze stanno in `board/leader.c` (compile-time, come in QMK), 400 ms di silenzio la
+  annullano. Due esempi: `Leader E S C` = Esc, `Leader M U T E` = mute.
+- Test nuovi: `test_leader` (sequenza che agisce e non scrive, tasto fuori sequenza, timeout, tasto che disarma) e il caso Caps Word in
+  `test_keyboard`. `test_usb_reports` e `test_sim` aggiornati all'NKRO.
+
+### Batteria
+- Niente di nuovo "in giro": il giro di ricerca non trova documentazione sul frame di stato della B68. Resta quello che c'è: byte dei LED
+  **confermato** dal dump stock (`0x06B6`), byte della batteria **ipotesi** coerente (0xFF a carica piena = sveglia + 7 di 7, lo stesso layout del
+  driver NuPhy). La prova è Fn+Backspace: se resta a 0 o a 7 per giorni, l'offset è un altro ed è una riga in `core/radio.h`.
+
+Budget: flash **51111/56320** (5,2 KB liberi), XDATA **3720/4096**, deposito 1709/2048. `make test` 27/27, `make sim` 24/24, `make stages` 1–3 ok.
+
 ## 2026-11-03 — 8 → 6 layer, e Vial RGB per tasto
 
 - **Layer 8 → 6** (decisione dell'utente): libera **320 B di XDATA e 320 B del deposito**, che era il muro per il colore per tasto. La coppia Mac

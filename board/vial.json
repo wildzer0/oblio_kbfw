@@ -1,4 +1,5 @@
 {
+  "lighting": "vialrgb",
   "name": "Yunzii B68",
   "vendorId": "0x258A",
   "productId": "0xDEAD",
@@ -205,6 +206,11 @@
       "name": "Sleep time -",
       "title": "Shorter inactivity time before sleep (1, 5, 10, 30 minutes, never); the key flashes the new step",
       "shortName": "SL-"
+    },
+    {
+      "name": "Leader",
+      "title": "Start a Leader sequence (the sequences are in board/leader.c)",
+      "shortName": "LEAD"
     },
     {
       "name": "Sleep time +",

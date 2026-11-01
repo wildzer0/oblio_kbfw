@@ -1,7 +1,6 @@
 #include "led.h"
 #include "keymap.h"
 #include "led_effect.h"
-#include "vialrgb.h"
 #include <string.h>
 
 #define RENDER_CHUNK 8u // LEDs painted per pass of the main loop
@@ -138,17 +137,7 @@ static void paint_one(void)
 {
     uint8_t rgb[3] = {0, 0, 0};
 
-    if (cur_effect == FX_VIAL) { // the colours Vial painted, one per key
-        uint8_t painted[3];
-
-        if (!vialrgb_colour(paint_row, paint_col, painted)) {
-            painted[0] = painted[1] = painted[2] = 0;
-        }
-
-        rgb[0] = (uint8_t)(((uint16_t)painted[0] * cur_brightness) >> 8);
-        rgb[1] = (uint8_t)(((uint16_t)painted[1] * cur_brightness) >> 8);
-        rgb[2] = (uint8_t)(((uint16_t)painted[2] * cur_brightness) >> 8);
-    } else if (cur_effect == FX_SOLID && cur_color != 0) {
+    if (cur_effect == FX_SOLID && cur_color != 0) {
         led_color_wheel((uint8_t)((cur_color - 1u) * 16u), rgb);
 
         for (uint8_t c = 0; c < 3; c++) {

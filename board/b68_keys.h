@@ -21,3 +21,4 @@
 #define B68_SLEEP   0x7E0Du // sleeps now, only in the wireless modes
 #define B68_SLP_DN  0x7E0Eu // inactivity time before sleep: shorter / longer
 #define B68_SLP_UP  0x7E0Fu
+#define B68_LEADER  0x7E10u // starts a Leader sequence (the sequences are in board/leader.c)

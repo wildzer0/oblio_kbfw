@@ -5,7 +5,8 @@
 // packet at a time as the host takes them. A key pressed and released in the same pass therefore still reaches the host
 // as two reports.
 //
-// Packets, by kind: keyboard = [ID 3] + 8 bytes (no ID in boot protocol), system = [ID 1, bits], consumer = [ID 2, usage lo, hi],
+// Packets, by kind: keyboard = [ID 3] + modifiers and the NKRO bitmap, 16 bytes (in boot protocol the 8-byte six-key report, no ID),
+// system = [ID 1, bits], consumer = [ID 2, usage lo, hi],
 // mouse = [ID 7, buttons, x lo, x hi, y lo, y hi, wheel] (relative axes: the packet carries the movement accumulated until it was built).
 // Consumer and system reports have no boot-protocol form: a BIOS gets the keyboard report only.
 

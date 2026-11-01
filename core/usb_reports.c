@@ -2,7 +2,7 @@
 #include "usb_desc.h"
 #include <string.h>
 
-#define PACKET_MAX (1 + REPORT_BOOT_SIZE)
+#define PACKET_MAX (1 + REPORT_NKRO_SIZE)
 
 typedef struct {
     report_kind_t kind;
@@ -44,14 +44,14 @@ static uint8_t build(packet_t *packet, report_kind_t kind)
 
     switch (kind) {
         case REPORT_KEYBOARD:
-            if (usb_reports_hook_protocol() == 0) { // boot protocol: no report ID
+            if (usb_reports_hook_protocol() == 0) { // boot protocol: the eight-byte six-key report, no ID (a BIOS knows nothing else)
                 report_build_boot(packet->data);
                 return REPORT_BOOT_SIZE;
             }
 
-            packet->data[0] = REPORT_ID_KEYBOARD;
-            report_build_boot(&packet->data[1]);
-            return 1 + REPORT_BOOT_SIZE;
+            packet->data[0] = REPORT_ID_KEYBOARD; // otherwise the bitmap: more than six keys at once reach the host
+            report_build_nkro(&packet->data[1]);
+            return 1 + REPORT_NKRO_SIZE;
 
         case REPORT_SYSTEM:
             if (usb_reports_hook_protocol() == 0) {

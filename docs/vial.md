@@ -29,7 +29,7 @@ command; the reply replaces the request in the same buffer. `VIAL_PROTOCOL_VERSI
 
 | Value | Name | Request | Reply |
 | --- | --- | --- | --- |
-| 0x00 | `dynamic_vial_get_number_of_entries` | — | `[0]` tap dances, `[1]` combos, `[2]` key overrides, `[3]` alt repeat keys, `[31]` feature bits: bit 0 = Caps Word, bit 1 = Layer Lock |
+| 0x00 | `dynamic_vial_get_number_of_entries` | — | `[0]` tap dances, `[1]` combos, `[2]` key overrides, `[3]` alt repeat keys, `[31]` feature bits: bit 0 = Caps Word, bit 1 = Layer Lock. **The bit is what makes the app offer the keycode**: without it "Caps Word" is not in its list |
 | 0x01 | `dynamic_vial_tap_dance_get` | index `[3]` | `[0]` status, then the entry from `[1]` |
 | 0x02 | `dynamic_vial_tap_dance_set` | index `[3]`, entry from `[4]` | `[0]` status |
 | 0x03 | `dynamic_vial_combo_get` | index `[3]` | `[0]` status, then the entry from `[1]` |

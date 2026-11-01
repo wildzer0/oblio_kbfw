@@ -262,8 +262,13 @@ class TestKeys(UsbCase):
 
         reports = self.usb.packets(start, "EP1 IN")
         self.assertGreaterEqual(len(reports), 2)
-        self.assertEqual(reports[0], [3, 0x02, 0, 0, 0, 0, 0, 0, 0])      # report id 3, then left shift alone
-        self.assertEqual(reports[1], [3, 0x02, 0, 0x1D, 0, 0, 0, 0, 0])  # and Z with it
+
+        # report id 3, the modifiers, then the NKRO bitmap (14 bytes): Z is usage 0x1D, so bit 5 of its fourth byte
+        bitmap = [0] * 14
+        bitmap[0x1D >> 3] = 1 << (0x1D & 7)
+
+        self.assertEqual(reports[0], [3, 0x02] + [0] * 14)          # the left shift alone
+        self.assertEqual(reports[1], [3, 0x02] + bitmap)            # and Z with it
 
     def test_nothing_is_sent_before_the_host_configures_the_keyboard(self):
         self.usb.usb_mode()

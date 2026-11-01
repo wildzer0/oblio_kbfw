@@ -1,30 +1,12 @@
 #include "check.h"
 #include "keymap.h"
-#include "keycodes.h"
 #include "led_effect.h"
 #include "vialrgb.h"
 #include <string.h>
 
-// The keymap side the module talks to
-static uint16_t leds[KEYMAP_LED_COUNT];
+// The profile's settings, which is what the Lighting tab reads and writes
 static uint16_t cfg[KEYMAP_CFG_COUNT];
-static uint16_t keys[MATRIX_ROWS][MATRIX_COLS];
 static unsigned saves;
-
-uint16_t keymap_led_get(uint16_t index)
-{
-    return (index < KEYMAP_LED_COUNT) ? leds[index] : 0;
-}
-
-bool keymap_led_set(uint16_t index, uint16_t rgb565)
-{
-    if (index >= KEYMAP_LED_COUNT) {
-        return false;
-    }
-
-    leds[index] = rgb565;
-    return true;
-}
 
 uint16_t keymap_cfg_get(uint8_t field)
 {
@@ -37,12 +19,6 @@ bool keymap_cfg_set(uint8_t field, uint16_t value)
     return true;
 }
 
-uint16_t keymap_get(uint8_t layer, uint8_t row, uint8_t col)
-{
-    (void)layer;
-    return (row < MATRIX_ROWS && col < MATRIX_COLS) ? keys[row][col] : KC_NO;
-}
-
 void vialrgb_hook_save(void)
 {
     saves++;
@@ -50,123 +26,130 @@ void vialrgb_hook_save(void)
 
 static uint8_t packet[32];
 
-static void request(uint8_t command, const uint8_t *args, uint8_t count)
+static void get(uint8_t command, uint8_t arg0)
 {
     memset(packet, 0, sizeof packet);
     packet[0] = 0x08; // id_lighting_get_value
     packet[1] = command;
-
-    for (uint8_t i = 0; i < count; i++) {
-        packet[2 + i] = args[i];
-    }
+    packet[2] = arg0;
 
     vialrgb_get_value(packet);
 }
 
+static void set_mode(uint8_t id, uint8_t speed, uint8_t hue, uint8_t sat, uint8_t val)
+{
+    memset(packet, 0, sizeof packet);
+    packet[0] = 0x07; // id_lighting_set_value
+    packet[1] = 0x41; // vialrgb_set_mode
+    packet[2] = id;
+    packet[3] = 0;
+    packet[4] = speed;
+    packet[5] = hue;
+    packet[6] = sat;
+    packet[7] = val;
+
+    vialrgb_set_value(packet);
+}
+
 static void reset(void)
 {
-    memset(leds, 0, sizeof leds);
     memset(cfg, 0, sizeof cfg);
-    memset(keys, 0, sizeof keys);
-    keys[4][0] = KC_A; // a key, for the LED info
-    saves      = 0;
+    saves = 0;
     vialrgb_init();
 }
 
-static void test_the_info(void)
+static void test_the_info_the_app_asks_for_first(void)
 {
     reset();
-    request(0x40, 0, 0);
+    get(0x40, 0);
 
-    CHECK(packet[2] == 1 && packet[3] == 0);   // protocol 1
-    CHECK(packet[4] == 255);                   // maximum brightness
+    CHECK(packet[2] == 1 && packet[3] == 0); // protocol 1: what this app demands
+    CHECK(packet[4] == 255);                 // the brightest value it may send
 }
 
 static void test_the_effects_it_offers(void)
 {
-    const uint8_t args[2] = {0xFF, 0xFF}; // "the ids above this one": none
     reset();
-    request(0x42, args, 2);
-    CHECK(packet[2] == 0xFF);
 
-    const uint8_t from_zero[2] = {0x00, 0x00}; // off and direct
-    request(0x42, from_zero, 2);
-    CHECK(packet[2] == VIALRGB_EFFECT_DIRECT && packet[3] == 0 && packet[4] == 0xFF);
+    get(0x42, 0xFF); // "the ids above this": none left
+    CHECK(packet[2] == 0xFF && packet[3] == 0xFF);
+
+    get(0x42, 0); // the app walks up from zero: it must get a list that ends
+    CHECK(packet[2] == 2 && packet[3] == 0);  // solid colour
+    CHECK(packet[4] == 4 && packet[5] == 0);  // gradient up down
+    CHECK(packet[6] == 5 && packet[7] == 0);  // gradient left right
+    CHECK(packet[8] == 6 && packet[9] == 0);  // breathing
+    CHECK(packet[10] == 18 && packet[11] == 0); // cycle out in (the rings)
+    CHECK(packet[12] == 0xFF && packet[13] == 0xFF); // and the end
 }
 
-static void test_the_mode_is_the_effect_of_the_profile(void)
+static void test_every_effect_has_an_id_and_back(void)
 {
     reset();
-    cfg[CFG_LED_EFFECT] = FX_VIAL;
-    cfg[CFG_LED_BRIGHT] = 128;
+
+    CHECK(vialrgb_id_of(FX_SOLID) == 2 && vialrgb_effect_of(2) == FX_SOLID);
+    CHECK(vialrgb_id_of(FX_VERTICAL) == 4 && vialrgb_effect_of(4) == FX_VERTICAL);
+    CHECK(vialrgb_id_of(FX_HORIZONTAL) == 5 && vialrgb_effect_of(5) == FX_HORIZONTAL);
+    CHECK(vialrgb_id_of(FX_BREATHE) == 6 && vialrgb_effect_of(6) == FX_BREATHE);
+    CHECK(vialrgb_id_of(FX_RADIAL) == 18 && vialrgb_effect_of(18) == FX_RADIAL);
+    CHECK(vialrgb_id_of(FX_OFF) == 0 && vialrgb_effect_of(0) == FX_OFF);
+
+    // the two without a counterpart in the app's list are reported as the nearest, and an unknown id is "off"
+    CHECK(vialrgb_id_of(FX_PULSE) == 6 && vialrgb_id_of(FX_DIAGONAL) == 5);
+    CHECK(vialrgb_effect_of(99) == FX_OFF);
+}
+
+static void test_the_mode_reads_and_writes_the_profile(void)
+{
+    reset();
+    cfg[CFG_LED_EFFECT] = FX_HORIZONTAL;
     cfg[CFG_LED_SPEED]  = 7;
+    cfg[CFG_LED_BRIGHT] = 128;
+    cfg[CFG_LED_COLOR]  = 9; // the wheel at (9 - 1) * 16 = 128
 
-    request(0x41, 0, 0);
-    CHECK(packet[2] == VIALRGB_EFFECT_DIRECT && packet[3] == 0);
-    CHECK(packet[4] == 7 && packet[7] == 128); // speed and brightness
+    get(0x41, 0);
+    CHECK(packet[2] == 5);   // the id of the effect in use
+    CHECK(packet[4] == 7);   // speed
+    CHECK(packet[5] == 128); // hue
+    CHECK(packet[6] == 255); // saturated
+    CHECK(packet[7] == 128); // brightness
 
-    // choosing "direct" from the app turns the per-key effect on
-    uint8_t set[6] = {VIALRGB_EFFECT_DIRECT, 0, 9, 0, 0, 200};
-    memset(packet, 0, sizeof packet);
-    packet[0] = 0x07; // id_lighting_set_value
-    packet[1] = 0x41;
-    memcpy(&packet[2], set, sizeof set);
-    vialrgb_set_value(packet);
-    CHECK(cfg[CFG_LED_EFFECT] == FX_VIAL && cfg[CFG_LED_BRIGHT] == 200 && cfg[CFG_LED_SPEED] == 9);
+    cfg[CFG_LED_COLOR] = 0; // white
+    get(0x41, 0);
+    CHECK(packet[5] == 0 && packet[6] == 0); // no hue, no saturation
+}
 
-    // anything else is "off": this keyboard has no rgb_matrix effects
-    set[0] = 6;
-    memset(packet, 0, sizeof packet);
-    packet[0] = 0x07;
-    packet[1] = 0x41;
-    memcpy(&packet[2], set, sizeof set);
-    vialrgb_set_value(packet);
+static void test_choosing_from_the_app(void)
+{
+    reset();
+
+    set_mode(4, 3, 0, 255, 200); // gradient up down, red, bright
+    CHECK(cfg[CFG_LED_EFFECT] == FX_VERTICAL);
+    CHECK(cfg[CFG_LED_SPEED] == 3 && cfg[CFG_LED_BRIGHT] == 200);
+    CHECK(cfg[CFG_LED_COLOR] == 1); // the first colour of the wheel
+
+    set_mode(0, 3, 0, 0, 200); // off
+    CHECK(cfg[CFG_LED_EFFECT] == FX_OFF);
+
+    set_mode(2, 3, 0, 0, 200); // solid, white
+    CHECK(cfg[CFG_LED_EFFECT] == FX_SOLID && cfg[CFG_LED_COLOR] == 0);
+
+    set_mode(99, 3, 0, 255, 200); // an id this keyboard does not have: off, rather than something random
     CHECK(cfg[CFG_LED_EFFECT] == FX_OFF);
 }
 
-static void test_the_leds_and_their_places(void)
-{
-    const uint8_t count[2] = {0, 0};
-    reset();
-    request(0x43, count, 2);
-    CHECK(packet[2] == (uint8_t)VIALRGB_LEDS && packet[3] == (uint8_t)(VIALRGB_LEDS >> 8));
-
-    // the first cell of the last row is a key: the app gets its matrix position and a place on its grid
-    const uint8_t last[2] = {(uint8_t)(4 * MATRIX_COLS), 0};
-    request(0x44, last, 2);
-    CHECK(packet[2] == 0 && packet[3] == (uint8_t)(4 * 224 / MATRIX_ROWS)); // x, y
-    CHECK(packet[4] == 4);                                                   // a key light
-    CHECK(packet[5] == 4 && packet[6] == 0);                                 // row, column
-
-    // an empty cell is not a key
-    const uint8_t empty[2] = {14, 0};
-    request(0x44, empty, 2);
-    CHECK(packet[5] == 0xFF && packet[6] == 0xFF);
-}
-
-static void test_painting_a_key(void)
+static void test_a_colour_comes_back_the_same(void)
 {
     reset();
 
-    // LED 0: pure red (hue 0, full saturation and value). Two LEDs in one packet.
-    uint8_t set[3 + 6] = {0, 0, 2, 0, 255, 255, 85, 255, 255};
+    for (uint8_t step = 0; step < 17; step++) {
+        const uint8_t hue = (uint8_t)(step * 16);
 
-    memset(packet, 0, sizeof packet);
-    packet[0] = 0x07;
-    packet[1] = 0x42;
-    memcpy(&packet[2], set, sizeof set);
-    vialrgb_set_value(packet);
+        set_mode(2, 3, hue, 255, 200);
+        get(0x41, 0);
 
-    uint8_t rgb[3];
-
-    CHECK(vialrgb_colour(0, 0, rgb));
-    CHECK(rgb[0] > 200 && rgb[1] < 40 && rgb[2] < 40); // red
-
-    CHECK(vialrgb_colour(0, 1, rgb));
-    CHECK(rgb[1] > 200 && rgb[0] < 40); // green (hue 85)
-
-    CHECK(!vialrgb_colour(0, 2, rgb)); // nothing painted there
-    CHECK(cfg[CFG_LED_EFFECT] == FX_VIAL); // painting shows the painting
+        CHECK(packet[5] == hue); // the same hue goes back to the app
+    }
 }
 
 static void test_saving_writes_it_down(void)
@@ -174,15 +157,22 @@ static void test_saving_writes_it_down(void)
     reset();
     vialrgb_save();
     CHECK(saves == 1);
+
+    memset(packet, 0, sizeof packet);
+    packet[0] = 0x07;
+    packet[1] = 0x42; // a sub-command we do not have
+    vialrgb_set_value(packet);
+    CHECK(packet[0] == 0xFF); // told unhandled, as VIA expects
 }
 
 int main(void)
 {
-    test_the_info();
+    test_the_info_the_app_asks_for_first();
     test_the_effects_it_offers();
-    test_the_mode_is_the_effect_of_the_profile();
-    test_the_leds_and_their_places();
-    test_painting_a_key();
+    test_every_effect_has_an_id_and_back();
+    test_the_mode_reads_and_writes_the_profile();
+    test_choosing_from_the_app();
+    test_a_colour_comes_back_the_same();
     test_saving_writes_it_down();
     return tests_result();
 }

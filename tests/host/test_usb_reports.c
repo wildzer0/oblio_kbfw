@@ -30,6 +30,12 @@ static void reset(void)
     usb_reports_init();
 }
 
+// A key in the NKRO packet: [ID][modifiers][the bitmap]
+static bool key_in(uint8_t packet, uint8_t key)
+{
+    return (sent[packet][2 + (key >> 3)] & (1u << (key & 7u))) != 0;
+}
+
 static void drain(void)
 {
     for (unsigned i = 0; i < 40; i++) {
@@ -44,8 +50,9 @@ static void test_keyboard_report_framing(void)
     report_add_mods(0x02);
     usb_reports_send(REPORT_KEYBOARD);
     drain();
-    CHECK(sent_count == 1 && sent_length[0] == 9);
-    CHECK(sent[0][0] == 3 && sent[0][1] == 0x02 && sent[0][2] == 0 && sent[0][3] == KC_A); // ID, mods, reserved, key
+    CHECK(sent_count == 1 && sent_length[0] == 1 + REPORT_NKRO_SIZE); // ID, modifiers, the bitmap
+    CHECK(sent[0][0] == 3 && sent[0][1] == 0x02 && key_in(0, KC_A));
+    CHECK(!key_in(0, KC_B));
 
     reset();
     protocol = 0; // a BIOS: boot protocol has no report ID
@@ -85,13 +92,13 @@ static void test_each_change_is_its_own_packet_in_order(void)
     usb_reports_send(REPORT_KEYBOARD); // ...and released in the same pass
 
     usb_reports_pump(); // one per call, as the endpoint frees up
-    CHECK(sent_count == 1 && sent[0][3] == KC_A);
+    CHECK(sent_count == 1 && key_in(0, KC_A));
     ep_free = false;
     usb_reports_pump();
     CHECK(sent_count == 1); // the endpoint is busy
     ep_free = true;
     usb_reports_pump();
-    CHECK(sent_count == 2 && sent[1][3] == 0);
+    CHECK(sent_count == 2 && !key_in(1, KC_A));
     usb_reports_pump();
     CHECK(sent_count == 2);
 }
@@ -138,12 +145,42 @@ static void test_full_queue_keeps_the_newest_state_of_each_kind(void)
 
     CHECK(sent_count == USB_REPORT_QUEUE - 1);
     CHECK(sent[sent_count - 1][0] == 2 && sent[sent_count - 1][1] == 0xE9); // the consumer packet got in
-    CHECK(sent[sent_count - 2][3] == KC_A + 3 * USB_REPORT_QUEUE - 1);       // and the keyboard state is the last one
+    CHECK(key_in((uint8_t)(sent_count - 2), (uint8_t)(KC_A + 3 * USB_REPORT_QUEUE - 1))); // and the keyboard state is the last one
+}
+
+// The point of the bitmap: seven keys at once all arrive (the six-key report could not carry them)
+static void test_more_than_six_keys_at_once(void)
+{
+    reset();
+
+    for (uint8_t key = KC_A; key < KC_A + 7; key++) {
+        report_add_key(key);
+    }
+
+    usb_reports_send(REPORT_KEYBOARD);
+    drain();
+
+    CHECK(sent_count == 1);
+
+    for (uint8_t key = KC_A; key < KC_A + 7; key++) {
+        CHECK(key_in(0, key));
+    }
+
+    // and in boot protocol the seventh is left out, as a BIOS can only take six
+    reset();
+    protocol = 0;
+    for (uint8_t key = KC_A; key < KC_A + 7; key++) {
+        report_add_key(key);
+    }
+    usb_reports_send(REPORT_KEYBOARD);
+    drain();
+    CHECK(sent_count == 1 && sent_length[0] == 8);
 }
 
 int main(void)
 {
     test_keyboard_report_framing();
+    test_more_than_six_keys_at_once();
     test_consumer_and_system_framing();
     test_each_change_is_its_own_packet_in_order();
     test_nothing_is_sent_before_the_host_configures();

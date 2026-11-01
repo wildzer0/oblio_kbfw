@@ -9,7 +9,8 @@
 #include "sleep_hw.h"
 #include "timebase.h"
 
-// The keycodes of the B68 (b68_keys.h). The profile, lighting and Bluetooth keys are handled here; the sleep keys join them with their module.
+// The keycodes of the B68 (b68_keys.h). The lighting and Bluetooth keys are handled here, the sleep keys with their module, and B68_LEADER is
+// taken before this, by core/leader.c (it has to swallow the keys that follow it).
 void keyboard_hook_custom(uint16_t keycode, bool pressed)
 {
     // The Bluetooth keys need the release too: a tap chooses the slot, a hold pairs
@@ -23,6 +24,7 @@ void keyboard_hook_custom(uint16_t keycode, bool pressed)
     }
 
     switch (keycode) {
+
         case B68_HUD_TOG: hud_toggle_pressed(); break; // the overlay sees the counter change; the host sees nothing
         case B68_BATTERY: led_show_battery(battery_percent()); break;
         case B68_FX_PREV: led_effect_prev(); break;

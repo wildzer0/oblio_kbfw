@@ -4,18 +4,20 @@
 #include "keyboard.h"
 #include "keycodes.h"
 #include "keymap.h"
+#include "leader.h"
 #include "layer.h"
 #include "report.h"
 #include <string.h>
 
-// Test keymap, row 0:  A  MO(1)  LSFT(B)  LCTL  OSM(LSFT)  MUTE  SLEEP  OSL(1)
-//   col8 = macro 0     layer 1:  X  TRNS ...
+// Test keymap, row 0:  A  MO(1)  LSFT(B)  LCTL  OSM(LSFT)  MUTE  SLEEP  OSL(1)  macro 0  CapsWord  -  Backspace  Space
+//   layer 1:  X  TRNS ...
 uint16_t keymap_default(uint8_t layer, uint8_t row, uint8_t col)
 {
-    static const uint16_t l0[9] = {KC_A, MO(1), LSFT(KC_B), KC_LCTL, OSM(MOD_LSFT), KC_MUTE, KC_SYSTEM_SLEEP, OSL(1), QK_MACRO};
+    static const uint16_t l0[13] = {KC_A,     MO(1),    LSFT(KC_B), KC_LCTL,    OSM(MOD_LSFT),  KC_MUTE,
+                                    KC_SYSTEM_SLEEP, OSL(1), QK_MACRO, QK_CAPS_WORD_TOGGLE, KC_MINS, KC_BSPC, KC_SPC};
 
     if (layer == 0) {
-        return (row == 0 && col < 9) ? l0[col] : KC_NO;
+        return (row == 0 && col < 13) ? l0[col] : KC_NO;
     }
 
     return (layer == 1 && row == 0 && col == 0) ? KC_X : KC_TRANSPARENT;
@@ -34,6 +36,26 @@ uint16_t keymap_default_tap_dance(uint8_t index, uint8_t field)
     return 0;
 }
 
+// core/leader.c asks the board for its key and its sequences: this keyboard has none, so the Leader does nothing here
+bool leader_hook_is_key(uint16_t keycode)
+{
+    (void)keycode;
+    return false;
+}
+
+leader_match_t leader_hook_match(const uint16_t *keys, uint8_t count, uint16_t *action)
+{
+    (void)keys;
+    (void)count;
+    (void)action;
+    return LEADER_NONE;
+}
+
+void leader_hook_send(uint16_t keycode)
+{
+    (void)keycode;
+}
+
 uint16_t keymap_default_combo(uint8_t index, uint8_t field)
 {
     (void)index;
@@ -45,12 +67,6 @@ uint16_t keymap_default_override(uint8_t index, uint8_t field)
 {
     (void)index;
     (void)field;
-    return 0;
-}
-
-uint16_t keymap_default_led(uint16_t index)
-{
-    (void)index;
     return 0;
 }
 
@@ -228,6 +244,44 @@ static void test_encoder_detents_type_their_keys(void)
     CHECK(sent_count == 4); // nothing left
 }
 
+// Caps Word: the toggle key, the letters shifted, the word ending on a key that is not part of it, backspace keeping it alive
+static void test_caps_word(void)
+{
+    reset();
+
+    CHECK(!keyboard_caps_word());
+
+    key(9, true); // the mode key: it never reaches the host
+    CHECK(sent_count == 0);
+    key(9, false);
+    CHECK(keyboard_caps_word());
+
+    key(0, true); // A, shifted: the Shift goes out first, on its own (as LSFT(KC_B) does in the test above)
+    CHECK(sent_count == 2);
+    CHECK(sent[0].boot[0] == 0x02 && sent[0].boot[2] == 0);
+    CHECK(sent[1].boot[0] == 0x02 && sent[1].boot[2] == KC_A);
+    key(0, false);
+    CHECK(sent[sent_count - 1].boot[0] == 0x00); // the Shift comes off with the letter
+    CHECK(keyboard_caps_word());
+
+    key(10, true); // minus: part of a word, not shifted, still on
+    CHECK(sent[sent_count - 1].boot[0] == 0x00 && sent[sent_count - 1].boot[2] == KC_MINS);
+    key(10, false);
+    CHECK(keyboard_caps_word());
+
+    key(11, true); // fixing a typo does not end it either
+    key(11, false);
+    CHECK(keyboard_caps_word());
+
+    key(12, true); // a space ends the word
+    key(12, false);
+    CHECK(!keyboard_caps_word());
+
+    key(0, true); // and an ordinary letter is ordinary again
+    CHECK(sent[sent_count - 1].boot[0] == 0x00);
+    key(0, false);
+}
+
 int main(void)
 {
     test_plain_key();
@@ -239,5 +293,6 @@ int main(void)
     test_oneshot_layer_applies_to_one_key();
     test_macro_key();
     test_encoder_detents_type_their_keys();
+    test_caps_word();
     return tests_result();
 }

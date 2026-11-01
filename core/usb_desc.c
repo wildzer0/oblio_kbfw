@@ -1,4 +1,5 @@
 #include "usb_desc.h"
+#include "report.h"
 #include "platform.h"
 
 // ---- HID report descriptor items (short items: prefix byte = tag | type | size) ----
@@ -34,9 +35,8 @@ static const ROM uint8_t report_desc_keyboard[] = {
         REPORT_ID(REPORT_ID_KEYBOARD),
         PAGE(0x07), USAGE_MIN(0xE0), USAGE_MAX(0xE7), // modifiers, one bit each
         LOGICAL_MIN(0), LOGICAL_MAX(1), REPORT_SIZE(1), REPORT_COUNT(8), INPUT(DATA_VAR_ABS),
-        REPORT_SIZE(8), REPORT_COUNT(1), INPUT(CONSTANT), // reserved byte
-        PAGE(0x07), USAGE_MIN(0x00), USAGE_MAX(0xFF),     // six keys
-        LOGICAL_MIN(0), LOGICAL_MAX16(0xFF), REPORT_SIZE(8), REPORT_COUNT(6), INPUT(DATA_ARRAY),
+        PAGE(0x07), USAGE_MIN(0x00), USAGE_MAX(REPORT_NKRO_BITS - 1), // one bit per usage: every key at once, if need be
+        LOGICAL_MIN(0), LOGICAL_MAX(1), REPORT_SIZE(1), REPORT_COUNT(REPORT_NKRO_BITS), INPUT(DATA_VAR_ABS),
         PAGE(0x08), USAGE_MIN(0x01), USAGE_MAX(0x05),     // LEDs: num, caps, scroll, compose, kana
         LOGICAL_MIN(0), LOGICAL_MAX(1), REPORT_SIZE(1), REPORT_COUNT(5), OUTPUT(DATA_VAR_ABS),
         REPORT_SIZE(3), REPORT_COUNT(1), OUTPUT(CONSTANT),

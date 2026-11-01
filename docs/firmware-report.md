@@ -41,6 +41,12 @@ The USB device enumerates as `258a:dead`, product name "Oblio B68", with a keybo
   assign `MS_WH_UP` / `MS_WH_DOWN` to its two directions in Vial. **USB only**: the radio protocol has no mouse frame, so in 2.4G and Bluetooth
   those keycodes do nothing (the report is dropped in `board/transport.c`).
 - **Keys:** matrix scan + debounce (3 scans in a row), 6 layers in RAM (`KEYMAP_LAYERS`), layer keys, tap-hold (LT/MT/OSM/OSL), tap dance, macros, encoder.
+- **NKRO on USB:** the keyboard report (ID 3) is the bitmap — **112 usages**, not QMK's 120, because the chip's EP1 buffer is 16 bytes and the
+  report ID takes one. Boot protocol still gets the 8-byte six-key report, so a BIOS works.
+- **Caps Word** (`QK_CAPS_WORD_TOGGLE`, offered by the Vial app because the firmware advertises the feature bit): the letters are shifted until the
+  word ends — at the first key that is not a letter, a digit, minus, backspace or delete.
+- **Leader** (`core/leader.c`, the key `B68_LEADER` assignable in Vial): press it, then a sequence of keys, and the sequence acts instead of being
+  typed; 400 ms of silence abandons it. The sequences are written in `board/leader.c` — compile-time, exactly as QMK does it.
 - **Key overrides** (`core/override.c`, Vial's Key Overrides tab): up to 4. A trigger keycode under the modifiers it requires becomes a
   replacement (Shift+Backspace = Delete, say), optionally on a set of layers only, with modifiers that must not be held and modifiers to take
   away while it acts; the trigger itself never reaches the host and its release releases the replacement. The "when does it activate" options
@@ -53,8 +59,8 @@ The USB device enumerates as `258a:dead`, product name "Oblio B68", with a keybo
 - **Fn layer (hold Fn):** F1–F12 on the number row; lighting on Q…Y (effect −/+, brightness −/+, speed −/+), plain colour −/+ on U I; sleep time −/+ on O P;
   sleep now on Tab (`B68_SLEEP`); Bluetooth slots 1–3 on B N M (tap selects, hold 3 s pairs); battery level on Backspace;
   media on the arrows. Custom keycodes live in `board/b68_keys.h` (0x7E00…0x7E13, same numbers as the SMK port so saved layouts keep their meaning).
-- **Vial / VIA over raw HID:** live keymap, macros, tap dances, combos, key overrides, **per-key RGB** (Vial RGB: "off" and "direct", the painter),
-  encoder; Vial unlock = hold Esc+Enter. The protocol as the app speaks it is written down in `docs/vial.md`. Definition from `board/vial.json` (generated into the
+- **Vial / VIA over raw HID:** live keymap, macros, tap dances, combos, key overrides, **lighting** (the Lighting tab: six of this keyboard's
+  effects, brightness, speed, colour — the app has no per-key painter, see `docs/vial.md`), encoder; Vial unlock = hold Esc+Enter. Definition from `board/vial.json` (generated into the
   firmware by `tools/vial_gen.py`, checked by `tools/check_vial.py`).
 - **HUD protocol v2** (`docs/hud-protocol-v2.md`, command `0xF0`): another app of the user's reads layers, pressed keys and the keymap. `B68_HUD_TOG`
   (0x7E00) bumps a counter the app watches.
@@ -109,8 +115,9 @@ nix develop --command make sim               # ~50 s: the real hex in the chip s
 nix develop --command make stages            # staged builds, see below
 ```
 
-Current budget: **flash 52655 / 56320 (3.7 KB of margin), XDATA 3794 / 4096 (302 B free), keymap slot 2034 of 2048 bytes.** Six layers since
-2026-11-02 (8 → 6 freed 320 B of XDATA and 320 B of slot for the per-key colours); the Mac pair moved from 7/6 to 5/4.; the stack is the other tight one (internal RAM, 223 B
+Current budget: **flash 51111 / 56320 (5.2 KB of margin), XDATA 3720 / 4096 (376 B free), keymap slot 1709 of 2048 bytes.** Six layers since
+2026-11-02 (8 → 6 freed 320 B of XDATA and 320 B of slot); the Mac pair moved from 7/6 to 5/4. The per-key colour buffer went away again with the
+painter (the app has none), which is why the slot has room for what comes next.; the stack is the other tight one (internal RAM, 223 B
 from 0x21 up; the USB interrupt used to keep 48 B of buffers on it, now static in XDATA). Check the `flash` line before every commit; a failed link
 leaves no stale `.ihx` any more (`.DELETE_ON_ERROR`). SDCC pitfalls seen here: `%`, `/` and loops with a variable count are very costly; use typed `XDATA` pointers
 (`core/platform.h`), constant addresses in interrupts, `--std-c23 --Werror` (an empty `if` body is an error 110).

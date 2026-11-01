@@ -84,16 +84,6 @@ uint16_t keymap_default_override(uint8_t index, uint8_t field);
 uint16_t keymap_override_get(uint8_t index, uint8_t field);
 bool     keymap_override_set(uint8_t index, uint8_t field, uint16_t value);
 
-// ---- the per-key colours Vial paints (its Lighting tab): one RGB565 word per cell of the matrix ----
-// They are part of the keymap so that they survive power-off; core/vialrgb.c writes them and FX_VIAL shows them.
-#define KEYMAP_LED_COUNT ((uint16_t)(MATRIX_ROWS * MATRIX_COLS))
-
-// Provided by the board (or a test): the compiled-in colours (all dark).
-uint16_t keymap_default_led(uint16_t index);
-
-uint16_t keymap_led_get(uint16_t index);
-bool     keymap_led_set(uint16_t index, uint16_t rgb565);
-
 // ---- settings that belong to a profile, as words ----
 #define KEYMAP_CFG_COUNT 5
 #define CFG_LED_EFFECT   0

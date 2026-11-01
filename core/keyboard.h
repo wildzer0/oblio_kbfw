@@ -12,6 +12,12 @@ void keyboard_event(const matrix_event_t *event, uint16_t now);
 // Regularly, with the current time: lets a key held past the tapping term become a hold.
 void keyboard_task(uint16_t now);
 
+// A tap of a keycode, as if a key of the keymap had gone down and up (used by the Leader's sequences).
+void keyboard_tap(uint16_t keycode);
+
+// True while Caps Word is on (the letters are being shifted until the word ends): the HUD and the diagnostics can show it.
+bool keyboard_caps_word(void);
+
 // Provided by the board: a keycode of the keyboard-specific range (QK_KB), going down or up.
 void keyboard_hook_custom(uint16_t keycode, bool pressed);
 

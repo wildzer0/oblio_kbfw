@@ -13,7 +13,6 @@ typedef enum {
     FX_DIAGONAL,   // a wave across columns and rows together
     FX_BREATHE,    // the whole board in one colour that cycles
     FX_PULSE,      // the whole board white, fading in and out
-    FX_VIAL,       // the colours Vial painted, one per key (core/vialrgb.c)
     FX_COUNT
 } led_effect_t;
 

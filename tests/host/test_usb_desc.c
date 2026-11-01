@@ -155,12 +155,12 @@ static void test_report_descriptors_match_the_reports(void)
     parsed_t p        = parse(r0, length);
 
     CHECK(p.valid);
-    CHECK(p.bits[KIND_INPUT][REPORT_ID_KEYBOARD] == 8 * REPORT_BOOT_SIZE); // modifiers, reserved, 6 keys
+    CHECK(p.bits[KIND_INPUT][REPORT_ID_KEYBOARD] == 8 * REPORT_NKRO_SIZE); // modifiers and the NKRO bitmap
     CHECK(p.bits[KIND_OUTPUT][REPORT_ID_KEYBOARD] == 8);                   // the LEDs
     CHECK(p.bits[KIND_INPUT][REPORT_ID_SYSTEM] == 8);
     CHECK(p.bits[KIND_INPUT][REPORT_ID_CONSUMER] == 16);
     CHECK(p.bits[KIND_FEATURE][REPORT_ID_ISP] == 40);
-    CHECK(8 * (1 + REPORT_BOOT_SIZE) <= 8 * USB_EP1_SIZE); // the largest report with its ID fits EP1
+    CHECK(8 * (1 + REPORT_NKRO_SIZE) <= 8 * USB_EP1_SIZE); // the largest report with its ID fits EP1
 
     const uint8_t *r1 = get(USB_DESC_HID_REPORT, 0, 1, &length);
     p                 = parse(r1, length);
