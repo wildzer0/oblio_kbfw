@@ -49,3 +49,18 @@ bool     keymap_tap_dance_set(uint8_t index, uint8_t field, uint16_t value);
 #define KEYMAP_TAPPING_TERM_DEFAULT 200u
 uint16_t keymap_tapping_term(void);
 void     keymap_set_tapping_term(uint16_t ms);
+
+// ---- macros: the buffer Vial reads and writes ----
+// Macros back to back, each ended by a 0 byte; the interpreter is in macro.h.
+#define KEYMAP_MACRO_COUNT 16
+#define KEYMAP_MACRO_BYTES 512
+
+// A byte of the buffer. 0 past the end.
+uint8_t keymap_macro_byte(uint16_t offset);
+
+// Reads and writes past the end are cut short.
+void keymap_macro_read(uint16_t offset, uint8_t size, uint8_t *dst);
+void keymap_macro_write(uint16_t offset, uint8_t size, const uint8_t *src);
+
+// Empties all macros.
+void keymap_macro_clear(void);

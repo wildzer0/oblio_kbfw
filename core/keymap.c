@@ -5,6 +5,7 @@ static uint16_t keys[KEYMAP_LAYERS][MATRIX_ROWS][MATRIX_COLS];
 static uint16_t encoder_keys[KEYMAP_LAYERS][ENCODER_COUNT][2];
 static uint16_t tap_dances[KEYMAP_TAP_DANCE_COUNT][TD_FIELDS];
 static uint16_t tapping_term = KEYMAP_TAPPING_TERM_DEFAULT;
+static uint8_t  macros[KEYMAP_MACRO_BYTES];
 static uint8_t  version;
 
 void keymap_init(void)
@@ -105,5 +106,39 @@ uint16_t keymap_tapping_term(void)
 void keymap_set_tapping_term(uint16_t ms)
 {
     tapping_term = ms;
+    version++;
+}
+
+uint8_t keymap_macro_byte(uint16_t offset)
+{
+    return (offset < KEYMAP_MACRO_BYTES) ? macros[offset] : 0;
+}
+
+void keymap_macro_read(uint16_t offset, uint8_t size, uint8_t *dst)
+{
+    for (uint8_t i = 0; i < size; i++) {
+        dst[i] = keymap_macro_byte((uint16_t)(offset + i));
+    }
+}
+
+void keymap_macro_write(uint16_t offset, uint8_t size, const uint8_t *src)
+{
+    for (uint8_t i = 0; i < size; i++) {
+        const uint16_t at = (uint16_t)(offset + i);
+
+        if (at < KEYMAP_MACRO_BYTES) {
+            macros[at] = src[i];
+        }
+    }
+
+    version++;
+}
+
+void keymap_macro_clear(void)
+{
+    for (uint16_t i = 0; i < KEYMAP_MACRO_BYTES; i++) {
+        macros[i] = 0;
+    }
+
     version++;
 }

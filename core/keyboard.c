@@ -2,6 +2,7 @@
 #include "keymap.h"
 #include "keycodes.h"
 #include "layer.h"
+#include "macro.h"
 #include "report.h"
 #include "tapping.h"
 
@@ -11,6 +12,7 @@ void keyboard_init(void)
     layer_init();
     report_init();
     tapping_init();
+    macro_init();
 }
 
 // The layer engine holds modifiers (one-shot, layer + mods) through the same report as the keys.
@@ -84,6 +86,16 @@ static void run_keycode(uint16_t keycode, bool pressed)
         return;
     }
 
+    if (IS_QK_MACRO(keycode)) {
+        if (pressed) {
+            layer_key_pressed();
+            macro_start((uint8_t)(keycode - QK_MACRO));
+        } else {
+            layer_key_released();
+        }
+        return;
+    }
+
     if (pressed) {
         // The key was looked up before this: a one-shot layer must still be on for the key it waits for.
         layer_key_pressed();
@@ -121,6 +133,7 @@ void keyboard_task(uint16_t now)
 {
     current_now = now;
     tapping_task(now);
+    macro_task(now);
 }
 
 // ---- what tapping.c needs from the rest of the firmware ----
@@ -154,4 +167,14 @@ void tapping_hook_layer(uint8_t layer, bool on)
 void tapping_hook_keycode(uint16_t keycode, bool pressed)
 {
     run_keycode(keycode, pressed);
+}
+
+void macro_hook_press(uint16_t keycode)
+{
+    send_keycode(keycode, true);
+}
+
+void macro_hook_release(uint16_t keycode)
+{
+    send_keycode(keycode, false);
 }

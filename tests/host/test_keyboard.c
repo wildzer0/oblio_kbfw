@@ -7,13 +7,13 @@
 #include <string.h>
 
 // Test keymap, row 0:  A  MO(1)  LSFT(B)  LCTL  OSM(LSFT)  MUTE  SLEEP  OSL(1)
-//                layer 1:  X  TRNS ...
+//   col8 = macro 0     layer 1:  X  TRNS ...
 uint16_t keymap_default(uint8_t layer, uint8_t row, uint8_t col)
 {
-    static const uint16_t l0[8] = {KC_A, MO(1), LSFT(KC_B), KC_LCTL, OSM(MOD_LSFT), KC_MUTE, KC_SYSTEM_SLEEP, OSL(1)};
+    static const uint16_t l0[9] = {KC_A, MO(1), LSFT(KC_B), KC_LCTL, OSM(MOD_LSFT), KC_MUTE, KC_SYSTEM_SLEEP, OSL(1), QK_MACRO};
 
     if (layer == 0) {
-        return (row == 0 && col < 8) ? l0[col] : KC_NO;
+        return (row == 0 && col < 9) ? l0[col] : KC_NO;
     }
 
     return (layer == 1 && row == 0 && col == 0) ? KC_X : KC_TRANSPARENT;
@@ -160,6 +160,26 @@ static void test_oneshot_layer_applies_to_one_key(void)
     CHECK(sent[sent_count - 1].boot[2] == KC_A);
 }
 
+static void test_macro_key(void)
+{
+    static const uint8_t macro[] = {'h', 'i', 0};
+
+    reset();
+    keymap_macro_write(0, sizeof macro, macro);
+    key(8, true);
+    CHECK(sent_count == 0); // it plays from keyboard_task, a step per ms
+    key(8, false);
+
+    for (uint16_t t = 1; t < 30; t++) {
+        keyboard_task(t);
+    }
+
+    // h down, h up, i down, i up
+    CHECK(sent_count == 4);
+    CHECK(sent[0].boot[2] == KC_H && sent[1].boot[2] == 0);
+    CHECK(sent[2].boot[2] == KC_I && sent[3].boot[2] == 0);
+}
+
 int main(void)
 {
     test_plain_key();
@@ -169,5 +189,6 @@ int main(void)
     test_consumer_and_system();
     test_oneshot_shift_applies_to_one_key();
     test_oneshot_layer_applies_to_one_key();
+    test_macro_key();
     return tests_result();
 }
