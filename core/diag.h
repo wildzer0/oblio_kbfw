@@ -14,7 +14,7 @@ typedef enum {
     DIAG_RESET_CAUSE,      // RSTSTAT as read at power-on, before the first watchdog kick
     DIAG_STACK_USED,       // bytes of the stack used at most (internal RAM from 0x21 up)
     DIAG_SLOT_LATE,        // LED slots whose work ran past their end (the timer had already overflowed again)
-    DIAG_SCAN_LOST,        // scans overwritten before the main loop took them
+    DIAG_SCAN_LOST,        // scans overwritten before the main loop took them: harmless, the matrix is a state (as in the SMK port), only the debounce is slower
     DIAG_LOOP_MAX_MS,      // the slowest pass of the main loop
     DIAG_USB_OVERFLOW,     // USB report packets that replaced or pushed out another
     DIAG_MS_PER_50_SOF,    // milliseconds of our own clock that pass in 50 start-of-frames of the USB bus (1 ms each): 50 if the timer runs as assumed

@@ -33,7 +33,7 @@ Look for:
 2. Typing works over the cable; Fn gives the F-row; the knob changes the volume, and its press types mute (hold: play/pause, double tap: next).
 3. The Vial app lists the keyboard, loads its layout (the 66 keys + the knob), changes a key, a macro, a tap dance; the change survives unplugging. Fn+Z/X/C/V switch profile (nothing lights at this stage).
 4. Your HUD app connects and shows layers, pressed keys and the map.
-5. `tools/diag.py`: **reset cause** (a power-on value; anything repeating means resets), **stack used** (the simulator says 91–104 of 223), **slots that ran late** and **scans lost**: 0,
+5. `tools/diag.py`: **reset cause** (a power-on value; anything repeating means resets), **stack used** (the simulator says 91–104 of 223), **LED and scan slots that ran late**: 0 (a scan that the main loop does not collect in time is overwritten by the next one and is not a fault: the matrix is a state, so no key is lost, it only takes a few more scans to debounce; on USB about a third of them are overwritten),
    **slowest main-loop pass**: a few ms (a flash save is the exception).
 
 If it does not enumerate or the keys are wrong: hold Esc+1+2 on plugging in. If that does not get you to the bootloader, the fault is before `recovery_check()` (clock, pins, REGCON).
