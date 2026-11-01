@@ -23,7 +23,8 @@ typedef enum {
     DIAG_RADIO_EVENTS,     // 03 frames from the radio
     DIAG_RADIO_INFOS,      // 08 frames from the radio
     DIAG_RADIO_STATUS,     // changes of the radio's status bytes
-    DIAG_FLASH_ERASES,     // sectors erased since power-on
+    DIAG_BACKOFF,          // times the main loop was found starved and the backlight stood aside
+    DIAG_LED_TOGGLES,      // times the backlight was allowed or forbidden (USB suspend, host seen or not)
     DIAG_COUNT
 } diag_id_t;
 

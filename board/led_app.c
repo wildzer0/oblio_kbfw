@@ -1,3 +1,4 @@
+#include "diag.h"
 #include "led.h"
 #include "store.h"
 #include "usb_app.h"
@@ -30,6 +31,7 @@ void led_app_task(uint16_t now)
 
     if (on != last) {
         last = on;
+        diag_inc(DIAG_LED_TOGGLES);
         led_hw_enable(on);
     }
 }

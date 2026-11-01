@@ -35,7 +35,8 @@ NAMES = [
     ("radio: 03 frames", "{}"),
     ("radio: 08 frames", "{}"),
     ("radio: status changes", "{}"),
-    ("flash sectors erased", "{}"),
+    ("backlight back-offs (starved)", "{}"),
+    ("backlight allowed/forbidden", "{}"),
 ]
 
 

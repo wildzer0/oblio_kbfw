@@ -23,6 +23,10 @@ Il controllo di recupero Esc+1+2 va all'inizio del `main`, prima di USB e radio.
 - `core/via.c`, `tools/diag.py`: i contatori diagnostici (causa reset, slot in ritardo, scansioni perse, giro più lento) si leggono senza sblocco: servono proprio quando i tasti non funzionano. Radio/monitor richiedono ancora lo sblocco.
 - `tests/sim`: nuovo guard sul numero di istruzioni di sottoquadro e scansione (limiti 1200 / 8500); test sul diag aggiornato. Non provato sull'hardware.
 
+### Led che flickerano in modo USB (wireless OK)
+- Segnalato dall'utente: con il cavo i LED flickerano forte, in 2.4G e BLE senza cavo va tutto. Causa **non nota**: due sospetti, da distinguere con i dati e non con tentativi alla cieca: (1) il salvagente del main loop spegne i LED perché con il cavo il giro del main è lento; (2) il backlight viene acceso/spento dal flag di sospensione USB (`led_app_task`).
+- Due contatori nuovi nella diagnostica: `DIAG_BACKOFF` (volte che il salvagente è scattato) e `DIAG_LED_TOGGLES` (cambi di permesso del backlight). Al posto di `DIAG_FLASH_ERASES` (il pacchetto da 32 B tiene al massimo 14 contatori). Flash 43493/44032.
+
 ### Fase 1 — build, budget, release
 - `board/main.c`: `main` segnaposto (loop vuoto) per esercitare compilatore, linker e budget; lo sostituisce la fase 2.
 - `Makefile`: nuovi target `fw` (SDCC → `build/oblio.ihx` e `build/oblio.hex` con `packihx`), `size` (controllo budget); `clean` rimuove anche `build/`. Flag SDCC ripresi dal vecchio repo: modello large, `--stack-auto`, XDATA 4096, codice fino a 0xAC00.

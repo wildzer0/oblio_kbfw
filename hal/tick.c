@@ -79,6 +79,10 @@ void tick_isr(void) __interrupt(INT_TIMER2)
 
         if (alive == seen_alive) {
             if (++starved >= STARVED_SCANS) {
+                if (!back_off) {
+                    diag_inc(DIAG_BACKOFF);
+                }
+
                 back_off = BACK_OFF_SLOTS;
             }
         } else {
