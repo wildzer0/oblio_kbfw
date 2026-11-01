@@ -8,7 +8,7 @@
 4. USB e raw HID — **scritta, non provata sull'hardware**
 5. Vial/VIA — **scritta, non provata sull'hardware**
 6. Radio, LED, profili, sleep — **scritta, non provata sull'hardware**
-7. Parità con il porting SMK e passaggio
+7. Parità con il porting SMK e passaggio — **fatta** (passi 1–8, vedi sotto); la prova sulla tastiera resta da fare
 
 Il controllo di recupero Esc+1+2 va all'inizio del `main`, prima di USB e radio.
 
@@ -235,3 +235,11 @@ Il piano (approvato dall'utente) è: 1 correzioni di sicurezza, 2 controllo degl
 - **USB.** In modo USB la radio è spenta (come nello stock, secondo i miei appunti: la seriale veniva disabilitata), quindi lì non c'è nessun dato dalla radio. Per vedere se risponde comunque: nuovo `diag.py --monitor` (comando di diagnostica tipo 2) la mette «in ascolto» (`radio_monitor`: solo richieste di stato e conferme dei suoi frame, **nessun comando di modo, nessun report**), ed è spenta di default. È un esperimento che richiede l'hardware; se la radio non risponde senza modo, la batteria in USB dovrà avere un'altra sorgente (un segnale di «in carica» e una lettura dell'MCU) e sarà una decisione da prendere sui dati.
 - Test: 4 nuovi in `test_led.c` (tutte le soglie 0/1/10/11/20/21/50/90/91/95/100 con colore e numero di tasti, fine dopo 3 s e rinnovo, lampeggio senza lettura, valore oltre 100), `radio_monitor` in `test_radio.c` e `test_link.c` (solo in USB), tipo 2 in `test_diag.c`; mutazione (soglia `<=` → `<`) → falliscono. `make test` 22 file; `make sim` 23 test OK (stack ora 104 B su 223).
 - Flash **42549/44032** (margine 1483 B), XDATA 3219/4096. Stadi 1–3: 42455, 42492, 42513.
+
+### Fase 7, passo 8 — documenti
+- `docs/architecture.md` (nuovo, inglese): livelli (`core`/`hal`/`board`/`tools`), hook, flusso dei dati dai tasti ai report, perché il timer possiede le colonne (la sequenza degli slot), regole di concorrenza ISR/main, mappa della memoria, dove stanno le incognite, come si prova (host / linker / simulatore / hardware).
+- `docs/first-boot.md` (nuovo, inglese): la procedura della prima accensione a gradini, con il rischio dichiarato (senza ICP, un firmware che cade prima di `recovery_check()` non si recupera con Esc+1+2), il ritorno al firmware SMK, il comando `sinowisp`, per ogni stadio cosa guardare e quali valori attendersi da `tools/diag.py`, e cosa rimandare indietro.
+- `README.md`: era l'unico file con modifiche rimaste da una sessione precedente; verificato, aggiornato (HUD, indicatore batteria, target `make`, cartelle, link ai due documenti nuovi) e committato su indicazione implicita dell'utente di proseguire il lavoro.
+
+### Fine fase 7
+Parità con il porting verificata (tutto portato, HUD compreso; escluse solo traccia/sonda radio e console di debug), correzioni di sicurezza (watchdog), controlli di CI (budget, vettori, overlay, Vial, stadi, simulatore), diagnostica e documento di prova. **Prossimo passo: la prima prova sulla tastiera, a gradini (docs/first-boot.md).** Flash 42549/44032, XDATA 3219/4096.

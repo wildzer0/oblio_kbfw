@@ -37,7 +37,8 @@ programmatore ICP**, Arduino Nano, per non rischiare di aprire la tastiera) → 
 - Fase 4 fatta (descrittori, macchina a stati EP0 testata sull'host, driver USB, coda dei report su EP1, raw HID su EP2, comando ISP → bootloader): **nessuna parte provata sull'hardware**.
 - Fase 5 fatta (core/via+vial testati sull'host, `board/vial.json` + `tools/vial_gen.py` + `check_vial.py`): non provata con l'app Vial sull'hardware.
 - Fase 6 fatta (encoder, impostazioni a 0xEC00, LED con tick alternato scansione/sottoquadri, radio BK3632 con selettore e slot BT, sleep): **nessuna parte provata sull'hardware**; flash 41194/44032 (2,8 KB di margine).
-- Prossimo passo: fase 7 (parità con il porting SMK e passaggio): ripasso funzione per funzione, misure da fare sull'hardware (durata ISR, stack, flicker), prima prova sulla tastiera con ICP o con `sinowisp`. Dopo una compilazione fallita controllare che `build/` non abbia un `.ihx` vecchio (ora c'è `.DELETE_ON_ERROR`). In ogni sessione aggiornare CHANGELOG.md.
+- Fase 7 fatta: correzioni (watchdog), HUD portato, controlli CI, diagnostica (`tools/diag.py`), build a gradini (`make stages`), ucsim (`make sim`), indicatore batteria (sorgente del dato ancora ignota), documenti. Flash 42549/44032.
+- Prossimo passo: la **prima prova sulla tastiera**, a gradini, seguendo `docs/first-boot.md` (rischio dichiarato: senza ICP il recupero è solo Esc+1+2). Poi decodificare la batteria dai dati di `diag.py --radio`. Dopo una compilazione fallita controllare che `build/` non abbia un `.ihx` vecchio (ora c'è `.DELETE_ON_ERROR`). In ogni sessione aggiornare CHANGELOG.md.
 
 ## Come lavora l'utente (preferenze confermate)
 - Scrivo **io** tutto il codice e la documentazione; l'utente fa solo le prove sull'hardware. Ogni modifica va spiegata in modo che possa rivederla.
