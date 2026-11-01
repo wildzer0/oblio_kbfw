@@ -38,15 +38,13 @@ uint16_t diag_get(diag_id_t id);
 //   kind 0: [0xF1, 0, DIAG_COUNT, counter 0 (lo, hi), counter 1, ...]
 //   kind 1: the radio: [0xF1, 1, 6 status bytes, 22 bytes of the last 08 frame]
 //   kind 2: [0xF1, 2, on]: listen to the radio with the cable in (on = 1), or stop; the reply echoes `on`
-//   kind 3: [0xF1, 3, P0 .. P7, mask low, mask high]: the raw ports and the columns in which P7.0 reads low, to find out what a
-//           physical switch that is not in the matrix is wired to
+//   kind 3: [0xF1, 3, P0, P1, P2, P3, P4, P5, P6, P7]: the raw port bytes, for finding out what an input that is not in the matrix does
 //   anything else: [0xFF, ...] (unhandled)
 void diag_receive(XDATA uint8_t *data, uint8_t length);
 
 void diag_hook_radio_monitor(bool on); // provided by the board
 
-// Provided by the board: the raw bytes of P0 .. P7, then the mask of the columns during which P7.0 read low (columns 0-7, 8-15).
-// A switch wired into the matrix shows up as one column, a switch to ground as all of them.
+// Provided by the board: the raw bytes of P0 .. P7, read with the timer and the backlight stopped (so the strobes show idle).
 #define DIAG_PORT_BYTES 8u
 void diag_hook_ports(XDATA uint8_t *out);
 

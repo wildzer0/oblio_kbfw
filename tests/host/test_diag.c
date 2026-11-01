@@ -90,8 +90,6 @@ void diag_hook_ports(uint8_t *out)
         out[i] = (uint8_t)(0x10 + i);
     }
 
-    out[DIAG_PORT_BYTES + 0] = 0x34; // the columns 2, 4, 5
-    out[DIAG_PORT_BYTES + 1] = 0x80; // and 15
 }
 
 static void test_ports_reply(void)
@@ -105,8 +103,7 @@ static void test_ports_reply(void)
 
     CHECK(data[0] == 0xF1 && data[1] == 3);
     CHECK(data[2] == 0x10 && data[9] == 0x17);                   // P0 .. P7
-    CHECK(data[10] == 0x34 && data[11] == 0x80);                 // P7.0 low in the columns 2, 4, 5 and 15
-    CHECK(data[12] == 0);                                        // the rest of the packet is cleared
+    CHECK(data[10] == 0);                                        // the rest of the packet is cleared
 }
 
 static void test_radio_monitor_switch(void)

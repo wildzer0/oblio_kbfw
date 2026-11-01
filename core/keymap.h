@@ -11,6 +11,11 @@
 #define KEYMAP_LAYERS 8
 #define ENCODER_COUNT 1
 
+// The layer the Win/Mac switch makes the default while it is on "Mac" (board/os_switch.c): a copy of the base layer with Alt and GUI
+// swapped, compiled in by the board's keymap_default() and editable in Vial like any other layer. Switching the switch changes which
+// layer the lookups fall back to; it does not touch what is stored.
+#define KEYMAP_MAC_LAYER 7
+
 // Provided by the board (or a test): the compiled-in keymap. A layer it does not define answers KC_TRANSPARENT.
 uint16_t keymap_default(uint8_t layer, uint8_t row, uint8_t col);
 uint16_t keymap_default_encoder(uint8_t layer, uint8_t encoder, bool clockwise);

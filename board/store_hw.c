@@ -1,6 +1,7 @@
 #include "store.h"
 #include "flash.h"
 #include "layer.h"
+#include "os_switch.h"
 #include "diag.h"
 #include "settings.h"
 #include "tick.h"
@@ -54,5 +55,6 @@ void store_hook_program(uint16_t addr, const uint8_t *src, uint8_t len)
 void store_hook_loaded(void)
 {
     layer_init();
+    os_switch_apply(); // layer_init() puts the base layer back to 0: the Win/Mac switch decides again which one it is
     settings_set_profile(store_profile());
 }

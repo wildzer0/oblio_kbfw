@@ -53,14 +53,37 @@ static const ROM uint16_t encoder_keys[DEFAULT_LAYERS][2] = {
     [FN]   = {KC_TRNS, KC_TRNS},
 };
 
+// The Win/Mac switch (board/os_switch.c) makes KEYMAP_MAC_LAYER the default layer while it is on "Mac". That layer is the base one with
+// the two modifier keys swapped, which is what the stock firmware does with its second set of keymap tables: on a Mac the key where a
+// Windows keyboard has the Windows key is the Command key, and the one where it has Alt is Option. Everything else is the base layer, so
+// a fresh profile is complete on both sides of the switch and Vial edits the Mac layout like any other layer.
+// LGUI <-> LALT and RGUI <-> RALT are one bit apart (0xE3/0xE2 and 0xE7/0xE6), so the swap is an exclusive-or of that bit
+static uint16_t os_swap(uint16_t keycode)
+{
+    if (keycode == KC_LGUI || keycode == KC_LALT || keycode == KC_RGUI || keycode == KC_RALT) {
+        return (uint16_t)(keycode ^ 1u);
+    }
+
+    return keycode;
+}
+
 uint16_t keymap_default(uint8_t layer, uint8_t row, uint8_t col)
 {
+    if (layer == KEYMAP_MAC_LAYER) {
+        return os_swap(keymaps[BASE][row][col]);
+    }
+
     return (layer < DEFAULT_LAYERS) ? keymaps[layer][row][col] : KC_TRANSPARENT;
 }
 
 uint16_t keymap_default_encoder(uint8_t layer, uint8_t encoder, bool clockwise)
 {
     (void)encoder; // one encoder
+
+    if (layer == KEYMAP_MAC_LAYER) {
+        layer = BASE; // the knob does the same on both sides of the switch
+    }
+
     return (layer < DEFAULT_LAYERS) ? encoder_keys[layer][clockwise ? 1 : 0] : KC_TRANSPARENT;
 }
 

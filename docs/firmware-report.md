@@ -19,7 +19,7 @@ credited in `NOTICE.md` and `README.md`. License GPL-2.0-or-later. Repo: github.
 | Radio | **BK3632** on a serial port (UART0, 260870 baud, `P5.5/P5.6`, select `P0.2`, attention `P4.7`) for 2.4G and Bluetooth (3 BT slots) |
 | Matrix | 16 columns (strobes, active low) × 5 rows (inputs with pull-up). The column lines are **also the sinks of the RGB backlight**, so a key scan and a backlight subframe can never overlap |
 | Backlight | RGB under the keys, 15 PWM channels (3 colours × 5 key rows), one column lit at a time |
-| Other | encoder on `P0.6/P0.7`; mode selector near the USB-C port on `P0.4` (2.4G) / `P0.3` (Bluetooth), both high = USB; a second **Win/Mac switch exists on the keyboard and is not used yet**: the presumed pin is `P7.0`, the one input the stock firmware reads with the matrix rows without it being a row (see §9, item 2) |
+| Other | encoder on `P0.6/P0.7`; mode selector near the USB-C port on `P0.4` (2.4G) / `P0.3` (Bluetooth), both high = USB; **Win/Mac switch on `P0.5`** (input with pull-up, low = Mac; measured 2026-11-01 and confirmed against the stock firmware, see §3), which selects the default layer; `P7.0` is read by the stock with the matrix rows but is not a row and does not change with the switch |
 | Flash map | application up to **0xAC00** (44032 B budget); profiles 0–3 (2 copies × 4 sectors) 0xAC00–0xEBFF; settings at 0xEC00 (a log of 56 records: a save appends, it does not erase); 0xEE00 is the
 bootloader's marker sector and is **not touched**; **stock bootloader at 0xF000, never written** (`hal/flash.c` refuses addresses outside 0xAC00–0xF000) |
 | Recovery | hold **Esc+1+2 while plugging the USB cable**: the firmware jumps to the stock ISP bootloader before USB or radio start. There is **no ICP programmer** — this is the only way back |
@@ -30,6 +30,9 @@ The USB device enumerates as `258a:dead`, product name "Oblio B68", with a keybo
 
 ## 3. What the firmware does
 
+- **Win/Mac switch:** `board/os_switch.c` reads `P0.5` (debounced 50 ms) and makes layer 7 the default on Mac, layer 0 on Windows. Layer 7 is the
+  base layer with Alt and GUI swapped and is editable in Vial like any other layer (this is what the stock firmware does with its second set
+  of keymap tables). Switching does not write to flash: the switch is the source of truth.
 - **Keys:** matrix scan + debounce (3 scans in a row), 8 layers in RAM (`KEYMAP_LAYERS`), layer keys, tap-hold (LT/MT/OSM/OSL), tap dance, macros, encoder.
   Default keymap in `board/keymap_default.c`: layer 0 = ANSI-ish B68 layout with the encoder push as tap dance 0 (tap mute, hold play/pause, double tap next
   track) and the encoder turning volume; layer 1 (Fn) as below.
@@ -86,7 +89,7 @@ nix develop --command make sim               # ~50 s: the real hex in the chip s
 nix develop --command make stages            # staged builds, see below
 ```
 
-Current budget: **flash 43718 / 44032 (314 B of margin — still tight), XDATA 3767 / 4096**; the stack is the other tight one (internal RAM, 223 B
+Current budget: **flash 43838 / 44032 (194 B of margin — tight), XDATA 3771 / 4096**; the stack is the other tight one (internal RAM, 223 B
 from 0x21 up; the USB interrupt used to keep 48 B of buffers on it, now static in XDATA). Check the `flash` line before every commit; a failed link
 leaves no stale `.ihx` any more (`.DELETE_ON_ERROR`). SDCC pitfalls seen here: `%`, `/` and loops with a variable count are very costly; use typed `XDATA` pointers
 (`core/platform.h`), constant addresses in interrupts, `--std-c23 --Werror` (an empty `if` body is an error 110).
@@ -107,6 +110,7 @@ durations. It has a guard on instructions per interrupt (backlight subframe < 12
 | Keyboard on USB: backlight | **verified by the user**: stable after the timing fix (it flickered before) |
 | 2.4G and Bluetooth | user reported "everything works normally" without the cable, on a build before the final timing change; **re-check on the current hex** |
 | Vial app, HUD app, profiles survive power-off, encoder, tap-hold/macros on the keyboard | **not yet tested** on hardware |
+| Win/Mac switch | **not yet tried**: the pin and its use are verified in the stock firmware and measured on the board, the layer switching is not |
 | Sleep | **tested by the user**: it sleeps and wakes, but the LEDs stayed dark until a power cycle (cause found and fixed on 2026-11-01: `led_hw_init()` dropped the backlight permission and `led_app_task()` compared it against its own copy). Re-test pending |
 | Battery gauge | **not tested**; the battery percentage source is unknown |
 
@@ -136,11 +140,12 @@ adding one means dropping one.
 
 1. **Functional test on the keyboard** per `docs/first-boot.md`: Vial app connects and saves a change, HUD app connects, profiles, encoder, 2.4G/BT with the
    current hex, then sleep. Report any failure with `diag.py --watch 1` output.
-2. **Win/Mac switch (unused, investigation ready).** The only input the stock firmware reads besides the matrix rows, the mode selector, the encoder and
-   the radio's attention line is **P7.0** (`mov a,P7; anl a,#0F` at the two confirmation readings of the Timer 2 ISR): it is the presumed pin. The
-   diagnostic kind 3 (2026-11-01) reports the raw `P0…P7` bytes and the columns in which P7.0 reads low, which tells a switch to ground (low in every
-   column) from one wired onto a column (a single cell). **Waiting for the user to run `diag.py --ports` in both positions**, then the function is chosen
-   (proposal: the switch selects the base layer, `layer_set_default`, the Mac layer swapping Alt/Win).
+2. **Win/Mac switch — done (2026-11-01).** It is **`P0.5`**, an input with a pull-up, low on Mac: measured with `diag.py --ports` (one bit
+   different between the two positions, no dependence on the columns) and confirmed in the stock dump (the debounce at `0xA9D9`, the state in
+   `XDATA[0x0307]`, used to pick between two sets of keymap tables). It now selects the default layer: 0 on Windows, `KEYMAP_MAC_LAYER` (7) on
+   Mac, which is a copy of the base with Alt and GUI swapped. **To be tried on the keyboard**: on Mac the key labelled Win must send Command
+   and the one labelled Alt must send Option, and Vial must show layer 7 editable. `P7.0` stays unused (the stock reads it with the rows but it
+   is not a row and it does not follow the switch).
 3. **Battery percentage source unknown.** The stock firmware only clears `LPDCON/LPDSEL` (low-voltage detector); the BK3632's `08` frame may carry it. Needs data
    from `diag.py --radio` while the battery discharges/charges. The gauge UI is done and reads `battery_hook_percent()`; do not invent a scale.
 4. **The scan takes ~610 µs instead of the ~440 estimated** (32 busy-waits of 10 µs are 320 µs of it). Unexplained, harmless now; the clock check says the
@@ -148,8 +153,8 @@ adding one means dropping one.
 5. **The main loop is slow**: 0–5 passes per scan period; a pass is ~1170 instructions in the simulator, 37 % of it `matrix_any_pressed()` called twice per pass
    (`store_task`, `settings_task`). Typing latency is not visible, so no action required; calling it once would save ~215 instructions. A counter of passes per
    second would give the real pass time.
-6. **Flash margin is 314 B** (after freeing ~340 B of dead code, three answered diag counters and the LED settings cache on 2026-11-01). Before adding
-   features, check whether another counter or the diagnostic kind 3 can go.
+6. **Flash margin is 194 B** (after freeing ~340 B of dead code, three answered diag counters and the LED settings cache, and after adding the Win/Mac
+   switch, which cost ~285 B). Before adding features, look for something else to drop.
 
 ## 10. Working agreements with the user
 

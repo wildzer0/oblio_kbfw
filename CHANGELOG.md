@@ -12,6 +12,33 @@
 
 Il controllo di recupero Esc+1+2 va all'inizio del `main`, prima di USB e radio.
 
+## 2026-11-01 (notte) — lo switch Win/Mac: trovato, ed è una funzione
+
+### Dov'è e come funziona (misurato, non ipotesi)
+- Due letture di `diag.py --ports` con lo switch nelle due posizioni differiscono per **un solo bit**: **P0.5** (1 con Windows, 0 con Mac).
+  P7.0, il candidato che veniva dal dump, resta alto in entrambe e non viene mai tirato basso da nessuna colonna: non è lui.
+- Nel firmware stock, `0xA9D9` fa esattamente il debounce di P0.5 (due contatori, dieci letture uguali di fila, stato in `XDATA[0x0307]`) e
+  quello stato sceglie fra **due insiemi di tabelle della keymap** (`DPTR = 0x7Cxx + 4 × indice` dopo aver testato `0x0307`): il venditore
+  usa lo switch per cambiare il layer di base, con una variante Mac. È la stessa idea di quello che abbiamo fatto.
+- `diag.py --ports` ora riporta solo i byte grezzi dei port (letti con timer e backlight fermi, così gli strobe non falsano P4/P5/P6).
+
+### Cosa fa adesso
+- `board/os_switch.[ch]`: legge P0.5, debounce 50 ms come il selettore di modo, e chiama `layer_set_default(KEYMAP_MAC_LAYER)` su Mac,
+  `layer_set_default(0)` su Windows. Al cambio il layer non viene salvato: lo switch è la verità, il profilo resta uno solo.
+- `core/keymap.h`: `KEYMAP_MAC_LAYER` = 7. `board/keymap_default.c`: quel layer è la copia del base con **LGUI↔LALT e RGUI↔RALT** scambiati
+  (un solo bit, `^ 1`), tutto il resto identico, encoder compreso. Quindi è **modificabile da Vial come qualunque altro layer** (compare come
+  layer 7); il layer Fn (1) resta valido su entrambi i lati dello switch.
+- `board/main.c`: `os_switch_init()` dopo il caricamento del profilo e `os_switch_task()` nel giro; `board/store_hw.c`: un profilo caricato
+  azzera i layer, quindi `os_switch_apply()` li riapplica subito.
+- `tests/host/test_default_keymap.c`: controlla che il layer Mac sia il base con i tre modificatori scambiati e nient'altro.
+
+### Attenzione
+- Cambiando la tastiera predefinita cambia l'impronta salvata nei profili: **al primo avvio dopo questo aggiornamento la tastiera riparte dai
+  valori predefiniti** (è il comportamento documentato in `docs/keyboards/yunzii-b68.md`, "Tastiera salvata e firmware nuovo"). Eventuali
+  modifiche fatte da Vial vanno rifatte una volta.
+
+Budget: flash **43838/44032** (194 B liberi), XDATA **3771/4096**. `make test` 22/22.
+
 ## 2026-11-01 (sera, dopo la prova dello sleep: LED morti al risveglio)
 
 ### Il difetto segnalato: al risveglio i LED restano spenti fino al power cycle

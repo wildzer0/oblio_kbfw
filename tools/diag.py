@@ -8,7 +8,7 @@ usage: diag.py [--radio] [--monitor] [--ports] [--watch SECONDS]
   (no option)  print the counters once
   --radio      also print the radio's last status bytes and its last 08 frame
   --monitor    with the cable in (USB mode): listen to the radio's status too (it is switched off in USB mode); implies --radio
-  --ports      print the raw port bytes and the columns in which P7.0 reads low (finding out where a switch is wired)
+  --ports      print the raw port bytes (P0.5 is the Win/Mac switch: low = Mac; P0.3/P0.4 the mode selector)
   --watch N    repeat every N seconds, printing only what changed
 
 The counters need no unlock (they are what you need when the keys do not work); the radio data and --monitor do: hold the unlock keys (Esc and Enter) when asked.
@@ -131,14 +131,6 @@ def ports(keyboard):
     reply = keyboard.ask(0xF1, 3)
     names = ["P0", "P1", "P2", "P3", "P4", "P5", "P6", "P7"]
     print("ports              : " + " ".join("{}={:02x}".format(n, b) for n, b in zip(names, reply[2:10])))
-    low, high = reply[10], reply[11]
-    mask = low | (high << 8)
-    if mask == 0xFFFF:
-        print("P7.0 low in every column: a switch to ground")
-    elif mask:
-        print("P7.0 low in the columns " + ", ".join(str(c) for c in range(16) if mask & (1 << c)))
-    else:
-        print("P7.0 low in no column (it did not change with the strobes)")
 
 
 def radio(keyboard):

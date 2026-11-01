@@ -19,6 +19,7 @@
 #include "timebase.h"
 #include "matrix.h"
 #include "matrix_hw.h"
+#include "os_switch.h"
 #include "recovery.h"
 #include "settings.h"
 #include "encoder.h"
@@ -65,6 +66,7 @@ static void init(void)
     watchdog_kick();
     settings_load();
     store_init(settings.profile); // the profile in use at power-off, from flash, or the defaults
+    os_switch_init();             // which of the two base layers this profile starts on (the Win/Mac switch)
     encoder_init();
     led_init(); // the framebuffer is cheap and the lighting keys write settings: always there
 #if STAGE_LED
@@ -122,6 +124,7 @@ void main(void)
         const bool any_key_down = matrix_any_pressed(); // once: two passes of the matrix cost a third of a loop
 
         keyboard_task(now_ms);
+        os_switch_task(now_ms);
         store_task(now_ms, any_key_down);
         settings_task(now_ms, any_key_down);
         usb_task(now_ms);

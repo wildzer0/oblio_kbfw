@@ -45,6 +45,29 @@ int main(void)
         }
     }
 
+    // The Win/Mac switch makes KEYMAP_MAC_LAYER the default while it is on Mac: the base layer with the two modifier keys swapped and
+    // nothing else different (board/os_switch.c, board/keymap_default.c)
+    unsigned swapped = 0;
+
+    for (uint8_t row = 0; row < MATRIX_ROWS; row++) {
+        for (uint8_t col = 0; col < MATRIX_COLS; col++) {
+            const uint16_t base = keymap_get(0, row, col);
+            const uint16_t mac  = keymap_get(KEYMAP_MAC_LAYER, row, col);
+
+            if (base == KC_LGUI || base == KC_LALT || base == KC_RGUI || base == KC_RALT) {
+                CHECK(mac == (uint16_t)(base ^ 1u));
+                swapped++;
+            } else {
+                CHECK(mac == base);
+            }
+        }
+    }
+
+    CHECK(swapped == 3); // the bottom row is Ctrl Win Alt ... Alt Fn: the three that are Win or Alt are swapped, Ctrl is not
+    CHECK(keymap_get(0, 4, 1) == KC_LGUI && keymap_get(KEYMAP_MAC_LAYER, 4, 1) == KC_LALT); // the key labelled Win sends Alt on a Mac
+    CHECK(keymap_get(0, 4, 2) == KC_LALT && keymap_get(KEYMAP_MAC_LAYER, 4, 2) == KC_LGUI); // the one labelled Alt sends Gui/Cmd
+    CHECK(keymap_get_encoder(KEYMAP_MAC_LAYER, 0, true) == KC_VOLU); // the knob is the same on both sides
+
     CHECK(!keymap_set(KEYMAP_LAYERS, 0, 0, KC_A)); // a position that does not exist
     CHECK(keymap_set(3, 0, 0, KC_A) && keymap_get(3, 0, 0) == KC_A);
 

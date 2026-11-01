@@ -1,4 +1,3 @@
-#include "delay.h"
 #include "diag.h"
 #include "diag_hw.h"
 #include "led_hw.h"
@@ -53,12 +52,16 @@ void diag_hook_radio_monitor(bool on)
     link_monitor(on);
 }
 
-// P7.0 is the input the stock firmware reads together with the matrix rows without it being a row: it is where a switch that is not
-// in the matrix most likely sits. A switch closes it either to ground (low in every column) or onto one column line (low in that
-// column only): both show up in the mask, while the raw bytes above show the level when nothing is driven. The other free inputs
-// with a pull-up (P4.6, P0.5) are in those raw bytes too, so a grounded switch on either of them shows up without a mask.
+// The raw bytes of the ports, for finding out what an input that is not in the matrix is doing. This is how the Win/Mac switch was
+// found: P0.5 is high with the switch on Windows and low with it on Mac, and its level does not depend on the column strobes (the pin
+// that was presumed, P7.0, never changed). They were read before the timer was stopped at first, which could catch a column still lit by
+// an LED subframe: now the timer and the backlight are parked first, so P4, P5 and P6 show the idle state of the strobes.
 void diag_hook_ports(XDATA uint8_t *out)
 {
+    tick_pause();
+    led_hw_pause();
+    matrix_hw_cols_off();
+
     out[0] = P0;
     out[1] = P1;
     out[2] = P2;
@@ -68,30 +71,6 @@ void diag_hook_ports(XDATA uint8_t *out)
     out[6] = P6;
     out[7] = P7;
 
-    uint8_t low  = 0;
-    uint8_t high = 0;
-
-    tick_pause(); // the timer drives the same strobes
-    led_hw_pause();
-
-    for (uint8_t col = 0; col < MATRIX_COLS; col++) {
-        matrix_hw_col_on(col);
-        delay_us(10); // as long as the matrix scan gives the line to settle
-
-        if (!(P7 & 0x01u)) {
-            if (col < 8) {
-                low |= (uint8_t)(1u << col);
-            } else {
-                high |= (uint8_t)(1u << (col - 8));
-            }
-        }
-
-        matrix_hw_cols_off();
-    }
-
     led_hw_resume();
     tick_resume();
-
-    out[8] = low;  // the columns 0-7 in which P7.0 read low
-    out[9] = high; // the columns 8-15
 }
