@@ -1,0 +1,103 @@
+# Yunzii B68 — analisi del firmware stock (M1.6, prima passata)
+
+> Fonte: `backups/dump/r1.bin` (64 KiB, MD5 `4aea8bec…`). Le disassemblazioni **non** sono nel repo (firmware
+> proprietario): qui ci sono solo fatti e indirizzi. Stato: **prima passata**, i punti marcati *TBD* sono aperti.
+
+## Come riprodurre
+
+Ghidra 12 (`~/ghidra`) in headless con JDK 21 (`nix build nixpkgs#jdk21`; Ghidra rifiuta JDK 17), lingua `8051:BE:16:default`,
+`BinaryLoader` base 0. Il loader non crea punti d'ingresso: lo script deve fare `disassemble()` + `createFunction()` su
+`0x0000`, sui vettori `0x03 + 8n` e su `0xF000`, poi `analyzeAll()` (≈ 8600 istruzioni, 134 funzioni). I nomi dei SFR si
+ricavano da `src/sino51lib/sh68f90/sh68f90.h` (`SFR(...)`/`SFRX(...)`). REA non supporta l'8051 (solo 6502/x86/arm/m68k).
+
+## Struttura generale
+
+* Compilato con **Keil C51** (non SDCC): startup che azzera IRAM (`0x9A26`) e XRAM (4 KiB), poi copia/azzera dati da una
+  tabella di init a `0x9F42`; `SP=0x7D` (lo stack parte più in alto che in SMK).
+* Mappa: reset `0x0000: LJMP 0x9A26`; app in `0x0000–0xEFFF`; bootloader `0xF000–0xFFFF`.
+* Vettori (offset `0x03+8n`): `0x03→0x0181`, `0x0B→0xEDB6`, `0x13→0xEDBC`, `0x1B→0xEDC2`, `0x3B→0xAB30`, `0x43→0x0F3A`,
+  `0x4B→0x30DC`, `0x53→0xEC41`, `0x63→0x8C5B`, `0x6B→0xA43C`; gli altri sono vuoti/dati. Corrispondenza con le
+  sorgenti di interrupt del SH68F90 (`_INT_TIMER2`, `_INT_USB`, …): *TBD* assegnazione precisa.
+* Orologio: `PLLCON=0x03`, `CLKCON=0x0C` (PLL acceso, sistema a 24 MHz, come SMK); sequenza di spegnimento
+  `CLKCON&=~…; PLLCON&=~3` in più punti (sleep).
+
+## GPIO a riposo (funzione a `0xA627`)
+
+| Porta | `PxCR` (1=uscita) | `PxPCR` (pull-up) | valore `Px` iniziale |
+| --- | --- | --- | --- |
+| P0 | `0x04` (P0.2) | `0xF8` | `0x04` |
+| P1 | `0x3F` (P1.0–5) | `0x3F` | `0x00` |
+| P2 | `0x3F` (P2.0–5) | `0x3F` | `0x00` |
+| P3 | `0x3F` (P3.0–5) | `0x3F` | `0x00` |
+| P4 | `0x2F` (P4.0–3, P4.5) | `0x6F` | `0x2D` |
+| P5 | `0x87` (P5.0–2, P5.7) | `0x9F` | `0x87` |
+| P6 | `0xFF` | `0xFF` | `0xFF` |
+| P7 | `0x70` (P7.4–6) | `0xFF` | `0x00` |
+
+* Pilotaggio: `DRVCON` sblocca e azzera `P1DRV`, `P2DRV`, `P3DRV`, `P5DRV` (come SMK, che imposta 25 mA: *TBD* se lo
+  stock usa il default).
+* **Nota:** il SH68F90A esposto qui ha anche **P6 e P7** (SMK/NuPhy usano solo P0–P5). Se il package della B68 ha tutti
+  quei pin, la matrice può usare porte che nelle altre tastiere non si usano.
+* Un'altra funzione (`0x9C9A–0x9D0F`) imposta dopo il boot un secondo insieme di pin (P0.5–7, P4.0/2/3/5/6, P5.0–2/7,
+  P6.3–7, P7.4) in uscita e abilita pull-up su P5.3/P5.4: probabile configurazione di **sleep/wake** o dei pin radio.
+  *TBD*.
+
+## Altri dati nella flash
+
+* `0xB15A`: stringhe `"B68 3.0"` e `"B68 5.0"` → **nomi Bluetooth** annunciati (BT 3.0/5.0 → BK3632 in modalità
+  Classic e BLE). Utile per il comando "set BT name" del BK3632.
+* `0x5A59`: descrittore dispositivo USB (`258A:010C`, bcdDevice `0x2002`); descrittori di configurazione subito prima.
+* `0xC480–0xC4FF`: due tabelle simmetriche (0→255→0), tipicamente **curve di luminosità/respirazione dei LED**.
+* `0xC500–0xC5FF`: tabelle di mappatura a passi regolari: *TBD* (indici LED?).
+* `0xC600–0xC67F`: **blocco impostazioni** con marker `5A A5` a `0xC67E`; contiene i 2 byte che cambiano fra le
+  letture (`0xC60A`, `0xC65A`): stato corrente (modalità/effetto LED). È l'equivalente delle impostazioni NVM di SMK.
+* **Keymap:** *non* trovata come tabella di codici HID contigua (cercati i pattern QWERTY/ASDF in chiaro). Probabilmente
+  codificata in un formato indicizzato; *TBD*, richiede di seguire il codice che costruisce il report tastiera.
+
+
+## Matrice (ricavata dal codice, da confermare in banco — M1.2)
+
+La ISR del Timer2 (vettore `0x43` → `0x0F3A`) è una macchina a **20 slot** (tabella di `LJMP` a `0x0F74`, un contatore in
+XRAM `0x0305`). Ogni slot rilascia la linea precedente (`SETB`) e abbassa la successiva (`CLR`), poi legge le uscite.
+
+* **16 linee strobe, attive basse**, nell'ordine di slot: `P6.0 P6.1 P6.2 P6.3 P6.4 P6.5 P6.6 P6.7`, `P5.0 P5.1 P5.2 P5.7`,
+  `P4.0 P4.2 P4.3 P4.5` (gli ultimi 4 slot sono vuoti: servono a completare il periodo di 20 slot, con ogni probabilità
+  condiviso con la PWM dei LED, che nello stesso gestore viene commutata: `PWM00CON`).
+* **6 linee di lettura** con pull-up: `P5.3`, `P5.4`, `P7.0`, `P7.1`, `P7.2`, `P7.3` (la ISR compone un byte
+  `0xC0 | (P5<<1 & 0x30) | (P7 & 0x0F)` e lo salva in XRAM `0x098E + slot`).
+* Coerenza con la funzione GPIO a `0xA627`: P6 tutta a uscita, P4/P5 uscite a `0x2F`/`0x87` per le strobe, `P5.3/P5.4` e
+  `P7.0–3` ingressi con pull-up. Quindi: **16 colonne** (strobe) e **5 righe fisiche** (`P7.1–3`, `P5.3–4`, le stesse della Air60); `P7.0` è un sesto ingresso letto dallo stock, di funzione ignota, da non trattare come riga finché la sonda non lo spiega.
+* La mappatura *tasto → (colonna, riga)* non si ricava da questi dati: la keymap non è in chiaro (vedi sopra).
+
+## Ingresso in ISP dall'applicazione
+
+All'indirizzo `0xED76` l'app stock esegue `CLR EA; MOV B,#0xA5; MOV A,#0x5A; LJMP 0xFF00`: **identico** a `isp_jump()` di
+SMK. Nel bootloader stock lo stub a `0xFF00` confronta `A==0x5A` e `B==0xA5`. Quindi l'ingresso ISP di SMK
+funziona sulla B68 senza modifiche. L'app stock non ha un reset vector che passa per il bootloader (`LJMP 0x9A26` diretto):
+dopo `sinowisp write` il reset vector è quello dell'immagine scritta.
+
+
+## Radio BK3632
+
+L'analisi completa (seriale a 260870 baud su `P5.5`/`P5.6`, `P0.2` selezione, `P4.7` attenzione, frame, comandi, controllo di flusso, priorità degli interrupt, selettore di modalità su `P0.4`/`P0.3`,
+indirizzi nello stock) è in [yunzii-b68-radio.md](yunzii-b68-radio.md). Qui resta solo la nota di metodo: la prima lettura del dump ("modo 0", poi "SPI") era sbagliata; l'inizializzazione a `0xAFA0` scrive
+`SCON = 0x50`, `PCON |= 0x40`, `SBRT = 0x7FFB`, `SFINE = 0x0C` (modo 1, 8N1, 260870 baud), e le priorità a `0xEC00` mettono la seriale al livello 3.
+
+## LED (analisi statica)
+
+* Il firmware pilota **tre banchi PWM da 6 canali**: `PWM0x`, `PWM1x`, `PWM2x`, cioè 18 canali, uno per pin di `P1`, `P2`, `P3` (le tre porte che a riposo sono tutte uscite a 0).
+  Sono le **colonne** della matrice dei LED (18 colonne).
+* **Ipotesi più forte:** il Timer2 alterna scansione dei tasti e sotto-frame dei LED sugli **stessi 20 slot**: per ogni slot l'ISR carica da una tabella (`0x059C + 0x24 × slot`, 36 byte = 18 duty da 16 bit) i 18 canali PWM, mentre la linea di scansione dello slot è bassa. Quindi le **16 linee di scansione dei tasti (`P6.0–7`, `P5.0/1/2/7`, `P4.0/2/3/5`) sono anche i pozzi dei LED**, e i 18 canali PWM (`P1`, `P2`, `P3`) le sorgenti: 5 righe di tasti × RGB = 15 canali + 3 per il LED di stato. Da confermare con la sonda (`docs/led-probe.md`).
+* Le **righe** (pozzi di corrente) non sono ancora identificate con certezza. Candidati: uscite che lo stock imposta ma non usa per la matrice dei tasti: `P4.1`, `P7.4`, `P7.5`, `P7.6`, `P0.2`
+  (quest'ultima è la linea della radio). Il tick del Timer2 alterna una scansione dei tasti (`~320 µs`) e un sotto-frame dei LED.
+* Non si sa ancora se la retroilluminazione è monocromatica o RGB, né se esistono LED di stato separati: dipende dalla tastiera, non dal codice.
+
+## Cosa manca per chiudere M1.6
+
+1. ~~Funzione di scansione matrice~~ → fatto, vedi sopra (resta il ritardo di settling e la mappa tasto→(col,riga)).
+2. Keymap e layer (formato, dimensione, dove si salva la personalizzazione fatta dal software del produttore).
+3. Protocollo verso BK3632 (linee, frame, comandi): confronto con `rf_controller.c`.
+4. Driver LED (PWM, pin, frequenza) e sequenza di sleep/wake (INT4).
+
+Le voci 1–3 si possono chiudere più in fretta con una **cattura con analizzatore logico** o misure sui pin
+(M1.2/M1.5); la voce 4 è analisi statica. Il Nano non serve per questo.

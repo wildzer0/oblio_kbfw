@@ -1,0 +1,7 @@
+build/
+tests/host/test_*
+!tests/host/test_*.c
+*.hex
+*.ihx
+*.Zone.Identifier
+.vscode/
