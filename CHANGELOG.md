@@ -28,6 +28,15 @@ Il controllo di recupero Esc+1+2 va all'inizio del `main`, prima di USB e radio.
   cosa che va nel profilo richiede di togliere qualcosa (le macro da 512 a 384 B libererebbero 64 byte di parole).
 - **XDATA 3960/4096 (136 B liberi)**: è il vincolo più stretto adesso.
 
+### Vial RGB: protocollo documentato, e il muro che c'è davanti
+- `docs/vial.md` ora ha anche la sezione **Vial RGB** letta dall'implementazione di riferimento: non passa dal prefisso `0xFE` ma dai comandi
+  VIA di illuminazione (`0x07`/`0x08`/`0x09`), con i sottocomandi 0x40–0x44 e la tabella degli id degli effetti (0 spento, 1 diretto, 2 tinta unita,
+  4/5 gradienti, 6 respiro, 13–20 cicli, …).
+- **Non l'ho implementato** perché non ci sta: i colori per tasto sono 3 byte × 67 tasti = **201 B di XDATA** (liberi: 136) e altrettanti nello
+  slot della keymap per sopravvivere allo spegnimento (libero: 14 B). Per farlo serve una decisione: **8 layer → 6** libera 320 B di XDATA e 320 B
+  di slot, e sposta la coppia Mac da 7/6 a 5/4. Senza quella, l'unica parte fattibile è il "modo" (effetto, luminosità, velocità, hue/sat da Vial),
+  che però duplica i tasti Fn già presenti.
+
 Budget: flash **48897/56320**, XDATA **3960/4096**. `make test` 25/25, `make sim` 24/24, `make stages` 1–3 ok, vettori ok.
 
 ## 2026-11-02 (notte) — batteria e Caps Lock wireless: la fonte era il driver di riferimento

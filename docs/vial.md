@@ -83,5 +83,32 @@ dance, 3/4 a combo, 5/6 a key override. The QMK settings commands answer the tap
 a chord are held back for at most 50 ms, so the letters of the chord do not reach the host) and `core/override.c` (a trigger keycode under the
 required modifiers becomes the replacement, with the modifiers it lists taken away while it acts).
 
-Per-key RGB (vialrgb) is a separate interface, not this one: it is advertised by byte `[12] == 1` in `vial_get_keyboard_id` and uses its own raw
-HID channel (this keyboard has one free report ID range on interface 0 or could use the raw HID interface).
+## Vial RGB (per-key lighting)
+
+Advertised by byte `[12] == 1` in `vial_get_keyboard_id`. It does **not** use the `0xFE` prefix: it rides on VIA's own lighting commands, with the
+sub-command in `data[1]` and the arguments from `data[2]`.
+
+| VIA command | Value | What arrives |
+| --- | --- | --- |
+| `id_lighting_get_value` | 0x08 | a vialrgb sub-command in `data[1]` |
+| `id_lighting_set_value` | 0x07 | the same, in the other direction |
+| `id_lighting_save` | 0x09 | "write the lighting settings down" |
+
+| Sub-command | Value | Request | Reply |
+| --- | --- | --- | --- |
+| `vialrgb_get_info` | 0x40 | — | protocol version 1 in `[0..1]`, maximum brightness in `[2]` |
+| `vialrgb_get_mode` | 0x41 | — | the effect id in `[0..1]`, speed `[2]`, hue `[3]`, sat `[4]`, val `[5]` |
+| `vialrgb_get_supported` | 0x42 | the last id in `[0..1]` | the ids above it, 16-bit little-endian, `0xFF`-filled |
+| `vialrgb_get_number_leds` | 0x43 | — | the number of LEDs in `[0..1]` |
+| `vialrgb_get_led_info` | 0x44 | the LED index in `[0..1]` | x, y, the flags, then the matrix row and column (0xFF,0xFF for a position that is not a key) |
+| `vialrgb_set_mode` | 0x41 | effect id `[0..1]`, speed `[2]`, hue `[3]`, sat `[4]`, val `[5]` | — |
+| `vialrgb_direct_fastset` | 0x42 | the first LED index `[0..1]`, the count `[2]`, then three bytes (h, s, v) per LED — up to 9 LEDs in a packet | — |
+
+The effect ids are a fixed table (the app knows their names): 0 off, 1 direct (the per-key colours the app paints), 2 solid colour, 4 gradient up-down,
+5 gradient left-right, 6 breathing, 7-12 band, 13-20 cycle, 21-29 beacon/pinwheel/raindrop, and so on. A firmware advertises only the ones it has.
+
+**What it would take here**: the keyboard's own lighting is an effect engine with a colour wheel, not QMK's `rgb_matrix`, so the ids have to be
+mapped onto the effects in `core/led_effect.c` (off, solid, up-down, left-right, breathing, radial) and an HSV rendering path added for hue/sat/val
+to mean anything. Per-key colours (id 1) need 3 bytes an LED: 201 bytes of XDATA for the 67 keys, and as much again in the keymap slot to survive
+power-off — and this firmware has 136 bytes of XDATA and 14 bytes of slot left. That is the decision to make before writing it: 6 layers instead
+of 8 frees 320 bytes of each.
