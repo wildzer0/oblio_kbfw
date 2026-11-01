@@ -30,7 +30,7 @@ enum {
 void vial_init(void); // locked, no unlock in progress
 
 // A Vial request is in `data` (data[0] is the 0xFE prefix, data[1] the command); the reply replaces it.
-void vial_receive(uint8_t *data, uint8_t length);
+void vial_receive(XDATA uint8_t *data, uint8_t length);
 
 // Unlocked: the GUI may change macros, read the key matrix and jump to the bootloader.
 bool vial_is_unlocked(void);
@@ -41,7 +41,7 @@ bool vial_unlock_in_progress(void);
 // The board's data, generated at build time by tools/vial_gen.py: the LZMA-compressed vial.json, the 8-byte keyboard id and
 // the keys to hold to unlock, as (row, col) pairs (at most 14).
 extern const ROM uint8_t vial_definition[];
-extern const uint32_t    vial_definition_size;
+extern const uint16_t    vial_definition_size; // under 64 KB: served in pages of 32 bytes
 extern const ROM uint8_t vial_keyboard_uid[8];
 extern const ROM uint8_t vial_unlock_keys[][2];
 extern const uint8_t     vial_unlock_key_count;

@@ -6,6 +6,7 @@
 //
 // Each counter has one writer (an interrupt or the main loop), so none needs a lock; a 16-bit value is read twice until it agrees.
 
+#include "platform.h"
 #include <stdbool.h>
 #include <stdint.h>
 
@@ -39,7 +40,7 @@ uint16_t diag_get(diag_id_t id);
 //   kind 0: [0xF1, 0, DIAG_COUNT, counter 0 (lo, hi), counter 1, ...]
 //   kind 1: the radio: [0xF1, 1, 6 status bytes, 22 bytes of the last 08 frame]
 //   anything else: [0xFF, ...] (unhandled)
-void diag_receive(uint8_t *data, uint8_t length);
+void diag_receive(XDATA uint8_t *data, uint8_t length);
 
 // Provided by the board: the radio's last status bytes (6) and last 08 frame (22), for kind 1
 const uint8_t *diag_hook_radio_status(void);

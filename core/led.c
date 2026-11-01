@@ -32,7 +32,6 @@ void led_init(void)
 {
     memset(level, 0, sizeof level);
     memset(lit, 0, sizeof lit);
-    led_effect_init();
 
     next_column   = 0;
     frames        = 0;

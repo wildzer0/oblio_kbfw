@@ -42,7 +42,7 @@ uint16_t diag_get(diag_id_t id)
     return a;
 }
 
-void diag_receive(uint8_t *data, uint8_t length)
+void diag_receive(XDATA uint8_t *data, uint8_t length)
 {
     const uint8_t kind = data[1];
 

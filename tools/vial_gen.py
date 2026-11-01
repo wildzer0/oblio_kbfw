@@ -46,7 +46,10 @@ def main():
     print('#include "vial.h"')
     print()
     print("const ROM uint8_t vial_definition[] = {{{}}};".format(c_bytes(compressed)))
-    print("const uint32_t vial_definition_size = {}u;".format(len(compressed)))
+    if len(compressed) > 0xFFFF:
+        print("vial_gen: the definition does not fit 64 KB", file=sys.stderr)
+        return 1
+    print("const uint16_t vial_definition_size = {}u;".format(len(compressed)))
     print("const ROM uint8_t vial_keyboard_uid[8] = {{{}}};".format(c_bytes(uid)))
     print("const ROM uint8_t vial_unlock_keys[][2] = {{{}}};".format(", ".join("{{{}, {}}}".format(r, c) for r, c in keys)))
     print("const uint8_t vial_unlock_key_count = {};".format(len(keys)))

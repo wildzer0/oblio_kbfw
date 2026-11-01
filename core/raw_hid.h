@@ -5,6 +5,7 @@
 // One request is handled at a time. While one is being answered EP2 OUT is not armed, so the host's next packet is NAKed and
 // retried: nothing is queued and nothing is lost. The interrupt only takes the packet in; the main loop answers it.
 
+#include "platform.h"
 #include "usb_desc.h" // RAW_HID_SIZE
 #include <stdbool.h>
 #include <stdint.h>
@@ -15,7 +16,7 @@ void raw_hid_hook_ep2_send(const uint8_t *data, uint8_t length);
 void raw_hid_hook_out_arm(void); // accept the next request
 
 // Provided by the application: handles a request and leaves the reply in the same buffer (the VIA / Vial protocol).
-void raw_hid_hook_process(uint8_t packet[RAW_HID_SIZE]);
+void raw_hid_hook_process(XDATA uint8_t *packet);
 
 // The host has configured the device (or it was reset): drop any request in flight and accept a new one.
 void raw_hid_reset(void);

@@ -1,66 +1,36 @@
 #include "led_effect.h"
 #include "matrix.h"
+#include "platform.h"
 
-// The centre of the board, in half-cells (so that it can fall between two keys): the middle of the 16 columns and of the 5 rows
-#define CENTRE_X2 (MATRIX_COLS - 1)
-#define CENTRE_Y2 (MATRIX_ROWS - 1)
+// The radial effect is a function of the distance of each key to the centre of the board, which falls between columns 7 and 8 and
+// on the middle row. The table is that distance scaled to 0-255 (the farthest key, a corner, is 255). It is a table and not
+// computed at start-up because that costs more flash than the table; test_led.c computes it again from the formula and compares:
+//     d = isqrt((2 * col - (COLS - 1))^2 + (2 * row - (ROWS - 1))^2),  value = d * 255 / the largest d
+static const ROM uint8_t radial[MATRIX_ROWS][MATRIX_COLS] = {
+    {255, 221, 187, 153, 136, 102, 85, 68, 68, 85, 102, 136, 153, 187, 221, 255},
+    {255, 221, 187, 153, 119, 85, 51, 34, 34, 51, 85, 119, 153, 187, 221, 255},
+    {255, 221, 187, 153, 119, 85, 51, 17, 17, 51, 85, 119, 153, 187, 221, 255},
+    {255, 221, 187, 153, 119, 85, 51, 34, 34, 51, 85, 119, 153, 187, 221, 255},
+    {255, 221, 187, 153, 136, 102, 85, 68, 68, 85, 102, 136, 153, 187, 221, 255},
+};
 
-static uint8_t radial[MATRIX_ROWS][MATRIX_COLS];
-static uint8_t axis_x[MATRIX_COLS];
-static uint8_t axis_y[MATRIX_ROWS];
+// The waves run along the columns (16 of them: 16 steps of the wheel each) and along the rows (5: (row * 256) / 5)
+static const ROM uint8_t axis_y[MATRIX_ROWS] = {0, 51, 102, 153, 204};
 
-static uint8_t isqrt(uint16_t n)
+static uint8_t axis_x(uint8_t col)
 {
-    uint8_t r = 0;
-
-    while ((uint16_t)((r + 1u) * (r + 1u)) <= n) {
-        r++;
-    }
-
-    return r;
-}
-
-void led_effect_init(void)
-{
-    uint8_t farthest = 1;
-
-    for (uint8_t row = 0; row < MATRIX_ROWS; row++) {
-        for (uint8_t col = 0; col < MATRIX_COLS; col++) {
-            const int16_t dx = (int16_t)(2 * col) - CENTRE_X2;
-            const int16_t dy = (int16_t)(2 * row) - CENTRE_Y2;
-
-            radial[row][col] = isqrt((uint16_t)(dx * dx + dy * dy));
-
-            if (radial[row][col] > farthest) {
-                farthest = radial[row][col];
-            }
-        }
-    }
-
-    for (uint8_t row = 0; row < MATRIX_ROWS; row++) { // distance -> 0-255
-        for (uint8_t col = 0; col < MATRIX_COLS; col++) {
-            radial[row][col] = (uint8_t)((uint16_t)radial[row][col] * 255u / farthest);
-        }
-    }
-
-    for (uint8_t col = 0; col < MATRIX_COLS; col++) {
-        axis_x[col] = (uint8_t)(((uint16_t)col << 8) / MATRIX_COLS);
-    }
-
-    for (uint8_t row = 0; row < MATRIX_ROWS; row++) {
-        axis_y[row] = (uint8_t)(((uint16_t)row << 8) / MATRIX_ROWS);
-    }
+    return (uint8_t)(col << 4);
 }
 
 uint8_t led_effect_index(led_effect_t fx, uint8_t row, uint8_t col, uint8_t phase)
 {
     switch (fx) {
         case FX_HORIZONTAL:
-            return (uint8_t)(axis_x[col] + phase);
+            return (uint8_t)(axis_x(col) + phase);
         case FX_VERTICAL:
             return (uint8_t)(axis_y[row] + phase);
         case FX_DIAGONAL:
-            return (uint8_t)(axis_x[col] + axis_y[row] + phase);
+            return (uint8_t)(axis_x(col) + axis_y[row] + phase);
         case FX_BREATHE:
             return phase;
         case FX_RADIAL:

@@ -1,8 +1,10 @@
 #include "via.h"
 #include "diag.h"
+#include "hud.h"
 #include "keymap.h"
 #include "matrix.h"
 #include "vial.h"
+#include <string.h>
 
 #define VIA_PROTOCOL_VERSION 0x0009u
 
@@ -23,7 +25,8 @@ enum {
     id_dynamic_keymap_get_layer_count       = 0x11,
     id_dynamic_keymap_get_buffer            = 0x12,
     id_dynamic_keymap_set_buffer            = 0x13,
-    id_oblio_diag                           = 0xF1, // counters for the first runs on the hardware (diag.h); 0xF0 is the HUD
+    id_hud                                  = 0xF0, // the keyboard HUD (hud.h)
+    id_oblio_diag                           = 0xF1, // counters for the first runs on the hardware (diag.h)
     id_vial_prefix                          = 0xFE,
     id_unhandled                            = 0xFF,
 };
@@ -57,43 +60,88 @@ bool via_bootloader_requested(void)
 #define BUFFER_CELLS ((uint16_t)(MATRIX_ROWS * MATRIX_COLS))
 #define BUFFER_BYTES ((uint16_t)(KEYMAP_LAYERS * BUFFER_CELLS * 2u))
 
-// The keymap as the GUI sees it: layer by layer, row by row, each keycode big-endian
-static uint8_t buffer_byte_get(uint16_t offset)
+_Static_assert(MATRIX_COLS == 16, "the keymap buffer is addressed with shifts: 16 columns a row");
+
+// The keymap as the GUI sees it: layer by layer, row by row, each keycode big-endian. A position in the buffer is found once; the loops
+// then step from key to key, so that no division by the 80 keys of a layer is needed.
+typedef struct {
+    uint8_t  layer;
+    uint8_t  row;
+    uint8_t  col;
+    bool     low;   // the second byte of the keycode
+    uint16_t keycode;
+} spot_t;
+
+// False if the offset is past the end of the buffer
+static bool spot_at(spot_t *spot, uint16_t offset)
 {
+    uint16_t word = offset >> 1;
+
     if (offset >= BUFFER_BYTES) {
-        return 0;
+        return false;
     }
 
-    const uint16_t word    = offset / 2u;
-    const uint16_t within  = word % BUFFER_CELLS;
-    const uint16_t keycode = keymap_get((uint8_t)(word / BUFFER_CELLS), (uint8_t)(within / MATRIX_COLS), (uint8_t)(within % MATRIX_COLS));
+    spot->layer = 0;
 
-    return (offset & 1u) ? (uint8_t)(keycode & 0xFFu) : (uint8_t)(keycode >> 8);
+    while (word >= BUFFER_CELLS) {
+        word = (uint16_t)(word - BUFFER_CELLS);
+        spot->layer++;
+    }
+
+    spot->row = (uint8_t)(word >> 4);
+    spot->col = (uint8_t)(word & 0x0Fu);
+    spot->low = (offset & 1u) != 0;
+    return true;
 }
 
-static void buffer_byte_set(uint16_t offset, uint8_t value)
+static void spot_next(spot_t *spot)
 {
-    if (offset >= BUFFER_BYTES) {
+    if (!spot->low) {
+        spot->low = true;
         return;
     }
 
-    const uint16_t word   = offset / 2u;
-    const uint16_t within = word % BUFFER_CELLS;
-    const uint8_t  layer  = (uint8_t)(word / BUFFER_CELLS);
-    const uint8_t  row    = (uint8_t)(within / MATRIX_COLS);
-    const uint8_t  col    = (uint8_t)(within % MATRIX_COLS);
-    uint16_t       keycode = keymap_get(layer, row, col);
+    spot->low = false;
 
-    if (offset & 1u) {
+    if (++spot->col >= MATRIX_COLS) {
+        spot->col = 0;
+
+        if (++spot->row >= MATRIX_ROWS) {
+            spot->row = 0;
+            spot->layer++;
+        }
+    }
+}
+
+static uint8_t buffer_get(spot_t *spot)
+{
+    if (spot->layer >= KEYMAP_LAYERS) {
+        return 0; // past the end
+    }
+
+    const uint16_t keycode = keymap_get(spot->layer, spot->row, spot->col);
+
+    return spot->low ? (uint8_t)(keycode & 0xFFu) : (uint8_t)(keycode >> 8);
+}
+
+static void buffer_set(spot_t *spot, uint8_t value)
+{
+    if (spot->layer >= KEYMAP_LAYERS) {
+        return;
+    }
+
+    uint16_t keycode = keymap_get(spot->layer, spot->row, spot->col);
+
+    if (spot->low) {
         keycode = (uint16_t)((keycode & 0xFF00u) | value);
     } else {
         keycode = (uint16_t)((keycode & 0x00FFu) | ((uint16_t)value << 8));
     }
 
-    keymap_set(layer, row, col, keycode);
+    keymap_set(spot->layer, spot->row, spot->col, keycode);
 }
 
-static void put_u32_be(uint8_t *out, uint32_t value)
+static void put_u32_be(XDATA uint8_t *out, uint32_t value)
 {
     out[0] = (uint8_t)(value >> 24);
     out[1] = (uint8_t)(value >> 16);
@@ -101,38 +149,29 @@ static void put_u32_be(uint8_t *out, uint32_t value)
     out[3] = (uint8_t)value;
 }
 
-static uint16_t u16_be(const uint8_t *in)
+static uint16_t u16_be(XDATA const uint8_t *in)
 {
     return (uint16_t)(((uint16_t)in[0] << 8) | in[1]);
 }
 
 // The GUI's matrix tester: one big-endian bit field per row, a bit per column
-static void switch_matrix_state(uint8_t *args)
+static void switch_matrix_state(XDATA uint8_t *args)
 {
-    const uint8_t per_row = (MATRIX_COLS > 24) ? 4u : (MATRIX_COLS > 16) ? 3u : (MATRIX_COLS > 8) ? 2u : 1u;
-
-    _Static_assert(((MATRIX_COLS > 24) ? 4 : (MATRIX_COLS > 16) ? 3 : (MATRIX_COLS > 8) ? 2 : 1) * MATRIX_ROWS <= 28, "the matrix state does not fit in one report");
+    _Static_assert(MATRIX_COLS == 16 && MATRIX_ROWS * 2 <= 28, "two bytes a row, all the rows in one report");
 
     uint8_t at = 1;
 
     for (uint8_t row = 0; row < MATRIX_ROWS; row++) {
-        uint32_t value = 0;
+        const uint16_t bits = matrix_row_bits(row);
 
-        for (uint8_t col = 0; col < MATRIX_COLS; col++) {
-            if (matrix_is_pressed(col, row)) {
-                value |= (uint32_t)1u << col;
-            }
-        }
-
-        for (uint8_t b = per_row; b > 0; b--) {
-            args[at++] = (uint8_t)(value >> (8u * (b - 1u)));
-        }
+        args[at++] = (uint8_t)(bits >> 8);
+        args[at++] = (uint8_t)(bits & 0xFFu);
     }
 }
 
-static void get_keyboard_value(uint8_t *data)
+static void get_keyboard_value(XDATA uint8_t *data)
 {
-    uint8_t *args = &data[1];
+    XDATA uint8_t *args = &data[1];
 
     switch (args[0]) {
         case value_uptime:
@@ -155,9 +194,9 @@ static void get_keyboard_value(uint8_t *data)
     }
 }
 
-static void set_keyboard_value(uint8_t *data)
+static void set_keyboard_value(XDATA uint8_t *data)
 {
-    const uint8_t *args = &data[1];
+    XDATA const uint8_t *args = &data[1];
 
     if (args[0] == value_layout_options) {
         layout_options = ((uint32_t)args[1] << 24) | ((uint32_t)args[2] << 16) | ((uint32_t)args[3] << 8) | args[4];
@@ -167,7 +206,7 @@ static void set_keyboard_value(uint8_t *data)
 }
 
 // While an unlock runs the GUI may only ask the unlock questions: the rest is echoed back untouched
-static bool allowed_during_unlock(const uint8_t *data)
+static bool allowed_during_unlock(XDATA const uint8_t *data)
 {
     const uint8_t cmd = data[1];
 
@@ -176,9 +215,9 @@ static bool allowed_during_unlock(const uint8_t *data)
             || cmd == vial_unlock_start || cmd == vial_unlock_poll);
 }
 
-void via_receive(uint8_t *data, uint8_t length)
+void via_receive(XDATA uint8_t *data, uint8_t length)
 {
-    uint8_t *args = &data[1];
+    XDATA uint8_t *args = &data[1];
 
     if (length != VIA_RAW_SIZE) {
         return;
@@ -225,11 +264,15 @@ void via_receive(uint8_t *data, uint8_t length)
         case id_dynamic_keymap_get_buffer: {
             const uint16_t offset = u16_be(&args[0]);
             const uint8_t  size   = args[2];
+            spot_t         spot;
 
-            if (size <= MAX_CHUNK) {
+            if (size <= MAX_CHUNK && spot_at(&spot, offset)) {
                 for (uint8_t i = 0; i < size; i++) {
-                    args[3 + i] = buffer_byte_get((uint16_t)(offset + i));
+                    args[3 + i] = buffer_get(&spot);
+                    spot_next(&spot);
                 }
+            } else if (size <= MAX_CHUNK) {
+                memset(&args[3], 0, size); // all of it is past the end
             }
             break;
         }
@@ -237,10 +280,12 @@ void via_receive(uint8_t *data, uint8_t length)
         case id_dynamic_keymap_set_buffer: {
             const uint16_t offset = u16_be(&args[0]);
             const uint8_t  size   = args[2];
+            spot_t         spot;
 
-            if (size <= MAX_CHUNK) {
+            if (size <= MAX_CHUNK && spot_at(&spot, offset)) {
                 for (uint8_t i = 0; i < size; i++) {
-                    buffer_byte_set((uint16_t)(offset + i), args[3 + i]);
+                    buffer_set(&spot, args[3 + i]);
+                    spot_next(&spot);
                 }
             }
             break;
@@ -291,6 +336,12 @@ void via_receive(uint8_t *data, uint8_t length)
 
         case id_vial_prefix:
             vial_receive(data, length);
+            break;
+
+        case id_hud:
+            if (!hud_receive(data, length)) {
+                data[0] = id_unhandled;
+            }
             break;
 
         case id_oblio_diag:

@@ -132,8 +132,8 @@
   },
   "customKeycodes": [
     {
-      "name": "HUD Toggle (unused)",
-      "title": "Reserved: the keyboard HUD overlay is not part of Oblio. The slot stays so that the other custom keycodes keep their numbers",
+      "name": "HUD Toggle",
+      "title": "Show or hide the keyboard HUD overlay",
       "shortName": "HUD"
     },
     {

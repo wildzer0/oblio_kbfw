@@ -5,6 +5,7 @@
 // via_receive() takes one request and rewrites the same buffer into the reply, which the transport sends back as it is, like
 // QMK's raw_hid_receive(). A command this firmware does not implement answers with 0xFF in the first byte ("unhandled").
 
+#include "platform.h"
 #include "usb_desc.h" // RAW_HID_SIZE
 #include <stdbool.h>
 #include <stdint.h>
@@ -17,7 +18,7 @@ uint32_t via_hook_now(void);
 // Locked, nothing requested, layout options cleared.
 void via_init(void);
 
-void via_receive(uint8_t *data, uint8_t length);
+void via_receive(XDATA uint8_t *data, uint8_t length);
 
 // Set by the "jump to the bootloader" command (it needs the keyboard unlocked): the transport sends the reply first and then
 // jumps.

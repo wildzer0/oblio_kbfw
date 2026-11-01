@@ -19,7 +19,7 @@ void raw_hid_hook_ep2_send(const uint8_t *data, uint8_t length)
 }
 
 // The application: the reply is the request with every byte plus one
-void raw_hid_hook_process(uint8_t packet[RAW_HID_SIZE])
+void raw_hid_hook_process(XDATA uint8_t *packet)
 {
     processed++;
 

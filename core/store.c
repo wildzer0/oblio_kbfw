@@ -73,111 +73,134 @@ static uint16_t crc16_byte(uint16_t crc, uint8_t byte)
     return crc;
 }
 
-// The compiled-in value of payload word `index` (the macros are empty by default)
-static uint16_t default_word(uint16_t index)
+// ---- the payload as a run of words ----
+// In order: the keys (layer, row, column), the encoders (layer, encoder, direction), the macros (two bytes a word, little-endian), the
+// tap dances (index, field), the settings. A cursor walks it by counting, so no word needs a division to find its place.
+typedef enum { SEC_KEYS, SEC_ENCODERS, SEC_MACROS, SEC_TAP_DANCES, SEC_CFG, SEC_END } section_t;
+
+static section_t sec;
+static uint8_t   ca, cb, cc;  // the position in the section
+static uint16_t  cm;          // the position in the macro buffer, in words
+
+static void cursor_start(void)
 {
-    if (index < KEY_WORDS) {
-        const uint16_t per_layer = (uint16_t)(MATRIX_ROWS * MATRIX_COLS);
-        const uint16_t in_layer  = (uint16_t)(index % per_layer);
-
-        return keymap_default((uint8_t)(index / per_layer), (uint8_t)(in_layer / MATRIX_COLS), (uint8_t)(in_layer % MATRIX_COLS));
-    }
-
-    index = (uint16_t)(index - KEY_WORDS);
-
-    if (index < ENCODER_WORDS) {
-        return keymap_default_encoder((uint8_t)(index / (ENCODER_COUNT * 2u)), (uint8_t)((index / 2u) % ENCODER_COUNT), (index & 1u) != 0);
-    }
-
-    index = (uint16_t)(index - ENCODER_WORDS);
-
-    if (index < MACRO_WORDS) {
-        return 0;
-    }
-
-    index = (uint16_t)(index - MACRO_WORDS);
-
-    if (index < TD_WORDS) {
-        return keymap_default_tap_dance((uint8_t)(index / TD_FIELDS), (uint8_t)(index % TD_FIELDS));
-    }
-
-    return keymap_default_cfg((uint8_t)(index - TD_WORDS));
+    sec = SEC_KEYS;
+    ca = cb = cc = 0;
+    cm = 0;
 }
 
-// Payload word `index` of the RAM copy: the keys, the encoders, the macros (two bytes a word, little-endian), the tap
-// dances, the settings.
-static uint16_t word_get(uint16_t index)
+static void cursor_advance(void)
 {
-    if (index < KEY_WORDS) {
-        const uint16_t per_layer = (uint16_t)(MATRIX_ROWS * MATRIX_COLS);
-        const uint16_t in_layer  = (uint16_t)(index % per_layer);
-
-        return keymap_get((uint8_t)(index / per_layer), (uint8_t)(in_layer / MATRIX_COLS), (uint8_t)(in_layer % MATRIX_COLS));
+    switch (sec) {
+        case SEC_KEYS:
+            if (++cc >= MATRIX_COLS) {
+                cc = 0;
+                if (++cb >= MATRIX_ROWS) {
+                    cb = 0;
+                    if (++ca >= KEYMAP_LAYERS) {
+                        sec = SEC_ENCODERS;
+                        ca = 0;
+                    }
+                }
+            }
+            break;
+        case SEC_ENCODERS:
+            if (++cc >= 2) {
+                cc = 0;
+                if (++cb >= ENCODER_COUNT) {
+                    cb = 0;
+                    if (++ca >= KEYMAP_LAYERS) {
+                        sec = SEC_MACROS;
+                        ca = 0;
+                    }
+                }
+            }
+            break;
+        case SEC_MACROS:
+            if (++cm >= MACRO_WORDS) {
+                sec = SEC_TAP_DANCES;
+                ca = cb = 0;
+            }
+            break;
+        case SEC_TAP_DANCES:
+            if (++cb >= TD_FIELDS) {
+                cb = 0;
+                if (++ca >= KEYMAP_TAP_DANCE_COUNT) {
+                    sec = SEC_CFG;
+                    ca = 0;
+                }
+            }
+            break;
+        case SEC_CFG:
+            if (++ca >= KEYMAP_CFG_COUNT) {
+                sec = SEC_END;
+            }
+            break;
+        default:
+            break;
     }
-
-    index = (uint16_t)(index - KEY_WORDS);
-
-    if (index < ENCODER_WORDS) {
-        return keymap_get_encoder((uint8_t)(index / (ENCODER_COUNT * 2u)), (uint8_t)((index / 2u) % ENCODER_COUNT), (index & 1u) != 0);
-    }
-
-    index = (uint16_t)(index - ENCODER_WORDS);
-
-    if (index < MACRO_WORDS) {
-        return (uint16_t)(keymap_macro_byte((uint16_t)(index * 2u)) | ((uint16_t)keymap_macro_byte((uint16_t)(index * 2u + 1u)) << 8));
-    }
-
-    index = (uint16_t)(index - MACRO_WORDS);
-
-    if (index < TD_WORDS) {
-        return keymap_tap_dance_get((uint8_t)(index / TD_FIELDS), (uint8_t)(index % TD_FIELDS));
-    }
-
-    return keymap_cfg_get((uint8_t)(index - TD_WORDS));
 }
 
-static void word_set(uint16_t index, uint16_t value)
+// The word under the cursor, as the RAM copy has it
+static uint16_t cursor_get(void)
 {
-    if (index < KEY_WORDS) {
-        const uint16_t per_layer = (uint16_t)(MATRIX_ROWS * MATRIX_COLS);
-        const uint16_t in_layer  = (uint16_t)(index % per_layer);
-
-        keymap_set((uint8_t)(index / per_layer), (uint8_t)(in_layer / MATRIX_COLS), (uint8_t)(in_layer % MATRIX_COLS), value);
-        return;
+    switch (sec) {
+        case SEC_KEYS:       return keymap_get(ca, cb, cc);
+        case SEC_ENCODERS:   return keymap_get_encoder(ca, cb, cc != 0);
+        case SEC_MACROS:     return (uint16_t)(keymap_macro_byte((uint16_t)(cm * 2u)) | ((uint16_t)keymap_macro_byte((uint16_t)(cm * 2u + 1u)) << 8));
+        case SEC_TAP_DANCES: return keymap_tap_dance_get(ca, cb);
+        case SEC_CFG:        return keymap_cfg_get(ca);
+        default:             return 0;
     }
+}
 
-    index = (uint16_t)(index - KEY_WORDS);
-
-    if (index < ENCODER_WORDS) {
-        keymap_set_encoder((uint8_t)(index / (ENCODER_COUNT * 2u)), (uint8_t)((index / 2u) % ENCODER_COUNT), (index & 1u) != 0, value);
-        return;
+// The word under the cursor, as the compiled-in profile has it (the macros are empty by default)
+static uint16_t cursor_default(void)
+{
+    switch (sec) {
+        case SEC_KEYS:       return keymap_default(ca, cb, cc);
+        case SEC_ENCODERS:   return keymap_default_encoder(ca, cb, cc != 0);
+        case SEC_TAP_DANCES: return keymap_default_tap_dance(ca, cb);
+        case SEC_CFG:        return keymap_default_cfg(ca);
+        default:             return 0;
     }
+}
 
-    index = (uint16_t)(index - ENCODER_WORDS);
+static void cursor_set(uint16_t value)
+{
+    switch (sec) {
+        case SEC_KEYS:
+            keymap_set(ca, cb, cc, value);
+            break;
+        case SEC_ENCODERS:
+            keymap_set_encoder(ca, cb, cc != 0, value);
+            break;
+        case SEC_MACROS: {
+            const uint8_t bytes[2] = {(uint8_t)(value & 0xFFu), (uint8_t)(value >> 8)};
 
-    if (index < MACRO_WORDS) {
-        const uint8_t bytes[2] = {(uint8_t)(value & 0xFFu), (uint8_t)(value >> 8)};
-
-        keymap_macro_write((uint16_t)(index * 2u), 2, bytes);
-        return;
+            keymap_macro_write((uint16_t)(cm * 2u), 2, bytes);
+            break;
+        }
+        case SEC_TAP_DANCES:
+            keymap_tap_dance_set(ca, cb, value);
+            break;
+        case SEC_CFG:
+            keymap_cfg_set(ca, value);
+            break;
+        default:
+            break;
     }
-
-    index = (uint16_t)(index - MACRO_WORDS);
-
-    if (index < TD_WORDS) {
-        keymap_tap_dance_set((uint8_t)(index / TD_FIELDS), (uint8_t)(index % TD_FIELDS), value);
-        return;
-    }
-
-    keymap_cfg_set((uint8_t)(index - TD_WORDS), value);
 }
 
 static void compute_defaults_print(void)
 {
     uint16_t crc = 0xFFFFu;
 
+    cursor_start();
+
     for (uint16_t i = 0; i < WORDS; i++) {
-        crc = crc16_word(crc, default_word(i));
+        crc = crc16_word(crc, cursor_default());
+        cursor_advance();
     }
 
     defaults_print = crc;
@@ -205,6 +228,8 @@ static uint16_t slot_payload(uint8_t slot, bool apply)
     uint16_t crc = 0xFFFFu;
     uint16_t at  = 0; // byte offset into the payload
 
+    cursor_start();
+
     while (at < PAYLOAD) {
         const uint8_t n = (PAYLOAD - at > CHUNK) ? (uint8_t)CHUNK : (uint8_t)(PAYLOAD - at);
 
@@ -216,7 +241,8 @@ static uint16_t slot_payload(uint8_t slot, bool apply)
 
         if (apply) {
             for (uint8_t i = 0; i < n; i += 2) {
-                word_set((uint16_t)((at + i) / 2), (uint16_t)(chunk[i] | ((uint16_t)chunk[i + 1] << 8)));
+                cursor_set((uint16_t)(chunk[i] | ((uint16_t)chunk[i + 1] << 8)));
+                cursor_advance();
             }
         }
 
@@ -310,12 +336,15 @@ void store_flush(void)
     uint16_t crc = 0xFFFFu;
     uint16_t at  = 0;
 
+    cursor_start();
+
     while (at < PAYLOAD) {
         const uint8_t n = (PAYLOAD - at > CHUNK) ? (uint8_t)CHUNK : (uint8_t)(PAYLOAD - at);
 
         for (uint8_t i = 0; i < n; i += 2) {
-            const uint16_t word = word_get((uint16_t)((at + i) / 2));
+            const uint16_t word = cursor_get();
 
+            cursor_advance();
             chunk[i]     = (uint8_t)(word & 0xFFu);
             chunk[i + 1] = (uint8_t)(word >> 8);
         }

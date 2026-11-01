@@ -25,6 +25,10 @@ uint16_t keymap_default_tap_dance(uint8_t index, uint8_t field)
     return (uint16_t)(index * 16 + field);
 }
 
+uint8_t hud_hook_host_leds(void) { return 0; }
+void layer_hook_mods_add(uint8_t m) { (void)m; }
+void layer_hook_mods_del(uint8_t m) { (void)m; }
+
 static uint32_t now_ms;
 
 uint32_t via_hook_now(void) { return now_ms; }
@@ -35,7 +39,7 @@ const ROM uint8_t vial_definition[70] = {
     32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63,
     64, 65, 66, 67, 68, 69,
 };
-const uint32_t vial_definition_size = 70;
+const uint16_t vial_definition_size = 70;
 const ROM uint8_t vial_keyboard_uid[8] = {0x46, 0xEC, 0xD0, 0x56, 0x5D, 0xF8, 0x4F, 0xA8};
 const ROM uint8_t vial_unlock_keys[][2] = {{0, 0}, {2, 13}}; // (row, col)
 const uint8_t vial_unlock_key_count = 2;
@@ -401,6 +405,16 @@ static void test_tap_dances(void)
     CHECK(buf[0] == 0xFE && buf[1] == 0x7F);
 }
 
+static void test_the_hud_is_reached_through_via(void)
+{
+    reset();
+    REQUEST(0xF0, 0x01, 0, 0x05); // GET_INFO, sequence 5
+    CHECK(buf[0] == 0xF0 && buf[1] == 0x01 && buf[2] == 0 && buf[3] == 0x05 && buf[4] == 2); // protocol 2: it answered
+
+    REQUEST(0xF0, 0x7F, 0, 0x09); // a command it does not know: status 1
+    CHECK(buf[0] == 0xF0 && buf[2] == 1 && buf[3] == 0x09);
+}
+
 static void test_diagnostics_need_the_unlock(void)
 {
     reset();
@@ -439,6 +453,7 @@ int main(void)
     test_matrix_state();
     test_qmk_settings();
     test_tap_dances();
+    test_the_hud_is_reached_through_via();
     test_diagnostics_need_the_unlock();
     test_edits_are_seen_by_the_store();
     return tests_result();

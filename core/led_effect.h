@@ -18,8 +18,6 @@ typedef enum {
 
 #define FX_OFF FX_COUNT // the effect number of "no backlight"
 
-// Fills the distance tables (the radial effect is a function of the distance to the centre of the board).
-void led_effect_init(void);
 
 // Position of key (row, col) on the colour wheel for an effect, 0-255.
 uint8_t led_effect_index(led_effect_t fx, uint8_t row, uint8_t col, uint8_t phase);

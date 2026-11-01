@@ -96,8 +96,6 @@ static void test_the_wheel_and_the_effects(void)
     led_color_wheel(84, rgb);
     CHECK(rgb[0] == 3 && rgb[2] == 252);
 
-    led_effect_init();
-
     CHECK(led_effect_rgb(FX_SOLID, 0, 0, 7, 100, rgb) && rgb[0] == 100 && rgb[1] == 100 && rgb[2] == 100);
     CHECK(!led_effect_rgb((led_effect_t)FX_OFF, 0, 0, 0, 255, rgb));
 
@@ -126,6 +124,41 @@ static void test_the_wheel_and_the_effects(void)
     CHECK(centre < led_effect_index(FX_RADIAL, 0, 0, 0) && centre < led_effect_index(FX_RADIAL, 4, 15, 0));
     CHECK(led_effect_index(FX_RADIAL, 0, 0, 0) == 255 && led_effect_index(FX_RADIAL, 4, 15, 0) == 255); // the corners are the farthest
     CHECK(led_effect_index(FX_RADIAL, 2, 7, 0) == led_effect_index(FX_RADIAL, 2, 8, 0)); // the centre falls between columns 7 and 8
+}
+
+// The table of the radial effect is the distance formula, scaled
+static void test_the_radial_table_is_the_formula(void)
+{
+    unsigned d[LED_ROWS][LED_COLS];
+    unsigned farthest = 1;
+
+    for (int row = 0; row < LED_ROWS; row++) {
+        for (int col = 0; col < LED_COLS; col++) {
+            const int dx = 2 * col - (LED_COLS - 1);
+            const int dy = 2 * row - (LED_ROWS - 1);
+            unsigned  r  = 0;
+
+            while ((r + 1) * (r + 1) <= (unsigned)(dx * dx + dy * dy)) {
+                r++;
+            }
+
+            d[row][col] = r;
+            if (r > farthest) {
+                farthest = r;
+            }
+        }
+    }
+
+    for (uint8_t row = 0; row < LED_ROWS; row++) {
+        for (uint8_t col = 0; col < LED_COLS; col++) {
+            CHECK(led_effect_index(FX_RADIAL, row, col, 0) == d[row][col] * 255 / farthest);
+        }
+        CHECK(led_effect_index(FX_VERTICAL, row, 0, 0) == (uint8_t)((row << 8) / LED_ROWS));
+    }
+
+    for (uint8_t col = 0; col < LED_COLS; col++) {
+        CHECK(led_effect_index(FX_HORIZONTAL, 0, col, 0) == (uint8_t)((col << 8) / LED_COLS));
+    }
 }
 
 static void test_solid_white_fills_the_board(void)
@@ -363,6 +396,7 @@ static void test_a_repaint_is_done_in_pieces(void)
 int main(void)
 {
     test_the_wheel_and_the_effects();
+    test_the_radial_table_is_the_formula();
     test_solid_white_fills_the_board();
     test_off_is_dark();
     test_plain_effect_in_a_colour();

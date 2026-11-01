@@ -47,7 +47,7 @@ static bool unlock_keys_held(void)
     return true;
 }
 
-static void put_u32_le(uint8_t *out, uint32_t value)
+static void put_u32_le(XDATA uint8_t *out, uint32_t value)
 {
     out[0] = (uint8_t)(value & 0xFFu);
     out[1] = (uint8_t)((value >> 8) & 0xFFu);
@@ -55,12 +55,12 @@ static void put_u32_le(uint8_t *out, uint32_t value)
     out[3] = (uint8_t)((value >> 24) & 0xFFu);
 }
 
-static uint16_t u16_le(const uint8_t *in)
+static uint16_t u16_le(XDATA const uint8_t *in)
 {
     return (uint16_t)(in[0] | ((uint16_t)in[1] << 8));
 }
 
-static void unlock_status(uint8_t *data, uint8_t length)
+static void unlock_status(XDATA uint8_t *data, uint8_t length)
 {
     memset(data, 0xFF, length);
     data[0] = unlocked;
@@ -73,7 +73,7 @@ static void unlock_status(uint8_t *data, uint8_t length)
 }
 
 // The GUI polls while the user holds the keys; they must stay down for UNLOCK_COUNTER_MAX steps of 100 ms
-static void unlock_poll(uint8_t *data)
+static void unlock_poll(XDATA uint8_t *data)
 {
     if (unlock_in_progress) {
         if ((uint16_t)(now16() - unlock_timer) > UNLOCK_STEP_MS && unlock_keys_held()) {
@@ -94,26 +94,28 @@ static void unlock_poll(uint8_t *data)
 }
 
 // 32-byte pages of the compressed definition; a page past the end gets no reply content (the request is echoed)
-static void get_definition(uint8_t *data, uint8_t length)
+static void get_definition(XDATA uint8_t *data, uint8_t length)
 {
-    const uint32_t start = (uint32_t)u16_le(&data[2]) * length;
-    uint32_t       end   = start + length;
+    _Static_assert(VIA_RAW_SIZE == 32, "the pages are 32 bytes: the page number is shifted by 5");
 
-    if (start >= vial_definition_size) {
+    const uint16_t start = (uint16_t)(u16_le(&data[2]) << 5);
+    uint16_t       end   = (uint16_t)(start + length);
+
+    if (start >= vial_definition_size || start < (u16_le(&data[2]) << 5) - 0) {
         return;
     }
 
-    if (end > vial_definition_size) {
+    if (end > vial_definition_size || end < start) {
         end = vial_definition_size;
     }
 
-    for (uint32_t i = start; i < end; i++) {
+    for (uint16_t i = start; i < end; i++) {
         data[i - start] = vial_definition[i];
     }
 }
 
 // The GUI asks for both directions at once: counter-clockwise first, then clockwise (big-endian keycodes)
-static void get_encoder(uint8_t *data)
+static void get_encoder(XDATA uint8_t *data)
 {
     const bool     valid = data[2] < KEYMAP_LAYERS && data[3] < ENCODER_COUNT;
     const uint16_t ccw   = valid ? keymap_get_encoder(data[2], data[3], false) : 0;
@@ -127,7 +129,7 @@ static void get_encoder(uint8_t *data)
 
 // 0x00 counts the entries (tap dances only: no combos, key overrides or alt repeat keys), 0x01 reads one (status, then its five
 // words), 0x02 writes one (index in data[3], the five words from data[4])
-static void dynamic_entry(uint8_t *data, uint8_t length)
+static void dynamic_entry(XDATA uint8_t *data, uint8_t length)
 {
     switch (data[2]) {
         case 0x00:
@@ -173,7 +175,7 @@ static void dynamic_entry(uint8_t *data, uint8_t length)
     }
 }
 
-void vial_receive(uint8_t *data, uint8_t length)
+void vial_receive(XDATA uint8_t *data, uint8_t length)
 {
     switch (data[1]) {
         case vial_get_keyboard_id:
@@ -183,7 +185,7 @@ void vial_receive(uint8_t *data, uint8_t length)
             break;
 
         case vial_get_size:
-            put_u32_le(&data[0], vial_definition_size);
+            put_u32_le(&data[0], (uint32_t)vial_definition_size);
             break;
 
         case vial_get_def:
