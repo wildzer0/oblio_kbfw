@@ -14,3 +14,6 @@ void keyboard_task(uint16_t now);
 
 // Provided by the board: a keycode of the keyboard-specific range (QK_KB), going down or up.
 void keyboard_hook_custom(uint16_t keycode, bool pressed);
+
+// Provided by the board: a key changed or the knob turned (the keyboard is in use).
+void keyboard_hook_activity(void);

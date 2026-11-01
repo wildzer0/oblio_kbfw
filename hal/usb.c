@@ -120,6 +120,13 @@ void usb_hw_init(void)
     IEN1 |= IEN1_EUSB;
 }
 
+void usb_hw_deinit(void)
+{
+    USBADDR = 0;
+    USBCON &= (uint8_t) ~(USBCON_ENUSB | USBCON_SW1CON | USBCON_SW2CON); // drop the module-enable bits
+    IEN1 &= (uint8_t)~IEN1_EUSB;
+}
+
 bool usb_hw_take_event(void)
 {
     const bool taken = event;

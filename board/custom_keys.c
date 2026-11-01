@@ -2,6 +2,9 @@
 #include "b68_keys.h"
 #include "led.h"
 #include "link.h"
+#include "settings.h"
+#include "sleep.h"
+#include "sleep_hw.h"
 #include "timebase.h"
 #include "store.h"
 
@@ -27,10 +30,27 @@ void keyboard_hook_custom(uint16_t keycode, bool pressed)
         case B68_SPD_UP:  led_speed_up(); break;
         case B68_COL_DN:  led_color_down(); break;
         case B68_COL_UP:  led_color_up(); break;
+        case B68_SLEEP:
+            sleep_now(); // does nothing in USB mode or with the cable: sleep_hw_task() only sleeps on battery
+            break;
+        case B68_SLP_DN:
+            settings_set_sleep_level((uint8_t)(settings.sleep_level > 0 ? settings.sleep_level - 1 : 0));
+            sleep_hw_apply_level(settings.sleep_level, true);
+            break;
+        case B68_SLP_UP:
+            settings_set_sleep_level((uint8_t)(settings.sleep_level + 1));
+            sleep_hw_apply_level(settings.sleep_level, true);
+            break;
         default:
             if (keycode >= B68_PROF_1 && keycode <= B68_PROF_4) {
                 store_request((uint8_t)(keycode - B68_PROF_1));
             }
             break;
     }
+}
+
+// Any key or turn of the knob counts as use for the sleep timer
+void keyboard_hook_activity(void)
+{
+    sleep_note_activity();
 }

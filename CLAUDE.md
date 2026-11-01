@@ -36,7 +36,8 @@ programmatore ICP**, Arduino Nano, per non rischiare di aprire la tastiera) → 
 - Fase 3 fatta (keycodes, layer, report, tapping, macro, profili/store con flash finta nei test), commit e push a ogni passo (richiesta dell'utente). La CI remota è passata sui commit delle fasi 1–2.
 - Fase 4 fatta (descrittori, macchina a stati EP0 testata sull'host, driver USB, coda dei report su EP1, raw HID su EP2, comando ISP → bootloader): **nessuna parte provata sull'hardware**.
 - Fase 5 fatta (core/via+vial testati sull'host, `board/vial.json` + `tools/vial_gen.py` + `check_vial.py`): non provata con l'app Vial sull'hardware.
-- Prossimo passo: fase 6 (LED, radio BK3632, sleep, impostazioni globali: l'ordine lo decidiamo insieme, sono moduli grossi). Dopo una compilazione fallita controllare che `build/` non abbia un `.ihx` vecchio (ora c'è `.DELETE_ON_ERROR`). In ogni sessione aggiornare CHANGELOG.md.
+- Fase 6 fatta (encoder, impostazioni a 0xEC00, LED con tick alternato scansione/sottoquadri, radio BK3632 con selettore e slot BT, sleep): **nessuna parte provata sull'hardware**; flash 41194/44032 (2,8 KB di margine).
+- Prossimo passo: fase 7 (parità con il porting SMK e passaggio): ripasso funzione per funzione, misure da fare sull'hardware (durata ISR, stack, flicker), prima prova sulla tastiera con ICP o con `sinowisp`. Dopo una compilazione fallita controllare che `build/` non abbia un `.ihx` vecchio (ora c'è `.DELETE_ON_ERROR`). In ogni sessione aggiornare CHANGELOG.md.
 
 ## Come lavora l'utente (preferenze confermate)
 - Scrivo **io** tutto il codice e la documentazione; l'utente fa solo le prove sull'hardware. Ogni modifica va spiegata in modo che possa rivederla.

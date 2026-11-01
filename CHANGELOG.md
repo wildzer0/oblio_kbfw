@@ -7,7 +7,7 @@
 3. Logica pura con test sull'host (layer, tapping, report, macro, profili) — **fatta** (passi 1–5, 8 file di test)
 4. USB e raw HID — **scritta, non provata sull'hardware**
 5. Vial/VIA — **scritta, non provata sull'hardware**
-6. Radio, LED, profili, sleep
+6. Radio, LED, profili, sleep — **scritta, non provata sull'hardware**
 7. Parità con il porting SMK e passaggio
 
 Il controllo di recupero Esc+1+2 va all'inizio del `main`, prima di USB e radio.
@@ -172,3 +172,13 @@ Vial/VIA completi per quanto serve al porting: tasti, encoder, macro, tap dance,
 - `hal/sh68f90.h`/`hal/gpio.h`: registri della seriale e macro di direzione. Makefile: la lista `NOT_LINKED` è di nuovo vuota.
 - Test `test_link.c` (10 test con una radio che risponde ai comandi di modo): stabilità di 50 ms, selettore che rimbalza, USB = cavo, 2.4G, uscita dalla radio con rilascio dei tasti, tocco su un tasto Bluetooth, pressione lunga = accoppiamento (e rilascio successivo senza effetti), tasti fuori dal Bluetooth, rilascio di un altro tasto, riavvio dopo lo sleep.
 - Verifica: `make test` 19 file OK; `make fw size` da pulito → flash 40143/44032, XDATA 3246/4096. **Restano 3,9 KB di flash**: lo sleep dovrà starci. Simulatore non usato; nessuna prova sull'hardware (seriale, priorità, SEL/ATT, selettore: tutto ripreso dal porting che funzionava in 2.4G e Bluetooth).
+
+### Fase 6, passo 6 — sleep
+- `core/sleep.[ch]` (puro, testato): tempo di inattività contato in secondi dall'orologio in ms del `main` (sopporta il giro dei 16 bit se chiamato almeno ogni 65 s), livelli 1, 5, 10, 30 minuti o mai (predefinito 10), uso (tasto, manopola) che azzera il conteggio, cambio di livello che lo riavvia (un livello più corto non lo trova già superato), richiesta immediata (Fn+Tab), e «non consentito» (cavo visto dal PC o modo USB): il conteggio resta a zero e parte dal momento in cui diventa possibile, una richiesta fatta nel frattempo si dimentica. 9 test; mutazione provata. **Differenza dal porting:** SMK contava frame LED (con un divisore per stare in 16 bit); qui si contano secondi veri.
+- `hal/power.[ch]`: la sequenza di power-down dello stock/porting — USB spento, orologio e PLL fermi, sorgenti di risveglio armate (evento USB e INT4 con i valori `IENC = 0xF3`, `EXF0 = 0x40` dello stock, non documentati nel datasheet), regolatore spento, `SUSLO = 0x55` seguito subito da `PCON |= PD`; al risveglio orologio, regolatore (500 µs di assestamento) e flag USB. `hal/clock.c`: `clock_stop`/`clock_wake_restart`; `hal/usb.c`: `usb_hw_deinit`. Vettore INT4 a 0x000B verificato.
+- `board/sleep_hw.c`: la sequenza completa nell'ordine dello stock: radio (`01 0C 08 07 00`, `01 0B 00`), timer e PWM fermi, seriale spenta, tutti i `PWMxxCON` a 1, pin parcheggiati (righe in ingresso con pull-up, colonne/LED/selettore/encoder in uscita a 0, P4.1 alto = linea di risveglio, P7.6 basso), INT4; al risveglio GPIO come lo stock, PWM, seriale, radio e selettore da riapplicare, USB rilasciato e riavviato. Solo con un modo wireless e **senza** cavo configurato dal PC. Tasti: `B68_SLP_DN/UP` (livello −/+, salvato nelle impostazioni, i tasti 1–5 lampeggiano il passo) e `B68_SLEEP` (subito). L'uso è registrato da `keyboard_hook_activity` (tasti e scatti della manopola).
+- **Rischio dichiarato, non attenuabile senza hardware:** se un pin o un registro fosse sbagliato la tastiera non si sveglierebbe; si recupera staccando/riattaccando l'USB (e con Esc+1+2 si entra nel bootloader). Tutto il codice di questo passo è ripreso dal porting, dove era scritto ma non ancora provato dall'utente; da provare con la batteria, senza cavo, con un tester in serie per misurare la corrente.
+- Verifica: `make test` 20 file OK; `make fw size` → flash 41194/44032, XDATA 3257/4096. Simulatore non usato; nessuna prova sull'hardware.
+
+### Fine fase 6
+Encoder, impostazioni globali, retroilluminazione con tick alternato, radio 2.4G/Bluetooth con selettore e slot, sleep. **Margine di flash: 2,8 KB sotto 0xAC00.**

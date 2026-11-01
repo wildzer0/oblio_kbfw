@@ -166,6 +166,20 @@ static __xdata __at(0x1120) volatile uint8_t EP1_IN_BUF[EP1_BUF_SIZE];
 static __xdata __at(0x1140) volatile uint8_t EP2_OUT_BUF[EP2_BUF_SIZE];
 static __xdata __at(0x1180) volatile uint8_t EP2_IN_BUF[EP2_BUF_SIZE];
 
+// Power-down and the wake-up line (INT4)
+SFR(SUSLO, 0x8e);
+SFR(IENC, 0xba);
+SFR(EXF0, 0xb6);
+SFR(EXF1, 0xe8);
+SBIT(EX4, 0xa8, 1);
+
+#define PCON_PD            (1u << 1)
+#define SUSLO_POWERDOWN_KEY 0x55 // written right before PCON.PD
+#define USBIE1_BOOTS       (1u << 7)
+// INT4's edge and trigger mode: the datasheet does not document these two registers; the values are the stock firmware's
+#define IENC_INT4_CONFIG  0xF3
+#define EXF0_INT4_TRIGGER 0x40
+
 // The serial port (EUART0), which carries the link to the radio
 SFR(PCON, 0x87);
 SFR(SCON, 0xd8);
@@ -189,3 +203,4 @@ SBIT(SM0_FE, 0xd8, 7);
 #define INT_TIMER2 0
 #define INT_USB    7
 #define INT_EUART0 13
+#define INT_INT4   1

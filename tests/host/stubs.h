@@ -24,3 +24,5 @@ uint8_t encoder_hook_state(uint8_t index)
     (void)index;
     return stub_encoder_state;
 }
+
+void keyboard_hook_activity(void) {}

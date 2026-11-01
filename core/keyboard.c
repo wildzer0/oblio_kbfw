@@ -141,6 +141,7 @@ static void process_key_state(uint8_t row, uint8_t col, bool pressed)
 void keyboard_event(const matrix_event_t *event, uint16_t now)
 {
     current_now = now;
+    keyboard_hook_activity();
     process_key_state(event->row, event->col, event->pressed);
 }
 
@@ -154,6 +155,8 @@ static void encoder_task(void)
 
         for (uint8_t taps = 0; taps < ENCODER_TAPS_PER_PASS && encoder_next(i, &clockwise); taps++) {
             const uint16_t keycode = layer_lookup_encoder(i, clockwise);
+
+            keyboard_hook_activity(); // turning the knob is use
 
             run_keycode(keycode, true);
             run_keycode(keycode, false);

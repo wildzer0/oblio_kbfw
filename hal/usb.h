@@ -23,3 +23,6 @@ bool usb_hw_suspended(void);
 
 // The host has sent at least one SETUP packet since power-on: something is driving the bus.
 bool usb_hw_setup_seen(void);
+
+// Disconnects from the bus and switches the controller off, for a power-down.
+void usb_hw_deinit(void);

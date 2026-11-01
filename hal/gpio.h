@@ -10,3 +10,5 @@
 #define GPIO_LOW(port, mask)           (P##port &= (uint8_t) ~(mask))
 #define GPIO_OUTPUT(port, mask)        (P##port##CR |= (uint8_t)(mask))
 #define GPIO_INPUT(port, mask)         (P##port##CR &= (uint8_t) ~(mask))
+#define GPIO_PULLUP_ON(port, mask)     (P##port##PCR |= (uint8_t)(mask))
+#define GPIO_PULLUP_OFF(port, mask)    (P##port##PCR &= (uint8_t) ~(mask))

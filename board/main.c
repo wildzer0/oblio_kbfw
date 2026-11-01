@@ -10,6 +10,9 @@
 #include "led_app.h"
 #include "led_hw.h"
 #include "link.h"
+#include "power.h" // declares the wake-up handler, for the same reason
+#include "sleep.h"
+#include "sleep_hw.h"
 #include "radio_hw.h" // declares the serial handler, for the same reason
 #include "timebase.h"
 #include "matrix.h"
@@ -54,6 +57,8 @@ static void init(void)
     led_hw_init();
     radio_hw_init();
     link_init();
+    sleep_init(0);
+    sleep_hw_apply_level(settings.sleep_level, false);
     tick_init(); // from here on the timer plays the slots: LED subframes and scans (see core/sched.h)
 
     usb_device_reset();
@@ -96,5 +101,6 @@ void main(void)
         led_task();
         led_app_task(now_ms);
         link_task(now_ms);
+        sleep_hw_task(now_ms);
     }
 }
