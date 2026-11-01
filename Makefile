@@ -11,11 +11,8 @@ SDCC      ?= sdcc
 SDCCFLAGS := --std-c23 --Werror -mmcs51 --model-large --stack-auto \
              --xram-loc 0x0000 --xram-size $(XRAM_SIZE) --code-size $(CODE_LIMIT) \
              --opt-code-speed --out-fmt-ihx
-# Compiled to check them with SDCC, linked once the chip driver (step 2 of phase 4) provides their hooks
-USB_NOT_YET := core/usb_desc.c core/usb_device.c
-FW_SRC    := $(filter-out $(USB_NOT_YET),$(wildcard core/*.c hal/*.c board/*.c))
+FW_SRC    := $(wildcard core/*.c hal/*.c board/*.c)
 FW_REL    := $(patsubst %.c,build/%.rel,$(FW_SRC))
-USB_REL   := $(patsubst %.c,build/%.rel,$(USB_NOT_YET))
 
 .PHONY: test fw size clean
 test: $(HOST_TESTS)
@@ -27,6 +24,7 @@ LINK_layer := core/keymap.c
 LINK_keyboard := core/layer.c core/keymap.c core/report.c core/tapping.c core/macro.c
 LINK_tapping := core/keyboard.c core/layer.c core/keymap.c core/report.c core/macro.c
 LINK_macro := core/keymap.c
+LINK_usb_reports := core/report.c
 LINK_store := core/keymap.c
 
 .PHONY: FORCE
@@ -49,7 +47,7 @@ build/%.rel: %.c
 	@mkdir -p $(dir $@)
 	$(SDCC) $(SDCCFLAGS) -Icore -Ihal -Iboard -c $< -o $@
 
-build/oblio.ihx: $(FW_REL) $(USB_REL)
+build/oblio.ihx: $(FW_REL)
 	$(SDCC) $(SDCCFLAGS) $(FW_REL) -o $@
 
 build/oblio.hex: build/oblio.ihx

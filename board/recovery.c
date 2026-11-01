@@ -1,4 +1,5 @@
 #include "recovery.h"
+#include "isp.h"
 #include "matrix_hw.h"
 #include "delay.h"
 #include "watchdog.h"
@@ -21,19 +22,6 @@ static bool chord_down(const uint8_t raw[MATRIX_COLS])
     }
 
     return true;
-}
-
-// Enters the stock bootloader at 0xFF00 with the keys it expects in A and B (0x5A, 0xA5), interrupts off.
-static void isp_jump(void) __naked
-{
-    // clang-format off
-    __asm
-        clr     IE.7
-        mov     B, #0xa5
-        mov     A, #0x5a
-        ljmp    0xff00
-    __endasm;
-    // clang-format on
 }
 
 void recovery_check(void)

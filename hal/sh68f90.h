@@ -90,5 +90,82 @@ SFR(IB_CON5, 0xf6);
 SFR(XPAGE, 0xf7);
 SFR(FLASHCON, 0xa7);
 
+// Voltage regulator that powers the USB transceiver
+SFR(REGCON, 0x8f);
+#define REGCON_REGEN (1u << 0)
+
+// USB device controller
+SFR(USBCON, 0x91);
+SFR(USBIF1, 0x92);
+SFR(USBIF2, 0x93);
+SFR(USBIE1, 0x94);
+SFR(USBIE2, 0x95);
+SFR(USBADDR, 0x96);
+SFR(EP0CON, 0x97);
+SFR(EP1CON, 0x99);
+SFR(EP2CON, 0x9a);
+SFR(IEP0CNT, 0x9b);
+SFR(IEP1CNT, 0x9c);
+SFR(IEP2CNT, 0x9d);
+SFR(OEP0CNT, 0x9e);
+SFR(OEP1CNT, 0x9f);
+SFR(OEP2CNT, 0xa4);
+SFR(IEN1, 0xa9);
+
+#define USBCON_GOSUSP (1u << 0)
+#define USBCON_WKUP   (1u << 1)
+#define USBCON_SW2CON (1u << 2)
+#define USBCON_SWRST  (1u << 5) // reset the USB module
+#define USBCON_SW1CON (1u << 6) // connect: D+ pull-up
+#define USBCON_ENUSB  (1u << 7)
+
+#define USBIF1_USBRSTIF (1u << 0) // bus reset
+#define USBIF1_SUSPIF   (1u << 1)
+#define USBIF1_RESMIF   (1u << 2)
+#define USBIF1_SOFIF    (1u << 3)
+#define USBIF1_SETUPIF  (1u << 4)
+#define USBIF1_OW       (1u << 5)
+#define USBIF1_OVERIF   (1u << 6)
+#define USBIF1_PUPIF    (1u << 7) // power-up
+
+#define USBIF2_IEP0IF (1u << 0)
+#define USBIF2_IEP1IF (1u << 1)
+#define USBIF2_IEP2IF (1u << 2)
+#define USBIF2_OEP0IF (1u << 4)
+#define USBIF2_OEP1IF (1u << 5)
+#define USBIF2_OEP2IF (1u << 6)
+
+#define USBIE1_PBRSTIE (1u << 0)
+#define USBIE1_SUSPIE  (1u << 1)
+#define USBIE1_RESMIE  (1u << 2)
+#define USBIE1_SOFIA   (1u << 3)
+#define USBIE1_SETUPIE (1u << 4)
+
+#define USBIE2_IEP0IE (1u << 0)
+#define USBIE2_OEP0IE (1u << 4)
+#define USBIE2_OEP2IE (1u << 6)
+
+#define IEN1_EUSB (1u << 0)
+
+// EP0CON / EP1CON / EP2CON: O = out (host to device), I = in
+#define EPCON_ORDY (1u << 0)
+#define EPCON_OSTL (1u << 1)
+#define EPCON_IRDY (1u << 2)
+#define EPCON_ISTL (1u << 3)
+#define EPCON_ODTG (1u << 6)
+#define EPCON_IDTG (1u << 7)
+
+// Endpoint buffers (their own memory, beyond the 4 KB of XDATA)
+#define EP0_BUF_SIZE 8
+#define EP1_BUF_SIZE 16
+#define EP2_BUF_SIZE 64
+
+static __xdata __at(0x1100) volatile uint8_t EP0_OUT_BUF[EP0_BUF_SIZE];
+static __xdata __at(0x1108) volatile uint8_t EP0_IN_BUF[EP0_BUF_SIZE];
+static __xdata __at(0x1120) volatile uint8_t EP1_IN_BUF[EP1_BUF_SIZE];
+static __xdata __at(0x1140) volatile uint8_t EP2_OUT_BUF[EP2_BUF_SIZE];
+static __xdata __at(0x1180) volatile uint8_t EP2_IN_BUF[EP2_BUF_SIZE];
+
 // Interrupt numbers, as SDCC's __interrupt(n) wants them: vector 0x0003 + 8 * n. On this chip Timer 2 sits on vector 0.
 #define INT_TIMER2 0
+#define INT_USB    7
