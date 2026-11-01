@@ -80,9 +80,9 @@ void delay_us_nokick(uint8_t us) __naked
     // clang-format off
     __asm
         mov     a, dpl
-        jz      00199$
+        jz      00899$
         mov     r7, a
-00101$:
+00801$:
         nop
         nop
         nop
@@ -102,8 +102,8 @@ void delay_us_nokick(uint8_t us) __naked
         nop
         nop
         nop
-        djnz    r7, 00101$
-00199$:
+        djnz    r7, 00801$
+00899$:
         ret
     __endasm;
     // clang-format on
