@@ -491,6 +491,29 @@ static void test_stop_and_sleep(void)
     CHECK(!radio_active() && !select_low && select_ok);
 }
 
+static void test_monitor_listens_without_a_mode(void)
+{
+    reset();
+    radio_monitor(true);
+    CHECK(radio_active());
+    run(1000);
+
+    CHECK(count_of(0x06, 6) >= 4);       // status requests, every 200 ms
+    CHECK(count_of(0x01, 6) == 0);       // no mode command
+    CHECK(count_of(0x02, 30) == 0 && count_of(0x03, 13) == 0 && count_of(0x09, 32) == 0); // no report, no name
+
+    tx_count = 0;
+    inject_frame(0x03, 0x11, 0x22, 0x33, 0x44); // but the radio's own frames are still answered
+    run(3);
+    CHECK(is_command(0, 0xF0));
+
+    radio_monitor(false);
+    CHECK(!radio_active());
+    tx_count = 0;
+    run(500);
+    CHECK(tx_count == 0);
+}
+
 static void test_idle(void)
 {
     reset();
@@ -521,6 +544,7 @@ int main(void)
     test_garbage_before_a_frame_is_skipped();
     test_a_frame_that_never_ends_is_given_up_after_50_ms();
     test_stop_and_sleep();
+    test_monitor_listens_without_a_mode();
     test_idle();
     return tests_result();
 }

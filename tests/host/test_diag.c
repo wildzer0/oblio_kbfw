@@ -80,9 +80,31 @@ static void test_radio_reply(void)
     CHECK(data[8] == 0x08 && data[29] == 0x99); // the 22 bytes of the last 08 frame
 }
 
+static bool monitoring;
+
+void diag_hook_radio_monitor(bool on) { monitoring = on; }
+
+static void test_radio_monitor_switch(void)
+{
+    uint8_t data[32] = {0xF1, 2, 1};
+
+    diag_receive(data, 32);
+    CHECK(monitoring && data[0] == 0xF1 && data[1] == 2 && data[2] == 1);
+
+    uint8_t off[32] = {0xF1, 2, 0};
+
+    diag_receive(off, 32);
+    CHECK(!monitoring && off[2] == 0);
+
+    uint8_t odd[32] = {0xF1, 2, 7};
+
+    diag_receive(odd, 32);
+    CHECK(monitoring && odd[2] == 1);
+}
+
 static void test_unknown_kind_is_unhandled(void)
 {
-    uint8_t data[32] = {0xF1, 7};
+    uint8_t data[32] = {0xF1, 9};
 
     diag_receive(data, 32);
     CHECK(data[0] == 0xFF);
@@ -93,6 +115,7 @@ int main(void)
     test_counters();
     test_counters_reply();
     test_radio_reply();
+    test_radio_monitor_switch();
     test_unknown_kind_is_unhandled();
     return tests_result();
 }

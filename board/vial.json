@@ -212,9 +212,9 @@
       "shortName": "BT3"
     },
     {
-      "name": "Radio trace",
-      "title": "Type out the trace of the radio link (counters and the last events) over the cable",
-      "shortName": "TRC"
+      "name": "Battery",
+      "title": "Show the battery level on the number keys for 3 s: 1 = about 10%, 0 = full; green, red at 20% or less",
+      "shortName": "BAT"
     },
     {
       "name": "Sleep",

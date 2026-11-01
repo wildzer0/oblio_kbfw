@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
 """Reads the diagnostic counters of an Oblio keyboard (Linux, /dev/hidraw, no dependencies).
 
-usage: diag.py [--radio] [--watch SECONDS]
+usage: diag.py [--radio] [--monitor] [--watch SECONDS]
 
   (no option)  print the counters once
   --radio      also print the radio's last status bytes and its last 08 frame
+  --monitor    with the cable in (USB mode): listen to the radio's status too (it is switched off in USB mode); implies --radio
   --watch N    repeat every N seconds, printing only what changed
 
 The counters are behind the Vial unlock, so the first thing this does is ask for it: hold the unlock keys (Esc and Enter) when asked.
@@ -102,7 +103,8 @@ def radio(keyboard):
 
 def main():
     args = sys.argv[1:]
-    want_radio = "--radio" in args
+    want_monitor = "--monitor" in args
+    want_radio = "--radio" in args or want_monitor
     watch = None
     if "--watch" in args:
         watch = float(args[args.index("--watch") + 1])
@@ -113,6 +115,11 @@ def main():
 
     keyboard = Keyboard(path)
     keyboard.unlock()
+
+    if want_monitor:
+        if keyboard.ask(0xF1, 2, 1)[2] != 1:
+            sys.exit("diag: the keyboard did not start listening to the radio")
+        print("listening to the radio (only in USB mode; in the wireless modes it is in use anyway)")
 
     values = counters(keyboard)
     print("counters:")

@@ -1,5 +1,6 @@
 #include "diag.h"
 #include "diag_hw.h"
+#include "link.h"
 #include "matrix.h"
 #include "radio.h"
 #include "sh68f90.h"
@@ -42,4 +43,9 @@ const uint8_t *diag_hook_radio_status(void)
 const uint8_t *diag_hook_radio_info(void)
 {
     return radio_last_info();
+}
+
+void diag_hook_radio_monitor(bool on)
+{
+    link_monitor(on);
 }

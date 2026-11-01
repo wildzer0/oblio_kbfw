@@ -8,3 +8,4 @@ static const uint8_t diag_stub_zeros[22];
 void diag_hook_refresh(void) {}
 const uint8_t *diag_hook_radio_status(void) { return diag_stub_zeros; }
 const uint8_t *diag_hook_radio_info(void) { return diag_stub_zeros; }
+void diag_hook_radio_monitor(bool on) { (void)on; }

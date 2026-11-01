@@ -26,6 +26,10 @@ static uint8_t  last_profile = 0xFF;
 static uint16_t radio_flash;   // frames left of the radio / sleep feedback
 static uint8_t  radio_col;     // its key: row 0, this column
 static bool     radio_blink;
+
+static uint16_t battery_frames; // frames left of the battery display
+static uint8_t  battery_keys;   // keys lit, 1-10; 0 = no reading
+static bool     battery_low;
 static bool     last_caps;
 
 void led_init(void)
@@ -44,6 +48,7 @@ void led_init(void)
     profile_flash = 0;
     last_profile  = 0xFF; // the first profile seen is announced, as at power-on
     radio_flash   = 0;
+    battery_frames = 0;
     last_caps     = false;
     dirty         = true;
 }
@@ -135,6 +140,19 @@ static void paint_one(void)
         rgb[0] = rgb[1] = rgb[2] = 255;
     }
 
+    // The battery display is on top of everything else on the number keys
+    if (battery_frames && paint_row == 0 && paint_col >= 1 && paint_col <= 10) {
+        if (battery_keys == 0) { // no reading: all ten blink in white
+            if ((battery_frames / LED_RADIO_BLINK_HALF) & 1u) {
+                rgb[0] = rgb[1] = rgb[2] = 255;
+            }
+        } else if (paint_col <= battery_keys) {
+            rgb[0] = (battery_low) ? 255 : 0;
+            rgb[1] = (battery_low) ? 0 : 255;
+            rgb[2] = 0;
+        }
+    }
+
     for (uint8_t c = 0; c < 3; c++) {
         const uint8_t i   = (uint8_t)(paint_row * 3 + c);
         const uint8_t old = level[paint_col][i];
@@ -166,6 +184,14 @@ static void frame_passed(void)
         radio_flash--;
 
         if (radio_flash == 0 || (radio_blink && radio_flash % LED_RADIO_BLINK_HALF == 0)) {
+            dirty = true;
+        }
+    }
+
+    if (battery_frames) {
+        battery_frames--;
+
+        if (battery_frames == 0 || (battery_keys == 0 && battery_frames % LED_RADIO_BLINK_HALF == 0)) {
             dirty = true;
         }
     }
@@ -223,6 +249,21 @@ void led_render_all(void)
     for (uint8_t guard = 0; guard < 2 * LED_ROWS * LED_COLS / RENDER_CHUNK; guard++) {
         led_task();
     }
+}
+
+void led_show_battery(uint8_t percent)
+{
+    if (percent == LED_BATTERY_UNKNOWN || percent > 100) {
+        battery_keys = 0;
+        battery_low  = false;
+    } else {
+        battery_keys = (uint8_t)((percent + 9u) / 10u);
+        battery_keys = (battery_keys == 0) ? 1 : battery_keys; // even an empty battery shows its first key
+        battery_low  = percent <= LED_BATTERY_LOW;
+    }
+
+    battery_frames = LED_BATTERY_FRAMES;
+    dirty          = true;
 }
 
 void led_flash_key(uint8_t kind, uint8_t index)

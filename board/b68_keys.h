@@ -20,7 +20,7 @@
 #define B68_LK_1    0x7E0Du // Bluetooth slot 1-3: a tap selects it, held for 3 s it starts pairing
 #define B68_LK_2    0x7E0Eu
 #define B68_LK_3    0x7E0Fu
-#define B68_TRACE   0x7E10u // types out the trace of the radio link
+#define B68_BATTERY 0x7E10u // shows the battery level on the number keys (it was the radio trace in the SMK port, which Oblio does not have)
 #define B68_SLEEP   0x7E11u // sleeps now, only in the wireless modes
 #define B68_SLP_DN  0x7E12u // inactivity time before sleep: shorter / longer
 #define B68_SLP_UP  0x7E13u

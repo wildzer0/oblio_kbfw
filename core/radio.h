@@ -43,6 +43,10 @@ void radio_set_link(uint8_t slot, bool pairing);
 // The selector went to USB: nothing more is sent.
 void radio_stop(void);
 
+// Listens to the radio without giving it a mode: only the status requests and the acknowledgements of its own frames go out (nothing the
+// radio would take for a link). For finding out what the radio says about the battery with the cable in; `false` stops it.
+void radio_monitor(bool on);
+
 // Before the MCU sleeps: the frames the stock firmware sends first (01 0C 08 07 00, then 01 0B 00), blocking, with delays by loops
 // (the timer is stopped). Leaves the radio idle.
 void radio_sleep(void);

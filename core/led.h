@@ -54,6 +54,14 @@ void led_task(void);
 // backlight of any colour.
 void led_flash_key(uint8_t kind, uint8_t index);
 
+// The battery level on the number keys 1 2 ... 9 0 (row 0, columns 1-10) for about 3 s: n keys lit with n = ceil(percent / 10), so that
+// 1 means about 10% and 0 (the tenth) means full, green above LED_BATTERY_LOW and red at or below it. LED_BATTERY_UNKNOWN (no reading)
+// blinks all ten in white. A second call renews the display.
+#define LED_BATTERY_UNKNOWN 0xFFu
+#define LED_BATTERY_LOW     20u    // percent: at or below this the keys are red
+#define LED_BATTERY_FRAMES  366u   // ~3 s
+void led_show_battery(uint8_t percent);
+
 // The keys of the lighting: they change the setting of the profile in use.
 void led_effect_next(void);
 void led_effect_prev(void);

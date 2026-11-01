@@ -245,6 +245,25 @@ static void test_another_key_released_is_not_a_tap(void)
     CHECK(settings.bt_slot == 1);
 }
 
+static void test_the_radio_can_be_listened_to_only_with_the_cable(void)
+{
+    reset();
+    selector = LINK_USB;
+    run(100);
+    link_monitor(true);
+    CHECK(radio_active());
+    run(500);
+    CHECK(modes_sent() == 0 && tx_count > 0); // status requests only
+    link_monitor(false);
+    CHECK(!radio_active());
+
+    reset();
+    selector = LINK_2G4;
+    run(100);
+    link_monitor(false); // the radio is in use: not stopped by this
+    CHECK(radio_active());
+}
+
 static void test_wake_applies_the_selector_again(void)
 {
     reset();
@@ -270,6 +289,7 @@ int main(void)
     test_a_hold_pairs();
     test_the_keys_outside_bluetooth_only_remember_the_slot();
     test_another_key_released_is_not_a_tap();
+    test_the_radio_can_be_listened_to_only_with_the_cable();
     test_wake_applies_the_selector_again();
     return tests_result();
 }

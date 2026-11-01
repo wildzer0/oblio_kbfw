@@ -323,6 +323,107 @@ static void test_pairing_blinks(void)
     CHECK(is(0, 1, 160, 160, 160)); // after about ten seconds it stops
 }
 
+static bool is_green(uint8_t col) { return is(0, col, 0, 255, 0); }
+static bool is_red(uint8_t col) { return is(0, col, 255, 0, 0); }
+
+static unsigned battery_keys_lit(bool green)
+{
+    unsigned n = 0;
+
+    for (uint8_t col = 1; col <= 10; col++) {
+        n += green ? is_green(col) : is_red(col);
+    }
+
+    return n;
+}
+
+static void test_the_battery_level_on_the_number_keys(void)
+{
+    // percent -> keys lit (ceil(p / 10), at least one), green above 20%, red at 20% or below
+    static const struct { uint8_t percent; unsigned keys; bool green; } cases[] = {
+        {100, 10, true}, {95, 10, true}, {91, 10, true}, {90, 9, true}, {50, 5, true}, {21, 3, true},
+        {20, 2, false}, {11, 2, false}, {10, 1, false}, {1, 1, false}, {0, 1, false},
+    };
+
+    for (unsigned i = 0; i < sizeof cases / sizeof cases[0]; i++) {
+        reset(FX_SOLID);
+        frames(LED_PROFILE_FLASH + 1);
+        led_show_battery(cases[i].percent);
+        settle();
+
+        CHECK(battery_keys_lit(cases[i].green) == cases[i].keys);
+        CHECK(battery_keys_lit(!cases[i].green) == 0);
+
+        // they are the first keys 1, 2, ... in order, and the rest of the number row is as it was
+        for (uint8_t col = 1; col <= 10; col++) {
+            if (col > cases[i].keys) {
+                CHECK(is(0, col, 160, 160, 160));
+            }
+        }
+    }
+}
+
+static void test_the_battery_display_ends_after_three_seconds_and_is_renewed(void)
+{
+    reset(FX_SOLID);
+    frames(LED_PROFILE_FLASH + 1);
+    led_show_battery(50);
+    settle();
+    CHECK(is_green(5));
+
+    frames(LED_BATTERY_FRAMES - 5);
+    settle();
+    CHECK(is_green(5));
+
+    led_show_battery(30); // a second tap: the time starts over, with the new level
+    frames(LED_BATTERY_FRAMES - 5);
+    settle();
+    CHECK(is_green(3) && !is_green(4));
+
+    frames(10);
+    settle();
+    CHECK(is(0, 3, 160, 160, 160)); // over
+}
+
+static void test_no_reading_blinks_all_ten_in_white(void)
+{
+    reset(FX_OFF);
+    frames(LED_PROFILE_FLASH + 1);
+    led_show_battery(LED_BATTERY_UNKNOWN);
+
+    bool seen_on = false, seen_off = false;
+
+    for (unsigned i = 0; i < 4; i++) {
+        settle();
+
+        bool all = true, none = true;
+
+        for (uint8_t col = 1; col <= 10; col++) {
+            all  = all && is(0, col, 255, 255, 255);
+            none = none && is(0, col, 0, 0, 0);
+        }
+
+        CHECK(all || none); // always all ten together
+        seen_on  = seen_on || all;
+        seen_off = seen_off || none;
+        frames(LED_RADIO_BLINK_HALF);
+    }
+
+    CHECK(seen_on && seen_off);
+    CHECK(is(0, 0, 0, 0, 0) && is(0, 11, 0, 0, 0)); // and no other key
+}
+
+static void test_a_value_over_100_counts_as_no_reading(void)
+{
+    reset(FX_OFF);
+    frames(LED_PROFILE_FLASH + 1);
+    led_show_battery(101);
+    CHECK(battery_keys_lit(true) == 0); // nothing painted yet
+    frames(LED_RADIO_BLINK_HALF + 1);
+    settle();
+    CHECK(battery_keys_lit(true) == 0 && battery_keys_lit(false) == 0); // not a level
+}
+
 static void test_the_keys_of_the_lighting(void)
 {
     reset(FX_RADIAL);
@@ -407,6 +508,10 @@ int main(void)
     test_the_profile_key_flashes_then_goes();
     test_the_radio_key_takes_the_inverse_colour();
     test_pairing_blinks();
+    test_the_battery_level_on_the_number_keys();
+    test_the_battery_display_ends_after_three_seconds_and_is_renewed();
+    test_no_reading_blinks_all_ten_in_white();
+    test_a_value_over_100_counts_as_no_reading();
     test_the_keys_of_the_lighting();
     test_settings_out_of_range_are_tamed();
     test_a_repaint_is_done_in_pieces();

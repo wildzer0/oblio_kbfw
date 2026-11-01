@@ -39,8 +39,11 @@ uint16_t diag_get(diag_id_t id);
 // VIA command 0xF1: the request is in `data` (32 bytes) and becomes the reply. [0xF1, kind, ...]
 //   kind 0: [0xF1, 0, DIAG_COUNT, counter 0 (lo, hi), counter 1, ...]
 //   kind 1: the radio: [0xF1, 1, 6 status bytes, 22 bytes of the last 08 frame]
+//   kind 2: [0xF1, 2, on]: listen to the radio with the cable in (on = 1), or stop; the reply echoes `on`
 //   anything else: [0xFF, ...] (unhandled)
 void diag_receive(XDATA uint8_t *data, uint8_t length);
+
+void diag_hook_radio_monitor(bool on); // provided by the board
 
 // Provided by the board: the radio's last status bytes (6) and last 08 frame (22), for kind 1
 const uint8_t *diag_hook_radio_status(void);

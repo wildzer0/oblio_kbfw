@@ -298,6 +298,19 @@ void radio_stop(void)
     radio_hook_select(false);
 }
 
+void radio_monitor(bool on)
+{
+    if (!on) {
+        radio_stop();
+        return;
+    }
+
+    active       = true;
+    mode_pending = false;
+    mode_unacked = false;
+    clear_queues();
+}
+
 // One frame, waiting for the radio (ATT) and for the end of the transmission with delays: the timer is stopped when this runs, so the
 // clock does not move
 static void send_blocking(uint8_t command, uint8_t a, uint8_t b)
