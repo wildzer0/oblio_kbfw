@@ -1,4 +1,5 @@
 #include "check.h"
+#include "diag_stubs.h"
 #include "link.h"
 #include "radio.h"
 #include "settings.h"

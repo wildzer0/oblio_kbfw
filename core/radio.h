@@ -62,6 +62,9 @@ bool radio_idle(void); // nothing in flight and nothing waiting to go out
 // The last answer to the status request (bytes after the command byte), zeros until one has come.
 const uint8_t *radio_status(void);
 
+// The last 08 frame from the radio, whole (22 bytes, zeros until one has come): its content is not decoded yet.
+const uint8_t *radio_last_info(void);
+
 // ---- hooks: the serial port and the pins (board/radio_hw.c, or a test) ----
 bool     radio_hook_ready(void);              // ATT: the radio is free to take a frame
 void     radio_hook_select(bool low);         // SEL: low while a frame goes out, released (high) afterwards

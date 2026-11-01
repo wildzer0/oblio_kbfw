@@ -1,4 +1,5 @@
 #include "tick.h"
+#include "diag.h"
 #include "sched.h"
 #include "sh68f90.h"
 
@@ -56,10 +57,18 @@ void tick_isr(void) __interrupt(INT_TIMER2)
     set_reload(sched_upcoming());
 
     if (slot == SLOT_SCAN) {
+        if (scan_ready) {
+            diag_inc(DIAG_SCAN_LOST); // the main loop never took the previous one
+        }
+
         tick_hook_scan(scan_raw);
         scan_ready = true;
     } else {
         tick_hook_led();
+    }
+
+    if (TF2) {
+        diag_inc(DIAG_SLOT_LATE); // the next overflow came while this slot's work was still running
     }
 }
 

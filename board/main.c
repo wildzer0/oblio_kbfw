@@ -2,6 +2,8 @@
 // that debounces the keys, runs the key logic and looks after USB, profiles, settings and the backlight.
 
 #include "clock.h"
+#include "diag.h"
+#include "diag_hw.h"
 #include "usb.h" // declares the USB handler, for the same reason
 #include "tick.h" // declares the Timer 2 handler: SDCC wants it visible in the module that defines main()
 #include "watchdog.h"
@@ -43,6 +45,13 @@ uint32_t via_hook_now(void)
 
 static void init(void)
 {
+    // RSTSTAT tells what reset the chip, but it is also the watchdog kick: the flags are read before the first kick
+    const uint8_t reset_cause = RSTSTAT;
+
+    diag_init();
+    diag_set(DIAG_RESET_CAUSE, reset_cause);
+    diag_stack_paint();
+
     REGCON = REGCON_REGEN; // the regulator first, as the stock firmware does (it powers the USB transceiver)
     clock_init();
     board_gpio_init();
@@ -77,6 +86,8 @@ void main(void)
     uint8_t        raw[MATRIX_COLS];
     matrix_event_t event;
 
+    uint16_t last_pass = 0;
+
     init();
 
     for (;;) {
@@ -90,6 +101,9 @@ void main(void)
         if (tick_scan_take(raw)) { // the interrupt scanned the matrix
             matrix_feed(raw);
         }
+
+        diag_max(DIAG_LOOP_MAX_MS, (uint16_t)(now_ms - last_pass)); // the slowest pass of this loop
+        last_pass = now_ms;
 
         encoder_poll(); // every pass: the knob's lines are read much faster than a scan
 

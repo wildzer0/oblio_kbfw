@@ -1,0 +1,46 @@
+#pragma once
+
+// Counters for the first runs on the hardware, read over the raw HID interface (VIA command 0xF1, only on an unlocked keyboard;
+// tools/diag.py prints them). They are there to answer questions the host tests cannot: did the chip reset and why, how deep did
+// the stack go, did the timer slots fit in their time, did the main loop stall.
+//
+// Each counter has one writer (an interrupt or the main loop), so none needs a lock; a 16-bit value is read twice until it agrees.
+
+#include <stdbool.h>
+#include <stdint.h>
+
+typedef enum {
+    DIAG_RESET_CAUSE,      // RSTSTAT as read at power-on, before the first watchdog kick
+    DIAG_STACK_USED,       // bytes of the stack used at most (internal RAM from 0x21 up)
+    DIAG_SLOT_LATE,        // timer slots whose work ran past their end (the timer had already overflowed again)
+    DIAG_SCAN_LOST,        // scans overwritten before the main loop took them
+    DIAG_LOOP_MAX_MS,      // the slowest pass of the main loop
+    DIAG_USB_OVERFLOW,     // USB report packets that replaced or pushed out another
+    DIAG_MATRIX_DEFERRED,  // key changes held back because the event queue was full
+    DIAG_RADIO_REFUSED,    // "not now" answers of the radio
+    DIAG_RADIO_TX_TIMEOUT, // radio frames that never finished
+    DIAG_RADIO_EVENTS,     // 03 frames from the radio
+    DIAG_RADIO_INFOS,      // 08 frames from the radio
+    DIAG_RADIO_STATUS,     // changes of the radio's status bytes
+    DIAG_FLASH_ERASES,     // sectors erased since power-on
+    DIAG_COUNT
+} diag_id_t;
+
+// Provided by the board: bring the counters that are read from somewhere else (stack, USB queue, matrix) up to date.
+void diag_hook_refresh(void);
+
+void     diag_init(void);
+void     diag_set(diag_id_t id, uint16_t value);
+void     diag_inc(diag_id_t id); // saturates
+void     diag_max(diag_id_t id, uint16_t value);
+uint16_t diag_get(diag_id_t id);
+
+// VIA command 0xF1: the request is in `data` (32 bytes) and becomes the reply. [0xF1, kind, ...]
+//   kind 0: [0xF1, 0, DIAG_COUNT, counter 0 (lo, hi), counter 1, ...]
+//   kind 1: the radio: [0xF1, 1, 6 status bytes, 22 bytes of the last 08 frame]
+//   anything else: [0xFF, ...] (unhandled)
+void diag_receive(uint8_t *data, uint8_t length);
+
+// Provided by the board: the radio's last status bytes (6) and last 08 frame (22), for kind 1
+const uint8_t *diag_hook_radio_status(void);
+const uint8_t *diag_hook_radio_info(void);

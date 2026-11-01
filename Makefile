@@ -29,9 +29,10 @@ LINK_layer := core/keymap.c
 LINK_keyboard := core/layer.c core/keymap.c core/report.c core/tapping.c core/macro.c core/encoder.c
 LINK_tapping := core/keyboard.c core/layer.c core/keymap.c core/report.c core/macro.c core/encoder.c
 LINK_macro := core/keymap.c
-LINK_link := core/radio.c core/settings.c
+LINK_radio := core/diag.c
+LINK_link := core/radio.c core/settings.c core/diag.c
 LINK_led := core/led_effect.c core/keymap.c
-LINK_via := core/vial.c core/keymap.c core/matrix.c
+LINK_via := core/vial.c core/keymap.c core/matrix.c core/diag.c
 LINK_usb_reports := core/report.c
 LINK_store := core/keymap.c
 

@@ -50,6 +50,8 @@ SFR(P5DRV, 0x8d);
 #define DRVCON_LOCK      0x00
 #define DRIVE_25MA       0x00
 
+SFR(SP, 0x81); // the stack pointer
+
 // Watchdog: writing RSTSTAT kicks it
 SFR(RSTSTAT, 0xb1);
 #define WATCHDOG_PERIOD 0x00

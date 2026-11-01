@@ -1,6 +1,7 @@
 #include "store.h"
 #include "flash.h"
 #include "layer.h"
+#include "diag.h"
 #include "settings.h"
 #include "tick.h"
 #include "led_hw.h"
@@ -14,6 +15,7 @@ void store_hook_read(uint16_t addr, uint8_t *dst, uint8_t len)
 // slots would be late. So the timer and the PWM are stopped across it. (The clock in milliseconds loses that time.)
 void store_hook_erase(uint16_t sector_addr)
 {
+    diag_inc(DIAG_FLASH_ERASES);
     tick_pause();
     led_hw_pause();
     flash_erase_sector(sector_addr);

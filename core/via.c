@@ -1,4 +1,5 @@
 #include "via.h"
+#include "diag.h"
 #include "keymap.h"
 #include "matrix.h"
 #include "vial.h"
@@ -22,6 +23,7 @@ enum {
     id_dynamic_keymap_get_layer_count       = 0x11,
     id_dynamic_keymap_get_buffer            = 0x12,
     id_dynamic_keymap_set_buffer            = 0x13,
+    id_oblio_diag                           = 0xF1, // counters for the first runs on the hardware (diag.h); 0xF0 is the HUD
     id_vial_prefix                          = 0xFE,
     id_unhandled                            = 0xFF,
 };
@@ -289,6 +291,14 @@ void via_receive(uint8_t *data, uint8_t length)
 
         case id_vial_prefix:
             vial_receive(data, length);
+            break;
+
+        case id_oblio_diag:
+            if (vial_is_unlocked()) { // the diagnostics are for whoever can unlock the keyboard
+                diag_receive(data, length);
+            } else {
+                data[0] = id_unhandled;
+            }
             break;
 
         default:

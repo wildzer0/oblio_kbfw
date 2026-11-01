@@ -1,4 +1,5 @@
 #include "radio.h"
+#include "diag.h"
 #include <string.h>
 
 #define HEADER_MCU   0x01u
@@ -163,6 +164,7 @@ static uint8_t  consumer_count;
 static uint8_t  rx_frame[INFO_LEN];
 static uint8_t  rx_length;
 static uint8_t  status[6];
+static uint8_t  last_info[INFO_LEN]; // the last 08 frame, whole: what is in it is not known yet (diag.h)
 
 static void key_push(uint8_t mods, const uint8_t *keys)
 {
@@ -227,6 +229,11 @@ const uint8_t *radio_status(void)
     return status;
 }
 
+const uint8_t *radio_last_info(void)
+{
+    return last_info;
+}
+
 static void clear_queues(void)
 {
     key_head       = 0;
@@ -254,6 +261,7 @@ void radio_init(void)
     t_status          = 0;
     clear_queues();
     memset(status, 0, sizeof status);
+    memset(last_info, 0, sizeof last_info);
     radio_hook_select(false);
 }
 
@@ -346,6 +354,8 @@ static void mode_answered(void)
 
 static void refused(void)
 {
+    diag_inc(DIAG_RADIO_REFUSED);
+
     // "not now": what the frame was sent for has to be offered again, unless it changed nothing
     if (last_kind == KIND_REPORT && !last_report_is_acked()) {
         key_unpop();
@@ -369,15 +379,22 @@ static void rx_frame_done(void)
 
     switch (rx_frame[0]) {
         case HEADER_EVENT:
+            diag_inc(DIAG_RADIO_EVENTS);
             ack_event = true;
             break;
 
         case HEADER_INFO:
+            diag_inc(DIAG_RADIO_INFOS);
+            memcpy(last_info, rx_frame, INFO_LEN);
             ack_info = true;
             break;
 
         case HEADER_RADIO:
             if (rx_frame[1] == CMD_STATUS && rx_length == STATUS_LEN) {
+                if (memcmp(status, &rx_frame[2], sizeof status) != 0) {
+                    diag_inc(DIAG_RADIO_STATUS);
+                }
+
                 memcpy(status, &rx_frame[2], sizeof status);
             } else if (rx_frame[1] == 0x00u && rx_frame[2] == 0x01u) {
                 refused();
@@ -511,6 +528,10 @@ void radio_task(void)
 
     if (transmitting) {
         if (radio_hook_tx_done() || (uint16_t)(radio_hook_now_ms() - t_start) >= TX_TIMEOUT_MS) {
+            if (!radio_hook_tx_done()) {
+                diag_inc(DIAG_RADIO_TX_TIMEOUT);
+            }
+
             radio_hook_select(false); // released with the last byte, as the stock does in its interrupt
             t_sent       = radio_hook_now_ms();
             transmitting = false;

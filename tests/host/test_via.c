@@ -1,4 +1,5 @@
 #include "check.h"
+#include "diag_stubs.h"
 #include "stubs.h"
 #include "keycodes.h"
 #include "keymap.h"
@@ -400,6 +401,19 @@ static void test_tap_dances(void)
     CHECK(buf[0] == 0xFE && buf[1] == 0x7F);
 }
 
+static void test_diagnostics_need_the_unlock(void)
+{
+    reset();
+    REQUEST(0xF1, 0);
+    CHECK(buf[0] == 0xFF); // locked: unhandled
+
+    unlock();
+    REQUEST(0xF1, 0);
+    CHECK(buf[0] == 0xF1 && buf[1] == 0 && buf[2] == DIAG_COUNT);
+    REQUEST(0xF1, 1);
+    CHECK(buf[0] == 0xF1 && buf[1] == 1);
+}
+
 static void test_edits_are_seen_by_the_store(void)
 {
     reset();
@@ -425,6 +439,7 @@ int main(void)
     test_matrix_state();
     test_qmk_settings();
     test_tap_dances();
+    test_diagnostics_need_the_unlock();
     test_edits_are_seen_by_the_store();
     return tests_result();
 }
