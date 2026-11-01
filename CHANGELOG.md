@@ -36,7 +36,12 @@ Il controllo di recupero Esc+1+2 va all'inizio del `main`, prima di USB e radio.
   scansioni (≈0,55 s, sempre oltre il mezzo secondo dopo cui il backlight è permesso) e `tests/sim/oblio_sim.py` ha il timeout a **180 s** invece
   di 30. `make sim` scende da 56 a 45 s su questa macchina.
 
-Budget: flash **46989/56320** (9,3 KB liberi), XDATA **3907/4096** (189 B liberi). `make test` 24/24, `make sim` 24/24, `make stages` 1–3 ok,
+### Diagnostica: la lettura della radio non richiede più lo sblocco
+- `core/via.c`: il comando `0xF1` kind 1 (i 6 byte di stato e l'ultimo frame `08`) è **solo lettura**, quindi risponde anche a tastiera bloccata,
+  come i contatori e il readout dei port. Lo sblocco serve solo al kind 2, che cambia cosa fa la radio. `tools/diag.py --radio` non chiede più
+  Esc+Invio: è la misura della batteria senza attrito.
+
+Budget: flash **46995/56320** (9,3 KB liberi), XDATA **3907/4096** (189 B liberi). `make test` 24/24, `make sim` 24/24, `make stages` 1–3 ok,
 vettori ok.
 
 ## 2026-11-02 — mouse dall'encoder (prima delle feature rimaste)

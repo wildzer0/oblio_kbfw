@@ -11,7 +11,7 @@ usage: diag.py [--radio] [--monitor] [--ports] [--watch SECONDS]
   --ports      print the raw port bytes (P0.5 is the Win/Mac switch: low = Mac; P0.3/P0.4 the mode selector)
   --watch N    repeat every N seconds, printing only what changed
 
-The counters need no unlock (they are what you need when the keys do not work); the radio data and --monitor do: hold the unlock keys (Esc and Enter) when asked.
+The counters, the radio data and --ports need no unlock (they are read-only); --monitor does, because it changes what the radio is doing.
 Run it as a user that may open the hidraw device (a udev rule, or sudo).
 """
 
@@ -157,7 +157,7 @@ def main():
 
     keyboard = Keyboard(path)
 
-    if want_radio:
+    if want_monitor:
         keyboard.unlock()
 
     if want_monitor:

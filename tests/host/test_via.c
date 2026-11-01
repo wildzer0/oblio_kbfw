@@ -439,15 +439,15 @@ static void test_the_hud_is_reached_through_via(void)
     CHECK(buf[0] == 0xF0 && buf[2] == 1 && buf[3] == 0x09);
 }
 
-static void test_diagnostics_need_the_unlock(void)
+static void test_diagnostics_need_no_unlock_except_the_monitor(void)
 {
     reset();
     REQUEST(0xF1, 0);
     CHECK(buf[0] == 0xF1 && buf[2] == DIAG_COUNT); // the counters answer locked too: they are what is needed when the keys do not work
     REQUEST(0xF1, 1);
-    CHECK(buf[0] == 0xFF); // the radio's data and the monitor switch are unlocked only
+    CHECK(buf[0] == 0xF1); // the radio's data is read-only: it answers locked too
     REQUEST(0xF1, 2, 1);
-    CHECK(buf[0] == 0xFF);
+    CHECK(buf[0] == 0xFF); // the monitor switch changes what the radio does: unlocked only
 
     unlock();
     REQUEST(0xF1, 0);
@@ -482,7 +482,7 @@ int main(void)
     test_qmk_settings();
     test_tap_dances();
     test_the_hud_is_reached_through_via();
-    test_diagnostics_need_the_unlock();
+    test_diagnostics_need_no_unlock_except_the_monitor();
     test_edits_are_seen_by_the_store();
     return tests_result();
 }

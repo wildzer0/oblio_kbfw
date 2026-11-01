@@ -39,7 +39,7 @@ uint16_t diag_get(diag_id_t id);
 
 // VIA command 0xF1: the request is in `data` (32 bytes) and becomes the reply. [0xF1, kind, ...]
 //   kind 0: [0xF1, 0, DIAG_COUNT, counter 0 (lo, hi), counter 1, ...]
-//   kind 1: the radio: [0xF1, 1, 6 status bytes, 22 bytes of the last 08 frame]
+//   kind 1: the radio: [0xF1, 1, 6 status bytes, 22 bytes of the last 08 frame]; read-only, so it needs no unlock either
 //   kind 2: [0xF1, 2, on]: listen to the radio with the cable in (on = 1), or stop; the reply echoes `on`
 //   kind 3: [0xF1, 3, P0, P1, P2, P3, P4, P5, P6, P7]: the raw port bytes, for finding out what an input that is not in the matrix does
 //   anything else: [0xFF, ...] (unhandled)
