@@ -13,4 +13,9 @@ It would not exist without these, which were read as references (concepts, proto
 One file is adapted rather than rewritten: `board/vial.json`, the Vial definition of the B68 (matrix size, drawn layout, custom keycode names), comes from
 the B68 port on SMK (GPLv2, by the same author as this repository). Only the `HUD Toggle` entry was changed.
 
+`tools/ucsim/` (`sh68f90.cc`, `sh68f90cl.h`, `sh68f90-register.patch`) is the SinoWealth SH68F90 CPU variant for SDCC's uCsim simulator, taken from
+the B68 port on SMK (GPLv2, same author as this repository; uCsim itself is GPLv2 by Daniel Drotos and the SDCC project). Changes made for Oblio, marked
+in the source: an interrupt source for the raw HID endpoint (EP2 OUT), the whole 32-byte reply in the EP2 IN log, and no cap of 16 packets on the
+control-transfer log.
+
 Rule of the project: SMK and the others are read for ideas; modules are written anew. If a file is ever adapted from another project, it keeps that project's licence header and is listed here.

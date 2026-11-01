@@ -44,7 +44,7 @@ programmatore ICP**, Arduino Nano, per non rischiare di aprire la tastiera) → 
 - Per funzioni non banali: **modalità piano** e approvazione prima di scrivere codice. Non cambiare decisioni già prese senza accordo.
 - **Niente tentativi alla cieca** sull'hardware: ragionare dal dump stock e dal codice di riferimento, strumentare (tracce leggibili) e dire chiaramente
   cosa è ipotesi e cosa verificato. Chiedere prove hardware solo se rispondono a una domanda precisa.
-- **Niente test del simulatore** (ucsim, lenti): solo build e test host; dirlo se non eseguiti.
+- **Simulatore (ucsim)**: l'utente l'ha ammesso dove serve a provare più a fondo (2026-11-01). `make sim` (`tests/sim/`, richiede `nix develop`, ~30 s) esegue il firmware vero nel simulatore del chip: verifica l'ordine degli eventi, non le durate (il Timer 2 del modello è a cadenza virtuale). Non sostituisce la prova sull'hardware.
 - Documentazione, milestone e schede dei compiti le tengo io aggiornate; schede semplici (descrizione + cosa mi aspetto), niente quiz di revisione.
 - Commit e push solo se richiesti. Cartella `.vscode/` non tracciata. Le modifiche utili alla memoria di sessione vanno anche qui, perché la memoria
   automatica è legata alla cartella del vecchio repo.

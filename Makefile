@@ -26,7 +26,7 @@ FW_SRC    := $(filter-out $(NOT_LINKED),$(wildcard core/*.c hal/*.c board/*.c))
 FW_REL    := $(patsubst %.c,$(B)/%.rel,$(FW_SRC)) $(B)/vial_data.rel
 CHECK_REL := $(patsubst %.c,$(B)/%.rel,$(NOT_LINKED))
 
-.PHONY: test fw size clean check check-vial check-interrupts stage stages
+.PHONY: test fw size clean check check-vial check-interrupts stage stages sim
 .DELETE_ON_ERROR: # a failed build must not leave a half-made file that make takes for up to date
 
 test: $(HOST_TESTS) check-vial
@@ -74,6 +74,10 @@ $(B)/vial_data.rel: $(B)/vial_data.c $(HEADERS)
 # the linked firmware: the interrupt vectors are the intended ones, and the static overlay is empty
 check-interrupts: $(B)/oblio.hex
 	python3 tools/check_interrupts.py $(B)/oblio.hex $(B)/oblio.map
+
+# The real firmware in the simulator of the chip (slow, and needs `ucsim-sh68f90`: `nix develop`); not part of `make test`
+sim: $(B)/oblio.hex
+	python3 tests/sim/test_sim.py
 
 check: check-vial check-interrupts
 
