@@ -35,11 +35,20 @@ timer the core reads itself.
 
 ## Timing: the timer interrupt owns the columns
 
-The 16 column lines are the key-matrix strobes **and** the sinks of the backlight LEDs, so a key scan and a backlight subframe can never overlap. Timer 2 plays
-the sequence of `core/sched.c`: four LED slots of 400 µs, then a scan slot of 450 µs, over and over (a backlight frame of 16 columns is 8.2 ms; a key is
-read every 2.05 ms). The timer runs in auto-reload mode; the interrupt writes the length of the *next* slot into `RCAP2`, so slot lengths are exact whatever the
-interrupt latency, and the millisecond clock of the firmware is the sum of the slot lengths. The interrupt only copies pre-computed values and writes
-registers; effects, debounce and everything else are done from the main loop.
+The 16 column lines are the key-matrix strobes **and** the sinks of the backlight LEDs, so a key scan and a backlight subframe can never overlap. Timer 2
+plays the sequence of `core/sched.c`: four LED slots, then a scan slot, over and over. **Every slot is timed from the start of its own interrupt**, as in
+the SMK port: the interrupt restarts the timer for the slot that begins (400 µs for an LED slot; for a scan, a safe maximum of 1000 µs), and when a scan has
+finished it forces the overflow so that the next LED slot starts at once. An LED slot is therefore always a full 400 µs, however long the scan before it took
+(a fixed grid of slots cut the LED slot after a long scan short, and one backlight column in five lit for a fraction of its time: a visible flicker on USB).
+The scan takes about 610 µs on the keyboard, so a backlight frame is about 9.6 ms and a key is sampled about every 2.2 ms.
+
+The millisecond clock is the sum of the time that really passed between interrupts, in timer counts (2000 per ms): the nominal slot length (LED) or the
+measured scan, plus the interrupt latency read from the counter. The interrupt only copies pre-computed values and writes registers; effects, debounce and
+everything else are done from the main loop. A scan that the main loop does not collect before the next one is simply overwritten: the matrix is a state, so
+no key is lost (the SMK port works the same way); it only takes a few more scans to debounce.
+
+Instruction counts are exact in the simulator, time is not: on this core the interrupt code runs at about 3.8 clock cycles per instruction, so budget the
+interrupt work by instructions (`make sim` has a guard) and by the durations the diagnostics report, never by guessing.
 
 ## Concurrency rules
 

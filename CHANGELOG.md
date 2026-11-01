@@ -56,6 +56,10 @@ Il controllo di recupero Esc+1+2 va all'inizio del `main`, prima di USB e radio.
 - SMK ha la stessa semantica: la ISR scrive lo **stato** della matrice in `matrix[]` e alza `matrix_updated`; `matrix_task()` prende uno snapshot e lo confronta con il precedente («a transition is split across two main-loop iterations, never lost»). Una scansione sovrascritta non perde nessun tasto: SMK semplicemente non le conta. In Oblio `matrix_feed` è lo stesso modello (stato + debounce su 3 scansioni lette): con un terzo di scansioni saltate il debounce dura alcuni ms in più (~10 ms nel caso peggiore), nient'altro.
 - Il contatore `DIAG_SCAN_LOST` e quello «senza passaggio» sono rinominati «(harmless)» in `diag.py`; `docs/first-boot.md` non chiede più 0 scansioni perse. Il giro del main resta lento (0–5 passaggi per scansione, ~400+ µs l'uno sul chip, contro ~180 stimati): non è un problema finché i tasti rispondono, e va rivisto solo se la latenza si sente.
 
+### Report per altri agent
+- Nuovo `docs/firmware-report.md` (inglese): cosa fa il firmware, hardware, struttura, comandi, stato verificato/non verificato, cosa è andato storto sull'hardware e perché, diagnostica, punti aperti in ordine di priorità (prova funzionale, interruttore Win/Mac, sorgente della batteria, scansione da ~610 µs, main loop lento, margine flash 229 B), regole di lavoro con l'utente.
+- `docs/architecture.md`: il paragrafo sui tempi descriveva ancora la griglia fissa (slot di scansione 450 µs, auto-reload); riscritto per lo schema attuale (slot temporizzati dall'inizio della propria ISR, ms dal tempo reale). `CLAUDE.md` rimanda al report.
+
 ### Fase 1 — build, budget, release
 - `board/main.c`: `main` segnaposto (loop vuoto) per esercitare compilatore, linker e budget; lo sostituisce la fase 2.
 - `Makefile`: nuovi target `fw` (SDCC → `build/oblio.ihx` e `build/oblio.hex` con `packihx`), `size` (controllo budget); `clean` rimuove anche `build/`. Flag SDCC ripresi dal vecchio repo: modello large, `--stack-auto`, XDATA 4096, codice fino a 0xAC00.
