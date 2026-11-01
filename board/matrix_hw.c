@@ -98,9 +98,9 @@ void matrix_hw_scan(uint8_t raw[MATRIX_COLS])
         GPIO_LOW(5, m5);
         GPIO_LOW(6, m6);
 
-        delay_us(SETTLE_US);
+        delay_us_nokick(SETTLE_US);
         const uint8_t first = read_rows();
-        delay_us(SETTLE_US);
+        delay_us_nokick(SETTLE_US);
         const uint8_t second = read_rows();
 
         GPIO_HIGH(4, m4);

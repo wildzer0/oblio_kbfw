@@ -43,13 +43,16 @@ uint32_t via_hook_now(void)
 
 static void init(void)
 {
+    REGCON = REGCON_REGEN; // the regulator first, as the stock firmware does (it powers the USB transceiver)
     clock_init();
     board_gpio_init();
 
+    watchdog_kick();
     recovery_check(); // before USB and radio, so that a broken later stage can always be recovered
 
     matrix_init();
     keyboard_init();
+    watchdog_kick();
     settings_load();
     store_init(settings.profile); // the profile in use at power-off, from flash, or the defaults
     encoder_init();

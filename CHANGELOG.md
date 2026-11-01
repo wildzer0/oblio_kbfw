@@ -182,3 +182,12 @@ Vial/VIA completi per quanto serve al porting: tasti, encoder, macro, tap dance,
 
 ### Fine fase 6
 Encoder, impostazioni globali, retroilluminazione con tick alternato, radio 2.4G/Bluetooth con selettore e slot, sleep. **Margine di flash: 2,8 KB sotto 0xAC00.**
+
+## Fase 7 — parità con il porting e preparazione alla prima prova
+Il piano (approvato dall'utente) è: 1 correzioni di sicurezza, 2 controllo degli interrupt, 3 diagnostica, 4 build a gradini, 5 HUD, 6 ucsim, 7 indicatore della batteria, 8 procedura di prova e documenti. Dal confronto con il porting SMK è emerso, tra l'altro, che l'**HUD** (usato dall'app dell'utente) era stato escluso per errore.
+
+### Fase 7, passo 1 — correzioni di sicurezza
+- **Watchdog (grave).** Il porting compila con `-DWATCHDOG_ENABLE=1` e ricarica il watchdog (`RSTSTAT = 0`) nel ciclo principale e dentro alle attese; Oblio non definiva il flag, quindi non lo ricaricava mai: se il watchdog fosse attivo nel chip (code option) la tastiera si sarebbe riavviata in continuazione. Ora `-DWATCHDOG_ENABLE=1` è nei flag del `Makefile`, `delay_us` ricarica il watchdog a ogni giro (la scrittura a `RSTSTAT` sta nei 19 cicli del corpo, tempi invariati; verificato nell'asm generato), l'init ricarica fra uno stadio e l'altro.
+- **Il watchdog non deve essere tenuto vivo dall'interrupt.** La scansione della matrice (che gira nell'ISR del Timer 2) usa la nuova `delay_us_nokick`: con un `delay_us` che ricarica, l'ISR avrebbe mantenuto vivo il watchdog anche con il `main` bloccato e la tastiera non si sarebbe mai riavviata da sola. (Nel porting l'ISR lo ricaricava.)
+- **Regolatore** (`REGCON`) acceso come prima cosa dell'avvio, prima del clock, come lo stock (`ldo_init`); prima si accendeva solo con l'USB.
+- Verifica: `make test` 20 file OK; `make fw size` da pulito → flash 41253/44032 circa, XDATA 3257/4096. Nessuna prova sull'hardware: se il watchdog è attivo nel chip lo si vedrà dalla causa di reset (diagnostica, passo 3).

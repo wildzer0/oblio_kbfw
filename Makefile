@@ -10,7 +10,7 @@ XRAM_SIZE  := 4096
 SDCC      ?= sdcc
 SDCCFLAGS := --std-c23 --Werror -mmcs51 --model-large --stack-auto \
              --xram-loc 0x0000 --xram-size $(XRAM_SIZE) --code-size $(CODE_LIMIT) \
-             --opt-code-speed --out-fmt-ihx
+             --opt-code-speed --out-fmt-ihx -DWATCHDOG_ENABLE=1
 # Sources compiled with SDCC but not linked, while a module waits for the hooks of the next step
 NOT_LINKED :=
 FW_SRC    := $(filter-out $(NOT_LINKED),$(wildcard core/*.c hal/*.c board/*.c))
