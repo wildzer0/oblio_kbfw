@@ -1,11 +1,14 @@
 #include "tick.h"
 #include "led_hw.h"
 #include "matrix_hw.h"
+#include "stage.h"
 
 // The two kinds of slot of the timer interrupt (core/sched.h)
 void tick_hook_led(void)
 {
+#if STAGE_LED
     led_hw_subframe();
+#endif
 }
 
 // A scan: the backlight is parked while the strobes are used to read the keys, then started again. A column lit by the previous

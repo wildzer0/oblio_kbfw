@@ -28,6 +28,7 @@
 #include "usb_reports.h"
 #include "via.h"
 #include "sh68f90.h"
+#include "stage.h"
 
 // Milliseconds since power-on, for the uptime the Vial app shows and the unlock steps; and the 16-bit clock of the main loop
 static uint32_t uptime_ms;
@@ -65,12 +66,18 @@ static void init(void)
     settings_load();
     store_init(settings.profile); // the profile in use at power-off, from flash, or the defaults
     encoder_init();
-    led_init();
+    led_init(); // the framebuffer is cheap and the lighting keys write settings: always there
+#if STAGE_LED
     led_hw_init();
+#endif
+#if STAGE_RADIO
     radio_hw_init();
     link_init();
+#endif
+#if STAGE_SLEEP
     sleep_init(0);
     sleep_hw_apply_level(settings.sleep_level, false);
+#endif
     tick_init(); // from here on the timer plays the slots: LED subframes and scans (see core/sched.h)
 
     usb_device_reset();
@@ -115,9 +122,15 @@ void main(void)
         store_task(now_ms, matrix_any_pressed());
         settings_task(now_ms, matrix_any_pressed());
         usb_task(now_ms);
+#if STAGE_LED
         led_task();
         led_app_task(now_ms);
+#endif
+#if STAGE_RADIO
         link_task(now_ms);
+#endif
+#if STAGE_SLEEP
         sleep_hw_task(now_ms);
+#endif
     }
 }

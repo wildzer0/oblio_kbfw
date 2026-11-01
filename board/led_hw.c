@@ -4,6 +4,7 @@
 #include "platform.h"
 #include "pwm.h"
 #include "sh68f90.h"
+#include "stage.h"
 
 // RGB backlight of the Yunzii B68, as found with the LED probe (docs/keyboards/yunzii-b68.md).
 //
@@ -78,15 +79,19 @@ void led_hw_enable(bool on)
 
 void led_hw_pause(void)
 {
+#if STAGE_LED
     pwm_off();
     matrix_hw_cols_off();
+#endif
 }
 
 void led_hw_resume(void)
 {
+#if STAGE_LED
     if (allowed) {
         pwm_on();
     }
+#endif
 }
 
 void led_hw_subframe(void)
