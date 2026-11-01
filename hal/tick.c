@@ -4,9 +4,10 @@
 #include "sh68f90.h"
 
 // The timer counts at FREQ_SYS / 12 = 2 MHz, so a slot of N microseconds is 2 * N counts.
-// LED slots given up while the main loop is starved (two frames of the backlight), and how many scans in a row without a pass of the main
-// loop count as starving it (a pass takes about a millisecond even with the interrupt at work)
-#define BACK_OFF_SLOTS 32u
+// LED slots given up while the main loop is starved, and how many scans in a row without a pass of the main loop count as starving it (a pass
+// takes about a millisecond even with the interrupt at work). The give-up is as short as it can be while still leaving the loop a few passes:
+// it darkens the backlight, so 32 slots (13 ms) was a visible blink for no gain over 12 (5 ms).
+#define BACK_OFF_SLOTS 12u
 #define STARVED_SCANS  3u
 
 #define RELOAD(us) ((uint16_t)(65536u - SCHED_COUNTS_PER_US * (us)))
@@ -148,6 +149,11 @@ void tick_isr(void) __interrupt(INT_TIMER2)
     } else {
         prev_len = (uint16_t)(SCHED_COUNTS_PER_US * SCHED_LED_US);
     }
+}
+
+uint16_t tick_count_now(void)
+{
+    return timer_count();
 }
 
 void tick_alive(void)

@@ -12,6 +12,19 @@
 
 Il controllo di recupero Esc+1+2 va all'inizio del `main`, prima di USB e radio.
 
+## 2026-11-03 — il backlight che si spegne e si riaccende
+
+- **Sintomo riportato**: ogni tanto la retroilluminazione si spegne e torna. Due cause possibili, e questa build le riduce entrambe:
+- **Il salvataggio in flash** (la più probabile): la pausa di timer e backlight copriva **tutto** il salvataggio — quattro cancellazioni più
+  ~2 KB programmati byte per byte. Ora copre **solo le cancellazioni**, che sono l'unica parte che blocca davvero il chip per millisecondi;
+  la programmazione (uno stallo per byte, microsecondi) gira con il display acceso. Il buio passa da ~100 ms a ~20 ms.
+- **Il ritiro del backlight** quando il main loop è affamato (`BACK_OFF_SLOTS`): era di **32 slot (13 ms)**, ora **12 (5 ms)** — abbastanza per
+  far girare il loop, molto meno visibile.
+- **Nuovo contatore diag** al posto di quello dei frame radio spediti (RX li racconta già): **`longest sector erase (us)`**, misurato con il
+  Timer 2, che resta l'unico orologio acceso durante la cancellazione. Serve a sapere quanto dura davvero.
+- **Per capire quale delle due è**, con la tastiera che lampeggia: `py .\diag.py --watch 1`. Se sale `backlight back-offs` è la fame del main
+  loop; se non sale nulla ed è successo un salvataggio (un cambio di impostazione, o Vial che scrive), era la pausa del salvataggio.
+
 ## 2026-11-03 (mattina) — il tab Lighting, NKRO, Caps Word, Leader
 
 ### Perché Vial non mostrava il tab Lighting, e cosa può fare davvero

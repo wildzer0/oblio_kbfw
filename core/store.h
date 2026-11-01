@@ -28,8 +28,8 @@ void store_hook_read(uint16_t addr, uint8_t *dst, uint8_t len);
 void store_hook_erase(uint16_t sector_addr);
 void store_hook_program(uint16_t addr, const uint8_t *src, uint8_t len);
 
-// Around a whole save (the keymap or the settings): the board stops the timer and parks the backlight once, and starts them again at
-// the end. Do not leave the work of the interrupt running in between: a sector erase blocks the CPU for milliseconds.
+// Around the erases of a save: the board stops the timer and parks the backlight, because a sector erase stalls the CPU for milliseconds and no
+// interrupt runs while it does. The programming is not wrapped: it stalls a byte at a time, which the slots do not notice.
 void store_hook_flush_begin(void);
 void store_hook_flush_end(void);
 

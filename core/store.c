@@ -339,11 +339,16 @@ void store_flush(void)
     const uint16_t seq    = (uint16_t)(active_seq + 1);
     const uint16_t base   = slot_addr(target);
 
-    store_hook_flush_begin(); // the timer and the backlight stand still for the whole write, not once per chunk
+    // Only the erases really block the chip (milliseconds of stalled CPU, during which no interrupt can run): the timer and the backlight stand
+    // still for those and nothing else. The programming goes on with the display running - a byte stalls the CPU for microseconds, and an
+    // interrupt that waits that long is not seen.
+    store_hook_flush_begin();
 
     for (uint8_t sector = 0; sector < STORE_SLOT_SECTORS; sector++) {
         store_hook_erase((uint16_t)(base + sector * STORE_SECTOR_BYTES));
     }
+
+    store_hook_flush_end();
 
     uint16_t crc = 0xFFFFu;
     uint16_t at  = 0;
@@ -386,8 +391,6 @@ void store_flush(void)
     chunk[13] = (uint8_t)(defaults_print >> 8);
     chunk[14] = 0;
     store_hook_program(base, chunk, HEADER);
-
-    store_hook_flush_end();
 
     active_slot = target;
     active_seq  = seq;

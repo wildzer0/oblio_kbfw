@@ -475,7 +475,6 @@ static void rx_task(void)
 
 static void start_frame(kind_t kind)
 {
-    diag_inc(DIAG_RADIO_TX);
     last_kind = kind;
     t_start   = radio_hook_now_ms();
     radio_hook_select(true);

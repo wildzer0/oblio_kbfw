@@ -22,7 +22,7 @@ typedef enum {
     DIAG_PASSES_LAST,      // passes of the main loop between the last two scans
     DIAG_BACKOFF,          // times the main loop was found starved and the backlight stood aside
     DIAG_SCAN_LATE,        // the same as DIAG_SLOT_LATE, for the scan slots
-    DIAG_RADIO_TX,         // frames the keyboard started to send to the radio (any kind)
+    DIAG_ERASE_US_MAX,     // the longest sector erase of a flash write, in us (the chip stalls while it runs)
     DIAG_RADIO_RX,         // frames from the radio that passed the checksum
     DIAG_RADIO_MODE,       // of those, the answers to the mode command: the radio took the mode and the slot
     DIAG_COUNT

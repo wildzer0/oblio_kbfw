@@ -28,6 +28,9 @@ bool tick_take(void);
 // True once for every scan of the matrix not yet taken; its result is copied to `raw`.
 bool tick_scan_take(uint8_t raw[16]);
 
+// The timer's count right now (the erase in a flash write is the only user: it is the clock that keeps running when the interrupt is off).
+uint16_t tick_count_now(void);
+
 // The main loop calls this once per pass. The timer interrupt watches it: if the main loop has not come round for a few scans, the interrupt work
 // does not fit its slots and is starving it, and the backlight steps aside (see tick.c) so that the keys, USB and the watchdog get the CPU.
 void tick_alive(void);

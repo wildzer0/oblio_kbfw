@@ -110,10 +110,7 @@ void store_hook_erase(uint16_t sector_addr)
 
 void store_hook_program(uint16_t addr, const uint8_t *src, uint8_t len)
 {
-    if (!flushing) {
-        violations++;
-    }
-
+    // the programming is not wrapped (only the erases stall the chip), so this is allowed outside begin/end
     if (!in_store(addr, len)) {
         violations++;
         return;
