@@ -45,6 +45,8 @@ NAMES = [
     ("longest sector erase (us)", "{}"),
     ("radio: frames received (checksum ok)", "{}"),
     ("timer interrupt: longest start delay (us)", "{}"),
+    ("keymap: whole saves ever (header sequence)", "{}"),
+    ("keymap: records in the log", "{}"),
 ]
 
 
@@ -177,6 +179,9 @@ def main():
     values = counters(keyboard)
     print("counters:")
     show(values)
+    if len(values) > 10:
+        # each whole save erases the four sectors of one of the two slots, so a keymap sector has been erased about half as many times
+        print("  keymap flash wear: about {} erase cycles per sector (flash of this kind is typically good for 10 000 to 100 000)".format(values[10] // 2))
     if want_radio:
         radio(keyboard)
 

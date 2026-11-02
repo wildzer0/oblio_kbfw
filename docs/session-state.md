@@ -13,7 +13,7 @@ overrides, tab Lighting con colore pieno), NKRO, Caps Word, Leader, mouse dall'e
 
 | | |
 | --- | --- |
-| Flash | **51797 / 56320** (4,5 KB liberi) |
+| Flash | **53755 / 56320** (2,5 KB liberi) |
 | XDATA | **3755 / 4096** (341 B liberi) |
 | Deposito keymap | **1709 / 2048** (339 B liberi) |
 | Test host | **27 / 27** (`make test`, include il controllo della definizione Vial) |
@@ -40,6 +40,7 @@ Il registro in flash, il logger da tastiera e la diagnostica `--blog/--ports/--m
    a tratti?), uguale nei due modi.
 2. Provare **avviso di batteria** (`battery_task`: sotto 800 gauge rosso ogni 30 s, sotto 752 per 10 s sleep) e **remote wakeup USB** (PC in sospensione, un tasto lo sveglia).
 3. (fatto) diagnostica ridotta a 9 contatori e `--radio` (+ «timer interrupt: longest start delay»).
+5. **Da provare (log della keymap)**: modifica un tasto da Vial: i LED **non** devono spegnersi; `diag.py` mostra «keymap: records in the log» che sale di 1 a modifica e «whole saves ever» che resta fermo; dopo ~70 modifiche un solo buio di ~130 ms. Spegni/riaccendi: le modifiche restano.
 4. **Da provare**: con l'app HUD collegata i LED non devono più sfarfallare (guardare il nuovo contatore con `diag.py --watch 1`: dovrebbe restare sotto ~50 µs);
    i tasti luce non devono più spegnere i LED per ~130 ms 2 s dopo (ora solo ogni 36 salvataggi, e quando si salva la keymap da Vial).
 

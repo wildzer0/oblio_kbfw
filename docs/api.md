@@ -460,6 +460,8 @@ typedef enum {
     DIAG_RADIO_RX,         // frames from the radio that passed the checksum
     DIAG_TIMER_LATE_US,    // the longest the timer interrupt waited to start after its slot ended, in us (another interrupt or the flash holding it up; ignores the
                            // flash pauses, over 1 ms): above ~50 the backlight columns show it as a flicker
+    DIAG_STORE_SAVES,      // times the whole keymap has been written to flash, ever (the sequence number in the header of the slot in use: it survives power-off)
+    DIAG_STORE_LOG,        // records in the log of the slot in use (the keymap edits written since the last whole save)
     DIAG_COUNT
 } diag_id_t;
 ```
@@ -1286,6 +1288,84 @@ void keymap_macro_clear(void);
 ```
 
 Empties all macros.
+
+#### `KEYMAP_KEY_WORDS`
+
+```c
+#define KEYMAP_KEY_WORDS     ((uint16_t)(KEYMAP_LAYERS * MATRIX_ROWS * MATRIX_COLS))
+```
+
+---- the keymap as a run of 16-bit words, and the list of the words that changed ---- The store keeps the keymap in flash as a run of words in this order: the keys (layer, row, column), the encoders (layer, encoder, direction), the macros (two bytes a word, little-endian), the tap dances (index, field), the combos, the key overrides, the settings. A word is named by its offset in that run. Every edit notes the offset it changed, so that the store can write down just those words (a record of the log) instead of the whole keymap (four sector erases, ~130 ms of dark backlight).
+
+```c
+#define KEYMAP_ENCODER_WORDS ((uint16_t)(KEYMAP_LAYERS * ENCODER_COUNT * 2))
+#define KEYMAP_MACRO_WORDS   ((uint16_t)(KEYMAP_MACRO_BYTES / 2))
+#define KEYMAP_TD_WORDS      ((uint16_t)(KEYMAP_TAP_DANCE_COUNT * TD_FIELDS))
+#define KEYMAP_COMBO_WORDS   ((uint16_t)(KEYMAP_COMBO_COUNT * COMBO_FIELDS))
+#define KEYMAP_KO_WORDS      ((uint16_t)(KEYMAP_KEY_OVERRIDE_COUNT * KO_FIELDS))
+#define KEYMAP_CFG_WORDS     ((uint16_t)KEYMAP_CFG_COUNT)
+```
+
+#### `KEYMAP_WORDS`
+
+```c
+#define KEYMAP_WORDS \
+    ((uint16_t)(KEYMAP_KEY_WORDS + KEYMAP_ENCODER_WORDS + KEYMAP_MACRO_WORDS + KEYMAP_TD_WORDS + KEYMAP_COMBO_WORDS + KEYMAP_KO_WORDS + KEYMAP_CFG_WORDS))
+```
+
+#### `keymap_word_get`
+
+```c
+uint16_t keymap_word_get(uint16_t offset);
+```
+
+The word at an offset, and a word put there directly (no version bump, no note: this is how the store loads). Offsets past the end read 0.
+
+#### `keymap_word_set`
+
+```c
+void     keymap_word_set(uint16_t offset, uint16_t value);
+```
+
+#### `KEYMAP_CHANGE_MAX`
+
+```c
+#define KEYMAP_CHANGE_MAX 24
+```
+
+The offsets edited since the list was cleared, each once. `keymap_changes_overflow()` is true when there were too many to list (or the whole keymap was replaced: reset, defaults, macros cleared): the store then writes everything.
+
+#### `keymap_changes`
+
+```c
+uint8_t  keymap_changes(void);
+```
+
+#### `keymap_change_at`
+
+```c
+uint16_t keymap_change_at(uint8_t index);
+```
+
+#### `keymap_changes_overflow`
+
+```c
+bool     keymap_changes_overflow(void);
+```
+
+#### `keymap_changes_clear`
+
+```c
+void     keymap_changes_clear(void);
+```
+
+#### `keymap_changes_all`
+
+```c
+void     keymap_changes_all(void);
+```
+
+makes the next save a whole one
 
 ### `core/layer.h`
 
@@ -2777,7 +2857,9 @@ After waking up: the count starts over from `now`.
 
 The keymap in flash: one keyboard (keys, encoders, macros, tap dances, settings) in a pair of slots A/B of STORE_SLOT_SECTORS sectors; the RAM copy is in keymap.c. There used to be four profiles, which cost 16 KB of the chip's flash for a number of layouts nobody used: with one keyboard the store sits at the end of the flash and the code gets those bytes.
 
-A save erases the slot that is NOT in use, writes the payload, and writes the header last. The header carries a sequence number and a CRC of the payload, so a slot only counts once it is complete; at load the valid slot with the newest sequence wins. A power cut during a save leaves the previous copy intact.
+A whole save erases the slot that is NOT in use, writes the payload, and writes the header last. The header carries a sequence number and a CRC of the payload, so a slot only counts once it is complete; at load the valid slot with the newest sequence wins. A power cut during a save leaves the previous copy intact.
+
+Most saves are not whole. The room left in a slot after the payload (about 340 bytes) is a LOG: an edit appends one five-byte record per changed word - no erase, so the backlight does not go dark and the flash is not worn - and the load puts the records over the payload. The whole save comes only when the log is full (about 69 words), when a lot changed at once (a reset, a macro) or when nothing was saved yet.
 
 Flash map: code up to 0xDC00, the store (2 slots x 4 sectors of 512 bytes) at 0xDC00-0xEBFF, the settings at 0xEC00, the bootloader's marker at 0xEE00 (never touched), the stock bootloader at 0xF000.
 
@@ -2867,6 +2949,20 @@ Writes the RAM copy to flash now, if it changed. Takes tens of milliseconds.
 
 ```c
 bool store_dirty(void);
+```
+
+#### `store_saves`
+
+```c
+uint16_t store_saves(void);
+```
+
+For the diagnostics: how many times the whole keymap has been written (the sequence number in the header of the slot in use: it survives power-off, and each of those erased the four sectors of one slot, so each sector has been erased about half that many times), and how many records the log of the slot in use holds.
+
+#### `store_log_used`
+
+```c
+uint8_t  store_log_used(void);
 ```
 
 ### `core/tapping.h`

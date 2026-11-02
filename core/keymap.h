@@ -120,3 +120,32 @@ void keymap_macro_write(uint16_t offset, uint8_t size, const uint8_t *src);
 
 // Empties all macros.
 void keymap_macro_clear(void);
+
+// ---- the keymap as a run of 16-bit words, and the list of the words that changed ----
+// The store keeps the keymap in flash as a run of words in this order: the keys (layer, row, column), the encoders (layer, encoder,
+// direction), the macros (two bytes a word, little-endian), the tap dances (index, field), the combos, the key overrides, the settings.
+// A word is named by its offset in that run. Every edit notes the offset it changed, so that the store can write down just those words
+// (a record of the log) instead of the whole keymap (four sector erases, ~130 ms of dark backlight).
+#define KEYMAP_KEY_WORDS     ((uint16_t)(KEYMAP_LAYERS * MATRIX_ROWS * MATRIX_COLS))
+#define KEYMAP_ENCODER_WORDS ((uint16_t)(KEYMAP_LAYERS * ENCODER_COUNT * 2))
+#define KEYMAP_MACRO_WORDS   ((uint16_t)(KEYMAP_MACRO_BYTES / 2))
+#define KEYMAP_TD_WORDS      ((uint16_t)(KEYMAP_TAP_DANCE_COUNT * TD_FIELDS))
+#define KEYMAP_COMBO_WORDS   ((uint16_t)(KEYMAP_COMBO_COUNT * COMBO_FIELDS))
+#define KEYMAP_KO_WORDS      ((uint16_t)(KEYMAP_KEY_OVERRIDE_COUNT * KO_FIELDS))
+#define KEYMAP_CFG_WORDS     ((uint16_t)KEYMAP_CFG_COUNT)
+#define KEYMAP_WORDS \
+    ((uint16_t)(KEYMAP_KEY_WORDS + KEYMAP_ENCODER_WORDS + KEYMAP_MACRO_WORDS + KEYMAP_TD_WORDS + KEYMAP_COMBO_WORDS + KEYMAP_KO_WORDS + KEYMAP_CFG_WORDS))
+
+// The word at an offset, and a word put there directly (no version bump, no note: this is how the store loads). Offsets past the end read 0.
+uint16_t keymap_word_get(uint16_t offset);
+void     keymap_word_set(uint16_t offset, uint16_t value);
+
+// The offsets edited since the list was cleared, each once. `keymap_changes_overflow()` is true when there were too many to list (or the
+// whole keymap was replaced: reset, defaults, macros cleared): the store then writes everything.
+#define KEYMAP_CHANGE_MAX 24
+uint8_t  keymap_changes(void);
+uint16_t keymap_change_at(uint8_t index);
+bool     keymap_changes_overflow(void);
+void     keymap_changes_clear(void);
+void     keymap_changes_all(void); // makes the next save a whole one
+

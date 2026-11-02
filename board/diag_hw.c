@@ -6,6 +6,7 @@
 #include "matrix.h"
 #include "radio.h"
 #include "sh68f90.h"
+#include "store.h"
 #include "tick.h"
 #include "usb_reports.h"
 
@@ -35,6 +36,8 @@ void diag_hook_refresh(void)
 
     diag_set(DIAG_STACK_USED, (uint16_t)(a - STACK_BASE + 1u));
     diag_set(DIAG_USB_OVERFLOW, usb_reports_overflows());
+    diag_set(DIAG_STORE_SAVES, store_saves());
+    diag_set(DIAG_STORE_LOG, store_log_used());
 }
 
 const uint8_t *diag_hook_radio_status(void)

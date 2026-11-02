@@ -66,7 +66,7 @@ e da pochi `core` che hanno un driver proprio nel chip (USB, tick).
 | Indirizzi | Contenuto |
 | --- | --- |
 | `0x0000–0xDBFF` | applicazione (limite imposto da `make size`: 56320 B) |
-| `0xDC00–0xEBFF` | **deposito della keymap**: due copie (A/B) da 4 settori da 512 B |
+| `0xDC00–0xEBFF` | **deposito della keymap**: due copie (A/B) da 4 settori da 512 B; in fondo a ogni copia un **log** di 69 record da 5 B |
 | `0xEC00–0xEDFF` | **log delle impostazioni** (sleep, slot Bluetooth, luci): 36 record da 14 B, append-only |
 | `0xEE00–0xEFFF` | marcatore del bootloader stock: **mai toccato** |
 | `0xF000–0xFFFF` | bootloader stock (invariato; si entra con `isp_jump`) |
@@ -182,10 +182,18 @@ confinate nell'area scrivibile), `pwm` (18 canali, tre banchi da 6), `power` (po
 
 ## 9. Persistenza
 
-**Keymap** (`core/store.c`). Due copie A/B da 4 settori. Un salvataggio **cancella la copia che non è in uso**, scrive il payload (~1,7 KB di 2 KB) e **scrive l'intestazione per ultima**
+**Keymap** (`core/store.c`). Due copie A/B da 4 settori. Un **salvataggio completo** cancella la copia che non è in uso, scrive il payload (~1,7 KB di 2 KB) e **scrive l'intestazione per ultima**
 (magic, versione, layer, righe, colonne, **numero di sequenza**, **CRC‑16 del payload**, impronta dei default). Una copia vale solo se completa; al caricamento vince la valida con la sequenza più recente
 (confronto con wrap). Un'interruzione durante il salvataggio lascia intatta la copia precedente. L'**impronta dei default** invalida le copie scritte da un firmware con una keymap di default diversa
 (altrimenti nasconderebbero le novità). I salvataggi partono dopo 2 s senza modifiche e senza tasti giù.
+
+**Il log della keymap.** Il salvataggio completo è raro. Nello spazio rimasto in fondo a ogni copia dopo il payload (~340 B) c'è un **log di record da 5 byte**: `[offset lo, offset hi, valore lo, valore hi, controllo]`, uno per ogni
+parola modificata. Tutta la keymap è una sequenza di parole da 16 bit (tasti, encoder, macro, tap dance, combo, key override, impostazioni: `core/keymap.h`), e **ogni modifica annota l'offset che ha cambiato**
+(`note()` in `core/keymap.c`, fino a 24 voci, senza doppioni). Al salvataggio: se la lista è breve e il log ha posto (**69 record**), si **aggiunge un record per parola**: nessuna cancellazione, nessuna pausa dei LED,
+pochi byte programmati; se la lista è troppo lunga (reset, macro grandi, molte modifiche insieme), se il log è pieno o se non c'è ancora nessuna copia, si fa un salvataggio completo nell'altra copia e il log riparte vuoto.
+Al caricamento si applica il payload e poi i record **nell'ordine**, uno sopra l'altro. Un record tagliato da un'interruzione (controllo sbagliato, mai 0xFF) viene saltato e il log prosegue dopo di lui;
+un'interruzione a metà di un gruppo di record lascia ogni parola o vecchia o nuova, mai corrotta. Il risultato: **un salvataggio da Vial non spegne i LED** e la flash viene cancellata ~70 volte meno.
+Il numero di sequenza dell'intestazione è anche il **contatore persistente dei salvataggi completi** (`store_saves()`, in `diag.py`): ogni salvataggio completo cancella i 4 settori di una copia, quindi ogni settore ha subito circa metà di quel numero.
 
 **Impostazioni** (`core/settings.c`). Record da 14 B (magic, versione 2, sleep, slot Bluetooth, **effetto, luminosità, velocità, colore**, CRC) in **un solo settore usato come log**: ogni salvataggio
 **appende** al primo slot vuoto e vince l'ultimo record valido. Si cancella solo quando il settore è pieno (ogni 36 salvataggi). Così un salvataggio frequente (i tasti luce) **non cancella nulla** e
@@ -195,7 +203,7 @@ un'interruzione non perde il precedente. Un record danneggiato viene saltato.
 campi (la versione non sale): li salva `settings`. Se stessero nel deposito, ogni pressione di un tasto luce cancellerebbe 4 settori (~130 ms di LED spenti).
 
 **Il costo della flash.** Una cancellazione di settore ferma la CPU ~32 ms (nessun interrupt gira); la programmazione ferma la CPU per microsecondi a byte, non percepibili. `store_hook_flush_begin/end`
-mettono in pausa **timer e PWM solo attorno alle cancellazioni** e fanno `watchdog_kick` prima di ogni operazione. Restano ~130 ms al buio quando si salva la keymap (4 settori).
+mettono in pausa **timer e PWM solo attorno alle cancellazioni** e fanno `watchdog_kick` e `tick_alive` prima di ogni operazione. Un salvataggio completo della keymap (4 settori, ~130 ms al buio) ora capita una volta ogni ~70 modifiche.
 
 ## 10. USB e protocolli sul raw HID
 
@@ -274,6 +282,7 @@ CI (GitHub Actions): test host, build, budget, vettori, gradini, simulazione; l'
 | Debounce a tempo | il tempo di risposta non dipende dalla frequenza di scansione | i campioni scartati sono innocui (la matrice è uno stato) |
 | Log delle impostazioni append‑only | niente erase a ogni salvataggio, nessuna perdita per interruzioni | 36 salvataggi per settore |
 | Luci fuori dal deposito della keymap | il deposito cancella 4 settori (~130 ms al buio) | `keymap_cfg_set` ha un'eccezione per 4 campi |
+| Keymap salvata come immagine + log | una modifica da Vial = 5 byte programmati, niente erase, niente buio; ~70× meno cicli di cancellazione | ~1,1 KB di flash in più; un salvataggio a metà di un gruppo può lasciare un gruppo applicato in parte |
 | ISR USB senza copia | non trattiene il timer dei LED | il main legge dal buffer dell'endpoint (che resta fermo finché non si risponde) |
 | Curva Li‑Po e non la retta dello stock | lo stock chiama «pieno» tutto sopra ~3,85 V | scala provvisoria |
 | Nessun mouse via radio | la BK3632 non ha un frame mouse | encoder come rotella solo via cavo |

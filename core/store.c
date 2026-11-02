@@ -16,6 +16,15 @@
 #define SLOT_BYTES ((uint16_t)(STORE_SLOT_SECTORS * STORE_SECTOR_BYTES))
 #define CHUNK      ((uint16_t)64u)
 
+_Static_assert(WORDS == KEYMAP_WORDS, "the store and keymap.c must number the words the same way");
+
+// The log: what is left of the slot after the payload holds records of five bytes, [offset lo, offset hi, value lo, value hi, check], each the
+// new value of one word of the payload. A record is appended without erasing anything; the load puts the payload in place and then the
+// records over it, in order. A slot is erased and written whole again only when the log is full (or a lot changed at once).
+#define JOURNAL_START ((uint16_t)(HEADER + PAYLOAD))
+#define JOURNAL_REC   5u
+#define JOURNAL_SLOTS ((uint8_t)((SLOT_BYTES - JOURNAL_START) / JOURNAL_REC))
+
 // Not the magic of the SMK port ('K', 'M'): slots written by that firmware are not read as ours.
 #define MAGIC0  'O'
 #define MAGIC1  'B'
@@ -34,6 +43,8 @@ static uint16_t active_seq;
 static bool     dirty;
 static uint8_t  seen_version; // keymap_version() at the last look
 static uint16_t last_edit;
+
+static uint8_t  journal_next; // the first blank record of the active slot's log (JOURNAL_SLOTS: full)
 
 static uint16_t header_seq; // the header just read by slot_header()
 static uint16_t header_crc;
@@ -145,21 +156,6 @@ static void cursor_advance(void)
     }
 }
 
-// The word under the cursor, as the RAM copy has it
-static uint16_t cursor_get(void)
-{
-    switch (sec) {
-        case SEC_KEYS:       return keymap_get(ca, cb, cc);
-        case SEC_ENCODERS:   return keymap_get_encoder(ca, cb, cc != 0);
-        case SEC_MACROS:     return (uint16_t)(keymap_macro_byte((uint16_t)(cm * 2u)) | ((uint16_t)keymap_macro_byte((uint16_t)(cm * 2u + 1u)) << 8));
-        case SEC_TAP_DANCES: return keymap_tap_dance_get(ca, cb);
-        case SEC_COMBOS:     return keymap_combo_get(ca, cb);
-        case SEC_OVERRIDES:  return keymap_override_get(ca, cb);
-        case SEC_CFG:        return keymap_cfg_get(ca);
-        default:             return 0;
-    }
-}
-
 // The word under the cursor, as the compiled-in keymap has it (the macros are empty by default)
 static uint16_t cursor_default(void)
 {
@@ -171,38 +167,6 @@ static uint16_t cursor_default(void)
         case SEC_OVERRIDES:  return keymap_default_override(ca, cb);
         case SEC_CFG:        return keymap_default_cfg(ca);
         default:             return 0;
-    }
-}
-
-static void cursor_set(uint16_t value)
-{
-    switch (sec) {
-        case SEC_KEYS:
-            keymap_set(ca, cb, cc, value);
-            break;
-        case SEC_ENCODERS:
-            keymap_set_encoder(ca, cb, cc != 0, value);
-            break;
-        case SEC_MACROS: {
-            const uint8_t bytes[2] = {(uint8_t)(value & 0xFFu), (uint8_t)(value >> 8)};
-
-            keymap_macro_write((uint16_t)(cm * 2u), 2, bytes);
-            break;
-        }
-        case SEC_TAP_DANCES:
-            keymap_tap_dance_set(ca, cb, value);
-            break;
-        case SEC_COMBOS:
-            keymap_combo_set(ca, cb, value);
-            break;
-        case SEC_OVERRIDES:
-            keymap_override_set(ca, cb, value);
-            break;
-        case SEC_CFG:
-            keymap_cfg_set(ca, value);
-            break;
-        default:
-            break;
     }
 }
 
@@ -242,10 +206,9 @@ static bool slot_header(uint8_t slot)
 // CRC of the payload of `slot`. With `apply`, the words also go into the RAM copy.
 static uint16_t slot_payload(uint8_t slot, bool apply)
 {
-    uint16_t crc = 0xFFFFu;
-    uint16_t at  = 0; // byte offset into the payload
-
-    cursor_start();
+    uint16_t crc  = 0xFFFFu;
+    uint16_t at   = 0; // byte offset into the payload
+    uint16_t word = 0; // and the word it is, for the RAM copy
 
     while (at < PAYLOAD) {
         const uint8_t n = (PAYLOAD - at > CHUNK) ? (uint8_t)CHUNK : (uint8_t)(PAYLOAD - at);
@@ -258,8 +221,7 @@ static uint16_t slot_payload(uint8_t slot, bool apply)
 
         if (apply) {
             for (uint8_t i = 0; i < n; i += 2) {
-                cursor_set((uint16_t)(chunk[i] | ((uint16_t)chunk[i + 1] << 8)));
-                cursor_advance();
+                keymap_word_set(word++, (uint16_t)(chunk[i] | ((uint16_t)chunk[i + 1] << 8)));
             }
         }
 
@@ -275,10 +237,48 @@ static bool slot_valid(uint8_t slot)
     return slot_header(slot) && slot_payload(slot, false) == header_crc;
 }
 
+// The check byte of a record. Never 0xFF: a record whose last byte was not programmed yet (a power cut) must not look complete.
+static uint8_t journal_check(const uint8_t *rec)
+{
+    const uint8_t sum = (uint8_t)(0xA5u ^ rec[0] ^ (uint8_t)(rec[1] << 1) ^ (uint8_t)(rec[2] + 3u) ^ (uint8_t)(rec[3] << 2));
+
+    return (sum == 0xFFu) ? 0xFEu : sum;
+}
+
+static uint16_t journal_addr(uint8_t slot, uint8_t index)
+{
+    return (uint16_t)(slot_addr(slot) + JOURNAL_START + (uint16_t)index * JOURNAL_REC);
+}
+
+// Puts the records of `slot` over the RAM copy, and finds where the next one goes. A record cut short by a power failure, or damaged, is
+// skipped and the log goes on after it (the way the settings log does).
+static void journal_replay(uint8_t slot)
+{
+    uint8_t rec[JOURNAL_REC];
+
+    journal_next = JOURNAL_SLOTS;
+
+    for (uint8_t i = 0; i < JOURNAL_SLOTS; i++) {
+        store_hook_read(journal_addr(slot, i), rec, JOURNAL_REC);
+
+        if (rec[0] == 0xFFu && rec[1] == 0xFFu && rec[2] == 0xFFu && rec[3] == 0xFFu && rec[4] == 0xFFu) {
+            journal_next = i; // blank: nothing was written from here on
+            return;
+        }
+
+        const uint16_t offset = (uint16_t)(rec[0] | ((uint16_t)rec[1] << 8));
+
+        if (rec[4] == journal_check(rec) && offset < WORDS) {
+            keymap_word_set(offset, (uint16_t)(rec[2] | ((uint16_t)rec[3] << 8)));
+        }
+    }
+}
+
 static void mark_loaded(void)
 {
     dirty        = false;
     seen_version = keymap_version();
+    keymap_changes_clear(); // what loading put into the RAM copy is what the flash has: nothing to write down
     store_hook_loaded();
 }
 
@@ -298,7 +298,9 @@ static void load_keymap(void)
         seq1 = header_seq;
     }
 
-    active_slot = NO_SLOT;
+    active_slot  = NO_SLOT;
+    active_seq   = 0;
+    journal_next = 0;
 
     if (!valid0 && !valid1) {
         keymap_init();
@@ -312,6 +314,7 @@ static void load_keymap(void)
     slot_payload(newest, true);
     active_slot = newest;
     active_seq  = newest ? seq1 : seq0;
+    journal_replay(newest);
     mark_loaded();
 }
 
@@ -326,15 +329,9 @@ bool store_dirty(void)
     return dirty || keymap_version() != seen_version;
 }
 
-void store_flush(void)
+// The whole keymap into the slot that is not in use: four erases, then the payload, then the header. The log of the new slot starts empty.
+static void full_save(void)
 {
-    if (!store_dirty()) {
-        return;
-    }
-
-    dirty        = false; // cleared first: an edit during the write is not lost
-    seen_version = keymap_version();
-
     const uint8_t  target = (active_slot == 0) ? 1 : 0;
     const uint16_t seq    = (uint16_t)(active_seq + 1);
     const uint16_t base   = slot_addr(target);
@@ -350,18 +347,16 @@ void store_flush(void)
 
     store_hook_flush_end();
 
-    uint16_t crc = 0xFFFFu;
-    uint16_t at  = 0;
-
-    cursor_start();
+    uint16_t crc   = 0xFFFFu;
+    uint16_t at    = 0;
+    uint16_t index = 0; // the word
 
     while (at < PAYLOAD) {
         const uint8_t n = (PAYLOAD - at > CHUNK) ? (uint8_t)CHUNK : (uint8_t)(PAYLOAD - at);
 
         for (uint8_t i = 0; i < n; i += 2) {
-            const uint16_t word = cursor_get();
+            const uint16_t word = keymap_word_get(index++);
 
-            cursor_advance();
             chunk[i]     = (uint8_t)(word & 0xFFu);
             chunk[i + 1] = (uint8_t)(word >> 8);
         }
@@ -392,8 +387,59 @@ void store_flush(void)
     chunk[14] = 0;
     store_hook_program(base, chunk, HEADER);
 
-    active_slot = target;
-    active_seq  = seq;
+    active_slot  = target;
+    active_seq   = seq;
+    journal_next = 0;
+}
+
+// The words that changed, as records at the end of the log of the slot in use: a few bytes programmed, nothing erased.
+static void journal_append(void)
+{
+    uint8_t rec[JOURNAL_REC];
+
+    for (uint8_t i = 0; i < keymap_changes(); i++) {
+        const uint16_t offset = keymap_change_at(i);
+        const uint16_t value  = keymap_word_get(offset);
+
+        rec[0] = (uint8_t)(offset & 0xFFu);
+        rec[1] = (uint8_t)(offset >> 8);
+        rec[2] = (uint8_t)(value & 0xFFu);
+        rec[3] = (uint8_t)(value >> 8);
+        rec[4] = journal_check(rec);
+
+        store_hook_program(journal_addr(active_slot, journal_next), rec, JOURNAL_REC);
+        journal_next++;
+    }
+}
+
+void store_flush(void)
+{
+    if (!store_dirty()) {
+        return;
+    }
+
+    dirty        = false; // cleared first: an edit during the write is not lost
+    seen_version = keymap_version();
+
+    const uint8_t pending = keymap_changes();
+
+    if (active_slot != NO_SLOT && pending > 0 && !keymap_changes_overflow() && (uint16_t)journal_next + pending <= JOURNAL_SLOTS) {
+        journal_append();
+    } else {
+        full_save(); // nothing saved yet, a lot changed at once, or the log is full
+    }
+
+    keymap_changes_clear();
+}
+
+uint16_t store_saves(void)
+{
+    return active_seq;
+}
+
+uint8_t store_log_used(void)
+{
+    return journal_next;
 }
 
 void store_task(uint16_t now, bool any_key_down)

@@ -57,6 +57,17 @@ Il controllo di recupero Esc+1+2 va all'inizio del `main`, prima di USB e radio.
   30 ms (la coda della radio è di 4); la tastiera non va in sleep mentre scrive. Costa ~520 B di flash (54415/55296). È uno strumento di debug: da
   togliere insieme al registro in flash quando la scala della batteria è confermata.
 
+## 2026-11-02 (notte, 19) — la keymap è un'immagine più un log; contatore dei salvataggi
+
+- **Log della keymap** (`core/store.c`, `core/keymap.c`): le modifiche da Vial non salvano più la keymap intera (4 cancellazioni, ~130 ms di LED spenti). Ogni modifica annota l'offset della parola cambiata (`note()`, fino a 24);
+  al salvataggio si **aggiunge un record da 5 byte** (offset, valore, controllo) nel log in fondo alla copia in uso (**69 record**, nello spazio libero dopo il payload) e non si cancella nulla. Salvataggio completo (copia
+  alternata, log vuoto) solo se il log è pieno, se cambia molto insieme (reset, macro) o se non c'è ancora nulla. Il caricamento applica il payload e poi i record in ordine; un record tagliato si salta. Formato dell'immagine
+  invariato: la keymap salvata resta valida. La keymap in RAM è ora una sola sequenza di parole (`words[]`), con `keymap_word_get/set` per offset: il codice di caricamento/salvataggio è più corto.
+- **Contatore dei salvataggi**: l'intestazione ha già un numero di sequenza persistente = salvataggi completi di sempre; `diag.py` lo mostra (`DIAG_STORE_SAVES`), con una stima dei cicli di cancellazione per settore (metà),
+  e i record presenti nel log (`DIAG_STORE_LOG`).
+- Test: `test_store` riscritto per immagine + log (modifica = record senza erase né pausa dei LED, ordine di riproduzione, log pieno → altra copia dopo 69 record, molte parole → salvataggio completo, record tagliato saltato,
+  interruzione di corrente in ogni punto del gruppo → ogni parola vecchia o nuova, mai corrotta, luci non sono una modifica). Flash 53755/56320 (+1,1 KB), XDATA 3778/4096, 27 test host, `make sim` ok.
+
 ## 2026-11-02 (notte, 18) — reverse engineering del salvataggio dello stock; fix del back-off durante la programmazione
 
 - Riscritto il disassemblatore come `tools/dis51.py` (con `--xref`). Il salvataggio dello stock (vedi `docs/keyboards/yunzii-b68-firmware-stock.md`): primitiva IAP a `0x9700` che rifiuta di partire con `EA` acceso,

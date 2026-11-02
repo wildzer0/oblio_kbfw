@@ -4,9 +4,13 @@
 // sectors; the RAM copy is in keymap.c. There used to be four profiles, which cost 16 KB of the chip's flash for a number of layouts
 // nobody used: with one keyboard the store sits at the end of the flash and the code gets those bytes.
 //
-// A save erases the slot that is NOT in use, writes the payload, and writes the header last. The header carries a sequence
+// A whole save erases the slot that is NOT in use, writes the payload, and writes the header last. The header carries a sequence
 // number and a CRC of the payload, so a slot only counts once it is complete; at load the valid slot with the newest sequence
 // wins. A power cut during a save leaves the previous copy intact.
+//
+// Most saves are not whole. The room left in a slot after the payload (about 340 bytes) is a LOG: an edit appends one five-byte record per
+// changed word - no erase, so the backlight does not go dark and the flash is not worn - and the load puts the records over the payload. The
+// whole save comes only when the log is full (about 69 words), when a lot changed at once (a reset, a macro) or when nothing was saved yet.
 //
 // Flash map: code up to 0xDC00, the store (2 slots x 4 sectors of 512 bytes) at 0xDC00-0xEBFF, the settings at 0xEC00, the
 // bootloader's marker at 0xEE00 (never touched), the stock bootloader at 0xF000.
@@ -46,3 +50,9 @@ void store_task(uint16_t now, bool any_key_down);
 void store_flush(void);
 
 bool store_dirty(void);
+
+// For the diagnostics: how many times the whole keymap has been written (the sequence number in the header of the slot in use: it survives power-off,
+// and each of those erased the four sectors of one slot, so each sector has been erased about half that many times), and how many records the
+// log of the slot in use holds.
+uint16_t store_saves(void);
+uint8_t  store_log_used(void);

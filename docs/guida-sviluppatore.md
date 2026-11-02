@@ -174,16 +174,11 @@ evitarlo: l'hardware non lo permette.
 - I tasti luce ora salvano in un **log** che aggiunge un record senza cancellare (il settore si cancella una volta ogni 36 salvataggi).
 - La pausa dei LED copre **solo le cancellazioni**, non la programmazione dei byte (che ferma la CPU per microsecondi).
 - La programmazione della keymap (1,7 KB in un colpo dal ciclo principale) faceva scattare il **back‑off** del backlight (il main «affamato»): ora `store_hook_program` chiama `tick_alive()`.
-- Restano ~130 ms al buio (4 cancellazioni) quando si **salva la keymap** (modifiche da Vial).
-
-**Cosa si potrebbe fare ancora** (da valutare insieme):
-1. **Rimandare il salvataggio della keymap** quando la tastiera è inattiva più a lungo (per esempio 10–30 s), invece di 2 s dopo l'ultima modifica: il buio capita quando non stai guardando. Rischio: se togli il cavo prima, perdi le modifiche.
-2. **Cancellare solo i settori che cambiano** (una modifica di un tasto tocca un solo settore): da 130 a ~32 ms. Richiede di rivedere il formato del deposito.
-3. **Salvare la keymap come log**, come le impostazioni: nessuna cancellazione per ogni modifica. È il cambiamento più grande, ma elimina il problema alla radice.
-4. Controllare nel dump stock come fa l'originale, e copiarne l'idea se ce n'è una.
+- La keymap è ora un'**immagine più un log**: una modifica da Vial aggiunge un record da 5 byte in fondo alla copia in uso, senza cancellare nulla (niente buio). Il salvataggio completo (4 cancellazioni, ~130 ms) capita una volta ogni ~70 modifiche, o per operazioni grosse (reset, macro). Vedi `design.md` §9 e `core/store.c` (`journal_append`, `journal_replay`).
+- `diag.py` mostra il **contatore persistente dei salvataggi completi** e una stima dei cicli di cancellazione per settore.
 
 **Come esplorarlo da soli**: `diag.py` mostra «longest sector erase (us)»; guarda come cambia dopo aver fatto un salvataggio dalle luci e uno dalla keymap. In `board/store_hw.c` leggi `store_hook_flush_begin/end`
-e `store_hook_erase`; in `core/store.c` `store_flush`; in `core/settings.c` `settings_flush`.
+e `store_hook_erase`; in `core/store.c` `store_flush` (sceglie tra log e salvataggio completo); in `core/settings.c` `settings_flush`.
 
 ---
 
