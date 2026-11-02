@@ -57,6 +57,12 @@ Il controllo di recupero Esc+1+2 va all'inizio del `main`, prima di USB e radio.
   30 ms (la coda della radio è di 4); la tastiera non va in sleep mentre scrive. Costa ~520 B di flash (54415/55296). È uno strumento di debug: da
   togliere insieme al registro in flash quando la scala della batteria è confermata.
 
+## 2026-11-02 (notte, 13) — latenza del BLE: la misura dice che non è il firmware
+
+- Dati dell'utente: rifiuti della radio ai report **0** in BLE e in 2.4G; massimo da tasto a «accettato dalla radio» **33 ms (BLE)** e **40 ms (2.4G)**. Il percorso del
+  firmware è lo stesso nei due modi: il ritardo percepito in più del BLE è dell'intervallo di connessione (host + BK3632). Comandi dello stock mai usati (`04`, `05`, `0E`)
+  guardati nel dump: `04 02/03` seguono il cambio di modo e un timeout, `0E` il modo USB; nessuno ha l'aria di un parametro di connessione. Nessuna modifica al codice.
+
 ## 2026-11-02 (notte, 12) — avviso di batteria, remote wakeup USB, misure per il BLE
 
 - **Avviso di batteria** (`board/battery.c`, `battery_task`): sotto la lettura 800 (~3,3 V) il gauge (rosso, un tasto) si mostra subito e ogni 30 s; sotto 752 (~3,09 V) per 10 s la

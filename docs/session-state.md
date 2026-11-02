@@ -30,11 +30,12 @@ Il registro in flash, il logger da tastiera e la diagnostica `--blog/--ports/--m
 
 ## Prossimi passi concordati
 
-1. **Latenza del BLE** (più lenta del 2.4G). Il percorso del firmware è breve (tasto → coda → frame seriale da ~1,2 ms): il sospetto è la radio (l'intervallo di
-   connessione lo decide l'host) o i «non ora» (ogni rifiuto costa 10 ms, `REFUSED_RETRY_MS`). Misura pronta: `py tools\diag.py --radio` mostra
-   **«reports it answered 'not now' to»** e **«longest key -> radio accepted (ms)»**. Prova: con il cavo (solo per alimentare e leggere) in modo Bluetooth, scrivere
-   un paragrafo, leggere i due contatori; ripetere in 2.4G. Se i rifiuti sono molti in BLE → abbassare `REFUSED_RETRY_MS`; se il massimo è piccolo e il ritardo si
-   sente comunque → è la radio, non il firmware.
+1. **Latenza del BLE — misurata il 2026-11-02: non è il firmware.** Con i contatori nuovi: **0 rifiuti** («non ora») sia in BLE sia in 2.4G, e il massimo da tasto a
+   «accettato dalla radio» è 33 ms (BLE) contro 40 ms (2.4G): uguale nei due modi, quindi il ritardo in più del BLE sta **dopo** la radio (intervallo di
+   connessione BLE, deciso dall'host con la BK3632; latenza dello slave). Nessun comando noto della radio lo cambia (nello stock `04 02` dopo il cambio di modo e
+   `04 03` dopo ~80 s sono probabilmente avvio/fine dell'advertising, non parametri di connessione). Prove utili: lo stesso BLE su un telefono o un altro PC
+   (se cambia, è l'host); primo tasto dopo una pausa contro raffica (se solo il primo è lento, è lo slave latency). Resta da capire il massimo di 33–40 ms (ATT bassa
+   a tratti?), uguale nei due modi.
 2. Provare **avviso di batteria** (`battery_task`: sotto 800 gauge rosso ogni 30 s, sotto 752 per 10 s sleep) e **remote wakeup USB** (PC in sospensione, un tasto lo sveglia).
 3. Togliere i contatori di diagnostica solo a lavoro finito.
 
