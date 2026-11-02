@@ -57,6 +57,14 @@ Il controllo di recupero Esc+1+2 va all'inizio del `main`, prima di USB e radio.
   30 ms (la coda della radio è di 4); la tastiera non va in sleep mentre scrive. Costa ~520 B di flash (54415/55296). È uno strumento di debug: da
   togliere insieme al registro in flash quando la scala della batteria è confermata.
 
+## 2026-11-02 (notte, 18) — reverse engineering del salvataggio dello stock; fix del back-off durante la programmazione
+
+- Riscritto il disassemblatore come `tools/dis51.py` (con `--xref`). Il salvataggio dello stock (vedi `docs/keyboards/yunzii-b68-firmware-stock.md`): primitiva IAP a `0x9700` che rifiuta di partire con `EA` acceso,
+  interblocco sui settori 0x62–0x75, salvataggio a `0xA4A5` (PWM spento, colonne alte, **cancella il solo settore 0xC600**, PWM riacceso), scrittura dei 128 byte **uno per tick** nella coda dell'ISR del Timer 2,
+  subito a ogni cambio (flag `50h`). Lo stock **spegne il backlight durante l'erase come noi**; non ha trucchi per evitarlo.
+- **Trovata una causa nostra**: la programmazione della keymap (1,7 KB) gira in un colpo nel main, che non incrementa `alive`: il rilevatore di «main affamato» (3 scansioni) faceva scattare il back-off e allungava il
+  buio oltre l'erase. `store_hook_program` ora chiama `tick_alive()`. Flash 52612/56320, 27 test host, `make sim` ok.
+
 ## 2026-11-02 (notte, 17) — guida per sviluppatori; Fn+PgUp/PgDn era lo switch su Mac
 
 - `docs/guida-sviluppatore.md`: come funziona una tastiera (matrice, debounce, keycode, report HID, USB, wireless, PWM, Vial), la mappa mentale del firmware, un percorso di lettura del codice con i tempi,

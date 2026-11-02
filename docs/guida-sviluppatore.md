@@ -166,13 +166,15 @@ In questo progetto vale la regola «niente tentativi alla cieca»: si ragiona, s
 - Nei QMK su **STM32** la flash si cancella a pagine e ferma la CPU, ma di solito i LED RGB sono controllati da un **chip driver dedicato** (IS31FL…) o da un timer con **DMA**: *il quadro dei LED lo tiene l'hardware*, non il programma. La CPU può fermarsi e i LED restano com'erano.
 - Qui invece il quadro lo tiene il programma: **la CPU è il driver dei LED**. Un blocco della CPU è un blocco dei LED.
 
-**E il firmware originale?** Non lo sappiamo con certezza: ha lo stesso hardware, quindi ha lo stesso vincolo. Possibili spiegazioni (da verificare nel dump del firmware stock): salva molto più di rado
-(per esempio solo a riposo), cancella un solo settore piccolo (32 ms, quasi invisibili), oppure lascia accesa la colonna corrente per quel tempo senza che si noti. Analizzare quando e come scrive in flash è un buon esercizio di *reverse engineering*.
+**E il firmware originale?** Lo abbiamo disassemblato (`tools/dis51.py`, vedi `docs/keyboards/yunzii-b68-firmware-stock.md`): fa **la stessa cosa** — spegne PWM e colonne, cancella il settore, riaccende — con un solo settore da 128 byte,
+subito a ogni cambio di impostazione e scrivendo i byte «a goccia» da un interrupt. Il buio c'è anche lì, ma coincide con la pressione del tasto che cambia l'effetto e dura quanto una sola cancellazione. Non ha nessun trucco per
+evitarlo: l'hardware non lo permette.
 
 **Cosa abbiamo già fatto.**
 - I tasti luce ora salvano in un **log** che aggiunge un record senza cancellare (il settore si cancella una volta ogni 36 salvataggi).
 - La pausa dei LED copre **solo le cancellazioni**, non la programmazione dei byte (che ferma la CPU per microsecondi).
-- Restano ~130 ms al buio quando si **salva la keymap** (modifiche da Vial).
+- La programmazione della keymap (1,7 KB in un colpo dal ciclo principale) faceva scattare il **back‑off** del backlight (il main «affamato»): ora `store_hook_program` chiama `tick_alive()`.
+- Restano ~130 ms al buio (4 cancellazioni) quando si **salva la keymap** (modifiche da Vial).
 
 **Cosa si potrebbe fare ancora** (da valutare insieme):
 1. **Rimandare il salvataggio della keymap** quando la tastiera è inattiva più a lungo (per esempio 10–30 s), invece di 2 s dopo l'ultima modifica: il buio capita quando non stai guardando. Rischio: se togli il cavo prima, perdi le modifiche.

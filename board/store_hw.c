@@ -54,6 +54,7 @@ void store_hook_erase(uint16_t sector_addr)
 void store_hook_program(uint16_t addr, const uint8_t *src, uint8_t len)
 {
     watchdog_kick();
+    tick_alive(); // a save programs ~1.7 KB in a burst from the main loop: without this the timer interrupt finds the loop "starved" and the backlight steps aside
     flash_program(addr, src, len);
 }
 

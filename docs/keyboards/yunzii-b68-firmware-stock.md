@@ -101,3 +101,24 @@ indirizzi nello stock) è in [yunzii-b68-radio.md](yunzii-b68-radio.md). Qui res
 
 Le voci 1–3 si possono chiudere più in fretta con una **cattura con analizzatore logico** o misure sui pin
 (M1.2/M1.5); la voce 4 è analisi statica. Il Nano non serve per questo.
+
+## Come lo stock scrive in flash (2026-11-02, riletto con `tools/dis51.py`)
+
+Domanda: perché con il firmware originale il backlight non «sfarfalla» quando si salva? Risposta dal dump (`backups/dump/r1.bin`): **lo stock fa le stesse cose di Oblio**, con un'organizzazione diversa.
+
+| Cosa | Dove nel dump | Com'è |
+| --- | --- | --- |
+| Primitiva di scrittura IAP | `0x9700–0x9786` | `R7` = operazione (`0xE6` cancella, `0x6E` programma), `XPAGE` = settore × 2; **rifiuta di partire se `EA` è acceso** (`JB AFh`): serve il chiamante con gli interrupt spenti. Chiavi `05 0A 09 06` come in Oblio |
+| Interblocco | `0x9700`, `0xAD6C`, `0xEC55` | solo i settori **0x62–0x75** (`0xC400–0xEBFF`) e solo se coincidono con un «gettone» in `XDATA[0x0300]`, messo dal chiamante (per le impostazioni vale `0x63`) |
+| Cancellazione di un settore | `0xAD6C` | `CLR EA` → `XPAGE = settore×2` → op `0xE6`; **`EA` non viene riacceso qui** |
+| Salvataggio delle impostazioni | `0xA4A5`, chiamata dal ciclo principale a `0x8F9A` | copia 128 byte (`XDATA[0x0307…]` → buffer `0x09B5…`), `EA` spento, **`0xECEA`** (spegne il PWM: `PWM0CON &= ~0x40`; `P4 = 0xFF` = colonne spente; `P3 \|= 0x2D`), **cancella il settore `0xC600`**, poi `0xB1DA` (riaccende il PWM: `0x89` ai tre canali di testa e bit `0x40`) e riabilita `EA` |
+| Scrittura dei 128 byte | coda del Timer 2 a `0x1071–0x10C1`, `0xEC55`, `0x96D7` | **un byte per interrupt del timer**, con contatore in `XDATA[0x72/0x73]` fino a `0x80`; il flag `49h` («scrittura in corso») impedisce un nuovo salvataggio |
+| Quando salva | flag `50h` («impostazioni cambiate»), messo da 23 punti del codice | `0x8F94`: `se 50h e non 49h → A4A5`. **Subito, senza tempo di quiete** |
+| Dove | settore `0xC600`, marcatore `5A A5` a `0xC67E` | **un blocco da 128 B in un settore da 512 B, senza log**: ogni salvataggio cancella |
+
+**Cosa ne segue**
+1. Lo stock **spegne il backlight durante la cancellazione**, esattamente come fa Oblio (PWM spento e colonne alte, poi PWM riacceso): anche lì c'è un buio, di ~un settore (quanto dura una cancellazione, ~32 ms nelle nostre misure).
+2. Salva **subito** a ogni cambio, ma **un solo settore** (non quattro) e **poi scrive i byte a goccia** nell'interrupt, quindi il ciclo principale non si blocca. Il buio coincide con la pressione del tasto che cambia l'effetto, e la variazione stessa lo mimetizza.
+3. Non esistono né un log né una pausa di quiete: Oblio è migliore per frequenza (log, un erase ogni 36 salvataggi) e per l'impatto sulla flash.
+4. Una differenza che **sì** ci riguardava: Oblio scrive la keymap (1,7 KB) in un colpo dal ciclo principale. Per tutto quel tempo il ciclo non gira e il rilevatore di «main affamato» (3 scansioni senza passaggi) metteva da parte il backlight, **allungando il buio oltre l'erase**. Corretto (`tick_alive()` in `store_hook_program`).
+
