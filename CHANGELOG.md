@@ -57,6 +57,11 @@ Il controllo di recupero Esc+1+2 va all'inizio del `main`, prima di USB e radio.
   30 ms (la coda della radio è di 4); la tastiera non va in sleep mentre scrive. Costa ~520 B di flash (54415/55296). È uno strumento di debug: da
   togliere insieme al registro in flash quando la scala della batteria è confermata.
 
+## 2026-11-02 (notte, 21) — chiusura
+
+- Tutte le prove dell'utente sull'hardware sono andate bene. Pulizia finale: tolti gli hex di bisezione, `CLAUDE.md` riscritto con lo stato attuale (era fermo al 2026-11-01), numeri di `session-state.md` aggiornati.
+- Resta aperto solo ciò che non è un difetto: scala della batteria su un solo punto misurato (conferma: lettura ~1015–1020 appena tolto il caricatore), sequenze del Leader a scelta dell'utente, build a gradini eliminabili.
+
 ## 2026-11-02 (notte, 20) — in USB i LED si spegnevano e i tasti cadevano per ~250 ms: contatore dei SOF a 8 bit
 
 - **Bug** (latente da quando c'è `usb_device_bus_check`): il contatore degli start-of-frame era a 8 bit e a 1 SOF al millisecondo gira esattamente in 256 ms. Il controllo del bus parte ogni ~250 ms e confronta il contatore

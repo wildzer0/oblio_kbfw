@@ -15,31 +15,20 @@ hardware e pin (`docs/keyboards/yunzii-b68*.md`, copiati qui in `docs/`), driver
 dump del firmware stock (`~/dev/smk/backups/dump/`). **Riscrittura pulita**: si legge SMK per i concetti, i moduli si scrivono nuovi, niente
 copia-incolla; dove si adatta un file altrui si mantiene la sua licenza e si elenca in NOTICE.md. SMK si cita sempre (NOTICE.md, README).
 
-## Architettura voluta
-- `hal/`: solo i registri usati (header minimi dal datasheet e dal dump, non l'intera sino51lib): gpio, tick, flash, watchdog, power, extint, PWM, UART.
-- `core/`: C puro testato sull'host con gcc (matrice+debounce, layer, tapping LT/MT/OSM/OSL/TD, report, macro, store profili, scheduler radio).
-- `board/`: pin, LED, radio hw, sleep, selettore modo, tasti personalizzati.
-- Una sola scheda, niente `#ifdef` per più schede, allocazione statica, budget di cicli per l'interrupt LED.
-- Recupero Esc+1+2 nei primissimi istanti del `main`, prima di USB e radio. Bootloader stock a 0xF000 invariato (flash con `sinowisp`).
-- Build: Nix + SDCC + Makefile (una scheda, un hex). CI: GitHub Actions (test host, build, budget flash/XDATA, hex come artifact, Release al tag).
+## Architettura
+- `hal/`: solo i registri usati (gpio, tick, flash, watchdog, power, PWM, USB, clock).
+- `core/`: C puro testato sull'host con gcc (matrice+debounce, layer, tapping, combo, override, leader, macro, report, store/settings, radio, link, VIA/Vial/HUD/diag, USB).
+- `board/`: pin, matrice, LED, radio hw, sleep, selettore modo, switch Win/Mac, batteria, tasti personalizzati.
+- Una sola scheda, niente `#ifdef` per più schede, allocazione statica. Recupero Esc+1+2 nei primissimi istanti del `main`. Bootloader stock a 0xF000 invariato (flash con `sinowisp`).
+- Build: Nix + SDCC + Makefile (un hex). CI: GitHub Actions (test host, riferimento API, build, budget, vettori, gradini, simulazione; hex come artifact; Release al tag).
+- Per il perché di ogni scelta: [docs/design.md](docs/design.md); per le funzioni: [docs/api.md](docs/api.md) (generato: `make api`); per iniziare: [docs/guida-sviluppatore.md](docs/guida-sviluppatore.md).
 
-## Fasi (stato in CHANGELOG.md)
-0 bootstrap (fatta) → 1 CI/build/budget → 2 HAL + matrice 5×16 → 3 logica pura con test host → 4 USB/raw HID (**solo dopo l'arrivo del
-programmatore ICP**, Arduino Nano, per non rischiare di aprire la tastiera) → 5 Vial/VIA → 6 radio/LED/profili/sleep → 7 parità e passaggio.
-
-## Stato al 2026-11-01
-- Repo creato e pubblicato; `make test` gira ma non ci sono ancora test; la CI non è ancora stata vista girare su GitHub.
-- Nel repo vecchio è stato aggiunto lo **sleep a runtime**: Fn+O / Fn+P (`B68_SLP_DN/UP`) scorrono 1, 5, 10, 30 min, mai (predefinito 10 min);
-  i tasti 1–5 della riga numerica lampeggiano il passo. **L'utente lo sta provando sulla tastiera**: attendere l'esito prima di portare sleep/radio qui.
-  Il vecchio repo ha quelle modifiche non committate (build OK: flash 41953/44032, XDATA 3957/4096).
-- Fase 1 fatta (build SDCC, `make size`, CI con artifact e Release al tag; CI remota non ancora vista girare). Fase 2 scritta (HAL, tick, matrice con debounce, recupero): build e test host OK, **non provata sull'hardware**.
-- Decisione dell'utente: **non si aspetta l'ICP**; si riscrive tutto ciò che c'è nel porting SMK (`~/dev/smk`, branch `port/yunzii-b68`) e si prova sulla tastiera quando il progetto è stabile e completo.
-- Fase 3 fatta (keycodes, layer, report, tapping, macro, profili/store con flash finta nei test), commit e push a ogni passo (richiesta dell'utente). La CI remota è passata sui commit delle fasi 1–2.
-- Fase 4 fatta (descrittori, macchina a stati EP0 testata sull'host, driver USB, coda dei report su EP1, raw HID su EP2, comando ISP → bootloader): **nessuna parte provata sull'hardware**.
-- Fase 5 fatta (core/via+vial testati sull'host, `board/vial.json` + `tools/vial_gen.py` + `check_vial.py`): non provata con l'app Vial sull'hardware.
-- Fase 6 fatta (encoder, impostazioni a 0xEC00, LED con tick alternato scansione/sottoquadri, radio BK3632 con selettore e slot BT, sleep): **nessuna parte provata sull'hardware**; flash 41194/44032 (2,8 KB di margine).
-- Fase 7 fatta: correzioni (watchdog), HUD portato, controlli CI, diagnostica (`tools/diag.py`), build a gradini (`make stages`), ucsim (`make sim`), indicatore batteria (sorgente del dato ancora ignota), documenti. Flash 42549/44032.
-- Prossimo passo: la **prima prova sulla tastiera**, a gradini, seguendo `docs/first-boot.md` (rischio dichiarato: senza ICP il recupero è solo Esc+1+2). Poi decodificare la batteria dai dati di `diag.py --radio`. Dopo una compilazione fallita controllare che `build/` non abbia un `.ihx` vecchio (ora c'è `.DELETE_ON_ERROR`). In ogni sessione aggiornare CHANGELOG.md.
+## Stato al 2026-11-02 (chiusura)
+Il firmware è **completo e provato dall'utente sulla tastiera**: USB e radio (2.4G e Bluetooth), Vial (keymap, tap dance, combo, key override, Lighting), NKRO, Caps Word, Leader, mouse dall'encoder,
+switch Win/Mac (P0.5), batteria (lettura ADC a 10 bit dalla radio, curva Li-Po, avviso e sleep di protezione), remote wakeup USB, backlight stabile (USB, HUD e salvataggi), keymap salvata come immagine + log.
+Ultimi numeri: flash ~53,8/56,3 KB, XDATA ~3,8/4 KB, 27 test host, 24 test nel simulatore. Cronologia in [CHANGELOG.md](CHANGELOG.md), punti ancora aperti in [docs/session-state.md](docs/session-state.md)
+(la scala della batteria poggia su un solo punto misurato; le build a gradini `make stages` sono impalcatura del primo avvio, eliminabile; le sequenze del Leader le decide l'utente in `board/leader.c`).
+Se compare un problema: `py tools\diag.py` (contatori, `--radio`) e `docs/session-state.md` → "Trappole già pagate".
 
 ## Come lavora l'utente (preferenze confermate)
 - Scrivo **io** tutto il codice e la documentazione; l'utente fa solo le prove sull'hardware. Ogni modifica va spiegata in modo che possa rivederla.
@@ -53,31 +42,10 @@ programmatore ICP**, Arduino Nano, per non rischiare di aprire la tastiera) → 
 
 ## Comandi
 ```
-nix develop --command make test            # test host
-# vecchio repo, build di rilascio B68:
-cd ~/dev/smk && nix develop --command bash -c 'meson setup build -Dboards=yunzii-b68 --buildtype=release && meson compile -C build'
-sinowisp write --platform sh68f90 --vendor_id 0x258a --product_id 0xdead --format ihex --isp_iface_num 0 -f <file>.hex
+nix develop --command make test            # test host (27) + definizione Vial
+nix develop --command make fw size         # build/oblio.hex e budget flash/XDATA
+nix develop --command make check-interrupts check-api sim
+sinowisp write --platform sh68f90 --vendor_id 0x258a --product_id 0xdead --format ihex --isp_iface_num 0 -f build/oblio.hex
 ```
-Mappa flash del porting: applicazione fino a 0xAC00; profili 0–3 (2 copie × 4 settori) 0xAC00–0xEBFF; impostazioni 0xEC00; marcatore 0xEE00; bootloader stock 0xF000.
-Recupero: Esc+1+2 mentre si inserisce l'USB.
-
-## Aggiornamento 2026-11-01 (notte)
-- **Profili tolti** (decisione dell'utente: non li usava): erano 4 keymap × 2 copie × 2 KB = **16 KB di flash di indirizzamento**. Ora una sola keymap
-  con le sue due copie a **0xDC00–0xEBFF** e il codice può arrivare a **0xDC00 (56.320 B)**: +12,3 KB. Flash 43528/56320, XDATA 3772/4096.
-  La keymap salvata è ripartita dai default una volta (cambia l'indirizzo del deposito) e i tasti `Fn+Z/X/C/V` non esistono più.
-- **Switch Win/Mac**: è **P0.5** (ingresso con pull-up, **alto = Mac**, basso = Windows — misurato sulla tastiera). Non è un semplice swap:
-  Windows usa i layer 0/1, Mac i layer **5/4** (base con Alt↔GUI scambiati e **Fn suo**), tutti e quattro editabili da Vial.
-- **Prossimo passo deciso dall'utente**: batteria + Caps Lock wireless dal frame `08` della radio (mai decodificato), poi combos/key overrides,
-  mouse dall'encoder, Vial RGB. Serve la misura: `diag.py --radio` a carica piena / uso normale / quasi scarica.
-  **Fatto il 2026-11-02**: mouse dall'encoder (`core/mouse.c`, report ID 7, solo USB). Flash 44945/56320, XDATA 3788/4096, test host 23.
-  Il protocollo Vial autentico (opcode `dynamic_vial_*`, struct `vial_combo_entry_t` 10 B, `vial_key_override_entry_t` 10 B) è in `docs/vial.md`.
-  **Fatti il 2026-11-02**: mouse dall'encoder (`core/mouse.c`, report ID 7, solo USB) e **combos** (`core/combo.c`, scheda di Vial, 6 accordi da 4
-  tasti, tasti trattenuti al massimo 50 ms). Flash 46989/56320, XDATA 3907/4096, test host 24. Restano: batteria + Caps Lock wireless (serve la
-  misura `diag.py --radio`), key overrides, Vial RGB.
-- CI GitHub: il job `test` passa sempre; il job `simulation` falliva per **timeout** del harness su un runner lento (non un bug del firmware):
-  ora il test aspetta 320 scansioni invece di 900 e il timeout del socket è 180 s.
-- Bluetooth: funziona (il telefono vede `OBLIO`), il PC dell'utente no — sospetto un legame vecchio su Windows, non il firmware.
-
-## Aggiornamento 2026-11-01 (sera)
-- Il gradino 2 sull'hardware ha fallito (LED a scatti, nessun tasto): causa = ISR troppo lunghe (4697/8963 istruzioni). Corretto con tabella DUTY2 precalcolata, ISR a indirizzi costanti, slot di scansione 500 µs, ritiro dei LED se il main non gira, contatori diag senza sblocco. Flash 43477/44032, XDATA 3703/4096. **Da riprovare sull'hardware**; se fallisce, `tools/diag.py` (senza sblocco) dice causa reset, slot in ritardo, scansioni perse.
-- Flicker in USB (2026-11-01): la griglia fissa di slot troncava lo slot LED dopo ogni scansione lunga (~800 µs misurati). Ora gli slot sono temporizzati dall'inizio della propria ISR come in SMK (core/sched, hal/tick); orologio ms dal tempo reale. Non provato sull'hardware; flash 43814/44032. Dati utili: `py diag.py --watch 1` (con `hidapi` su Windows).
+Mappa flash: applicazione fino a 0xDC00; keymap (2 copie × 4 settori, con log) 0xDC00–0xEBFF; impostazioni 0xEC00; marcatore del bootloader 0xEE00 (mai toccare); bootloader stock 0xF000.
+Recupero: Esc+1+2 mentre si inserisce l'USB. Il vecchio repo `~/dev/smk` (branch `port/yunzii-b68`) resta la fonte per hardware e radio; il dump stock è in `~/dev/smk/backups/dump/` (`tools/dis51.py` lo disassembla).

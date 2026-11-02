@@ -1,6 +1,6 @@
 # Stato della sessione — dove riprendere
 
-Ultimo commit: **vedi `git log`** (la sessione del 2026-11-02 ha chiuso la batteria e tolto registro/diagnostica superflua) (branch `main`, tutto pushato). Questo file è il punto di ingresso per chi riprende: dice dove siamo, cosa aspetta
+Ultimo commit: **vedi `git log`**. Chiusura del 2026-11-02: tutte le prove dell'utente sulla tastiera sono andate bene (USB, HUD, salvataggi senza buio, batteria, remote wakeup, NKRO, combo, key override). Si riprende solo se compare un problema (branch `main`, tutto pushato). Questo file è il punto di ingresso per chi riprende: dice dove siamo, cosa aspetta
 una prova sulla tastiera, cosa è verificato e le trappole già pagate. La storia sta in `CHANGELOG.md`, il quadro tecnico in
 `docs/firmware-report.md`, le regole di lavoro in `CLAUDE.md`.
 
@@ -13,8 +13,8 @@ overrides, tab Lighting con colore pieno), NKRO, Caps Word, Leader, mouse dall'e
 
 | | |
 | --- | --- |
-| Flash | **53755 / 56320** (2,5 KB liberi) |
-| XDATA | **3755 / 4096** (341 B liberi) |
+| Flash | **53842 / 56320** (2,4 KB liberi) |
+| XDATA | **3782 / 4096** (314 B liberi) |
 | Deposito keymap | **1709 / 2048** (339 B liberi) |
 | Test host | **27 / 27** (`make test`, include il controllo della definizione Vial) |
 | Simulatore ucsim | **24 / 24** (`make sim`) |
