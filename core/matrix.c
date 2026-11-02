@@ -2,9 +2,10 @@
 
 #define QUEUE_SIZE 16u // power of two
 
-static uint8_t stable[MATRIX_COLS];    // what the events have reported
-static uint8_t candidate[MATRIX_COLS]; // last raw sample
-static uint8_t same[MATRIX_COLS];      // scans in a row the candidate has been read, saturating
+static uint8_t  stable[MATRIX_COLS];    // what the events have reported
+static uint8_t  candidate[MATRIX_COLS]; // last raw sample
+static uint16_t changed_at[MATRIX_COLS]; // when the candidate last moved, in milliseconds
+static uint8_t  samples[MATRIX_COLS];    // scans that have agreed on it since, saturating
 
 static matrix_event_t queue[QUEUE_SIZE];
 static uint8_t        head;
@@ -13,9 +14,10 @@ static uint8_t        tail;
 void matrix_init(void)
 {
     for (uint8_t col = 0; col < MATRIX_COLS; col++) {
-        stable[col]    = 0;
-        candidate[col] = 0;
-        same[col]      = MATRIX_DEBOUNCE_SCANS;
+        stable[col]     = 0;
+        candidate[col]  = 0;
+        changed_at[col] = 0u;
+        samples[col]    = MATRIX_DEBOUNCE_SAMPLES;
     }
 
     head = 0;
@@ -37,23 +39,24 @@ static bool queue_push(uint8_t col, uint8_t row, bool pressed)
     return true;
 }
 
-void matrix_feed(const uint8_t raw[MATRIX_COLS])
+void matrix_feed(const uint8_t raw[MATRIX_COLS], uint16_t now)
 {
     for (uint8_t col = 0; col < MATRIX_COLS; col++) {
         const uint8_t sample = raw[col] & MATRIX_ROW_MASK;
 
-        if (sample != candidate[col]) {
-            candidate[col] = sample;
-            same[col]      = 1;
-        } else if (same[col] < MATRIX_DEBOUNCE_SCANS) {
-            same[col]++;
+        if (sample != candidate[col]) { // a new value: the window starts over
+            candidate[col]  = sample;
+            changed_at[col] = now;
+            samples[col]    = 1;
+        } else if (samples[col] < MATRIX_DEBOUNCE_SAMPLES) {
+            samples[col]++;
         }
 
-        if (same[col] < MATRIX_DEBOUNCE_SCANS) {
-            continue;
+        if (samples[col] < MATRIX_DEBOUNCE_SAMPLES && (uint16_t)(now - changed_at[col]) < MATRIX_DEBOUNCE_MS) {
+            continue; // neither long enough nor often enough yet
         }
 
-        const uint8_t changed = sample ^ stable[col];
+        const uint8_t changed = (uint8_t)(candidate[col] ^ stable[col]);
 
         for (uint8_t row = 0; row < MATRIX_ROWS; row++) {
             const uint8_t bit = (uint8_t)(1u << row);

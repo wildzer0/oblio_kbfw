@@ -4,16 +4,24 @@
 
 static uint8_t raw[MATRIX_COLS];
 
+// The scans come every few milliseconds (8 LED slots and a scan, core/sched.h) and the debounce is a time, so the tests move a clock too. Six
+// is a little longer than the real period, which keeps the counts below honest: one scan is never enough, two always are.
+#define SCAN_MS 6u
+
+static uint16_t now;
+
 static void scans(unsigned count)
 {
     while (count--) {
-        matrix_feed(raw);
+        now = (uint16_t)(now + SCAN_MS);
+        matrix_feed(raw, now);
     }
 }
 
 static void reset(void)
 {
     memset(raw, 0, sizeof raw);
+    now = 0;
     matrix_init();
 }
 
@@ -39,7 +47,7 @@ static void test_press_and_release_after_debounce(void)
     reset();
     raw[3] = 1u << 2; // c3r2
 
-    scans(MATRIX_DEBOUNCE_SCANS - 1);
+    scans(1);
     CHECK(drain(ev, 4) == 0);
     CHECK(!matrix_is_pressed(3, 2));
 
@@ -52,7 +60,7 @@ static void test_press_and_release_after_debounce(void)
     CHECK(drain(ev, 4) == 0);
 
     raw[3] = 0;
-    scans(MATRIX_DEBOUNCE_SCANS);
+    scans(2);
     CHECK(drain(ev, 4) == 1);
     CHECK(ev[0].col == 3 && ev[0].row == 2 && !ev[0].pressed);
     CHECK(!matrix_is_pressed(3, 2));
@@ -66,7 +74,7 @@ static void test_bounce_is_ignored(void)
 
     for (unsigned i = 0; i < 20; i++) { // never steady for the whole window
         raw[0] = (i & 1u) ? 1u : 0u;
-        scans(MATRIX_DEBOUNCE_SCANS - 1);
+        scans(1);
     }
 
     CHECK(drain(ev, 4) == 0);
@@ -78,11 +86,11 @@ static void test_glitch_during_press_restarts_the_window(void)
 
     reset();
     raw[1] = 1;
-    scans(MATRIX_DEBOUNCE_SCANS - 1);
+    scans(1);
     raw[1] = 0; // released one scan short of being accepted
     scans(1);
     raw[1] = 1;
-    scans(MATRIX_DEBOUNCE_SCANS - 1);
+    scans(1);
     CHECK(drain(ev, 4) == 0);
 
     scans(1);
@@ -95,7 +103,7 @@ static void test_two_keys_in_one_column_and_order(void)
 
     reset();
     raw[5] = (1u << 0) | (1u << 4);
-    scans(MATRIX_DEBOUNCE_SCANS);
+    scans(2);
 
     CHECK(drain(ev, 8) == 2);
     CHECK(ev[0].row == 0 && ev[1].row == 4); // in row order
@@ -110,7 +118,7 @@ static void test_columns_debounce_independently(void)
     raw[0] = 1;
     scans(2);
     raw[15] = 1; // pressed later
-    scans(MATRIX_DEBOUNCE_SCANS - 2);
+    scans(1);
 
     CHECK(drain(ev, 8) == 1);
     CHECK(ev[0].col == 0);
@@ -126,7 +134,7 @@ static void test_bits_above_the_last_row_are_ignored(void)
 
     reset();
     raw[7] = 0xE0;
-    scans(MATRIX_DEBOUNCE_SCANS * 2);
+    scans(4);
     CHECK(drain(ev, 4) == 0);
 }
 
@@ -141,7 +149,7 @@ static void test_full_queue_delays_but_never_drops(void)
         raw[col] = 0x03;
     }
 
-    scans(MATRIX_DEBOUNCE_SCANS);
+    scans(2);
 
     for (unsigned guard = 0; guard < 10; guard++) {
         total += drain(ev + total, 64 - total);

@@ -8,7 +8,11 @@
 //
 // Every slot is timed from the start of its own interrupt, as the SMK port does: an LED slot is always a full SCHED_LED_US, whatever the scan
 // before it took. (A fixed grid of slots cut the LED slot after a long scan short, and one column in five lit for a fraction of its time: a
-// flicker.) So the frame of the backlight is not fixed: 16 LED slots and 4 scans, about 8 ms with a 350 us scan.
+// flicker.) So the frame of the backlight is not fixed: 16 LED slots and 2 scans, about 8 ms.
+//
+// Why two scans and not four: a scan measured 753 us on the keyboard against a 500 us slot, so four per frame took a third of the CPU for the
+// keys and left the main loop one pass between scans - a key press, which sends a radio frame, was enough to starve it and the backlight then
+// stood aside. Halving the scans is half that load. The debounce is a time (MATRIX_DEBOUNCE_MS), so the keys do not pay for it.
 //
 // The module counts time in timer counts (SCHED_COUNTS_PER_US per microsecond) and keeps the milliseconds from the time the interrupt says has
 // really passed, so the clock does not depend on the lengths of the slots. It is pure: the timer and the hardware are in hal/tick.c and board/.

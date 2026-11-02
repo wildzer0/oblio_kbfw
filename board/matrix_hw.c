@@ -17,7 +17,9 @@ static const __code uint8_t col_p4[MATRIX_COLS] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 static const __code uint8_t col_p5[MATRIX_COLS] = {0, 0, 0, 0, 0, 0, 0, 0, 0x01, 0x02, 0x04, 0x80, 0, 0, 0, 0};
 static const __code uint8_t col_p6[MATRIX_COLS] = {0x01, 0x02, 0x04, 0x08, 0x10, 0x20, 0x40, 0x80, 0, 0, 0, 0, 0, 0, 0, 0};
 
-#define SETTLE_US 10u // let the row lines settle after a strobe, and between the two readings
+// Let the row lines settle after a strobe, and between the two readings. It was 10 us twice per column - 320 us of the scan's 753, measured on
+// the keyboard - and 5 reads the same: the pull-up brings a line up in a couple of microseconds.
+#define SETTLE_US 5u
 
 
 // Rows into bits 0..4, pressed = 0; the bits above are forced to 1 so that they read as "not pressed".

@@ -112,7 +112,7 @@ void main(void)
         }
 
         if (tick_scan_take(raw)) { // the interrupt scanned the matrix
-            matrix_feed(raw);
+            matrix_feed(raw, now_ms);
         }
 
         diag_max(DIAG_LOOP_MAX_MS, (uint16_t)(now_ms - last_pass)); // the slowest pass of this loop

@@ -14,8 +14,8 @@ key overrides, tab Lighting), NKRO, Caps Word, Leader, mouse dall'encoder, switc
 
 | | |
 | --- | --- |
-| Flash | **53177 / 56320** (3,1 KB liberi) |
-| XDATA | **3939 / 4096** (157 B liberi) |
+| Flash | **53290 / 56320** (3,0 KB liberi) |
+| XDATA | **3971 / 4096** (125 B liberi) |
 | Deposito keymap | **1709 / 2048** (339 B liberi) |
 | Test host | **28 / 28** |
 | Simulatore (ucsim) | **24 / 24** |
@@ -32,6 +32,7 @@ key overrides, tab Lighting), NKRO, Caps Word, Leader, mouse dall'encoder, switc
 | `8088c75` | **Tinta + saturazione** in una parola da 16 bit: colore completo, **0 byte di memoria**, +333 B di flash |
 | `38ed7a8` | **Batteria**: `0xFF` col cavo è una sentinella (non 100%), e lo stato letto **a batteria** ora si legge con `diag.py --radio` |
 | `45732e0` | **Logger di batteria a bordo** (`core/blog.c`, 192 B di XDATA): il registro si scrive da solo mentre la tastiera è a batteria e si legge con `diag.py --blog`; `diag.py --daemon N file.csv` per lasciare un demone sul cavo |
+| — | **Debounce a tempo** (5 ms come QMK, +32 B) e **scansione più corta** (`SETTLE_US` 10→5: 8305 → 5105 istruzioni per scansione, -39% di ISR). Il rapporto slot/scansioni resta 4: portarlo a 8 rompe il test dei tasti nel simulatore |
 | — | **Bug del cavo**: `configured` non tornava mai a 0 quando il cavo usciva, quindi il registro non scriveva (niente per tutta una notte). Ora conta gli start-of-frame: niente SOF per 250 ms = cavo fuori |
 
 ## Da provare sulla tastiera (in quest'ordine)

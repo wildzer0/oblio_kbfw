@@ -12,6 +12,26 @@
 
 Il controllo di recupero Esc+1+2 va all'inizio del `main`, prima di USB e radio.
 
+## 2026-11-02 (notte, 2) — il debounce diventa un tempo (come QMK), e la scansione costa un terzo in meno
+
+- **Cosa fa QMK** (verificato sul suo codice e sui suoi documenti): la matrice si scansiona **nel main loop**, senza un ritmo fisso, con
+  `MATRIX_IO_DELAY` = **30 µs per colonna** (più lento dei nostri 10×2); il **debounce è a tempo** — `DEBOUNCE` default **5 ms**, con algoritmo
+  scegliibile (`sym_defer_pk` il predefinito) — e l'altra manopola è `USB_POLLING_INTERVAL_MS` (default **1 ms**). Latenza tipica: ~0,5 ms di
+  scansione + 5 ms di debounce + 1 ms di USB ≈ **6–7 ms**.
+- **Da qui la correzione giusta**: da noi il debounce era a **conteggio di scansioni** (3), quindi la latenza era *incollata* al ritmo di scansione
+  e i due parametri non si potevano muovere separatamente. Ora `MATRIX_DEBOUNCE_MS` = **5 ms** (il default di QMK): una colonna conta quando è
+  stabile da 5 ms. Con una soglia di **3 campioni** come pavimento, per il simulatore (il cui Timer 2 è un flag virtuale) e per non accettare nulla
+  da meno di tre letture concordi.
+- **Costo**: +32 B di XDATA (32 timestamp da 16 bit invece di 16 contatori), +2 B per la soglia; flash +71 B.
+- **La scansione costa meno**: `SETTLE_US` da 10 a 5 µs (l'attesa dopo lo strobo, due volte per colonna) — 320 µs dei 753 misurati. Nel
+  simulatore la scansione passa da **8305 a 5105 istruzioni** (-39%), cioè la ISR che affamava il main loop pesa un terzo in meno.
+- **Cosa non ho fatto, e perché**: il rapporto slot LED/scansioni da 4 a 8 (l'altra metà della "soluzione B"). L'ho provato e **rompe la copertura
+  del simulatore**: con 8:1 il test che preme una riga e aspetta i report su EP1 non vede più nulla (verificato con un bisect: 4:1 passa, 8:1
+  no, in entrambi gli ordini di scansioni/passate). Il guadagno era per giunta ipotetico: `matrix_any_pressed()` non scansiona nulla (legge lo
+  stato filtrato), quindi la fame del loop non era quella. Meglio un terzo di ISR in meno **e** il test dei tasti funzionante.
+
+Budget: flash **53290/56320** (3,0 KB liberi), XDATA **3971/4096** (125 B liberi). `make test` 28/28, `make sim` 24/24, `make stages` ok.
+
 ## 2026-11-02 (notte) — perché il registro era vuoto: la tastiera credeva di essere collegata
 
 - **Il bug**: `configured` viene messo a 1 da `SET_CONFIGURATION` e **azzerato solo** da un'altra `SET_CONFIGURATION(0)` o da un bus reset. Quando

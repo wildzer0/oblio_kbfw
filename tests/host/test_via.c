@@ -76,6 +76,8 @@ static void request(const uint8_t *bytes, unsigned length)
         request(bytes_, sizeof bytes_);               \
     } while (0)
 
+static uint16_t scan_now; // the clock the scans are fed with (the debounce is a time)
+
 static uint8_t raw[MATRIX_COLS];
 
 static void press(uint8_t col, uint8_t row, bool down)
@@ -86,8 +88,9 @@ static void press(uint8_t col, uint8_t row, bool down)
         raw[col] &= (uint8_t) ~(1u << row);
     }
 
-    for (unsigned i = 0; i < MATRIX_DEBOUNCE_SCANS; i++) {
-        matrix_feed(raw);
+    for (unsigned i = 0; i < 2; i++) { // two scans, six milliseconds apart: longer than the debounce
+        scan_now = (uint16_t)(scan_now + 6u);
+        matrix_feed(raw, scan_now);
     }
 
     matrix_event_t event;

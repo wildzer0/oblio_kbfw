@@ -72,6 +72,8 @@ static void no_args(uint8_t command, uint8_t sequence)
     ask(command, sequence, 0, 0);
 }
 
+static uint16_t scan_now; // the clock the scans are fed with (the debounce is a time)
+
 static uint8_t held[MATRIX_COLS];
 
 static void press(uint8_t col, uint8_t row, bool down)
@@ -84,8 +86,9 @@ static void press(uint8_t col, uint8_t row, bool down)
         held[col] &= (uint8_t) ~(1u << row);
     }
 
-    for (unsigned i = 0; i < MATRIX_DEBOUNCE_SCANS; i++) {
-        matrix_feed(held);
+    for (unsigned i = 0; i < 2; i++) { // two scans, six milliseconds apart: longer than the debounce
+        scan_now = (uint16_t)(scan_now + 6u);
+        matrix_feed(held, scan_now);
     }
 
     while (matrix_event_pop(&e)) {

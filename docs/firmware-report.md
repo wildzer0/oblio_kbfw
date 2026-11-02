@@ -45,7 +45,7 @@ The USB device enumerates as `258a:dead`, product name "Oblio B68", with a keybo
   accelerates, `MS_ACCEL1/2` make the step longer, the wheel scrolls and buttons 1-5 hold their bit. That is what makes the encoder a scroll wheel:
   assign `MS_WH_UP` / `MS_WH_DOWN` to its two directions in Vial. **USB only**: the radio protocol has no mouse frame, so in 2.4G and Bluetooth
   those keycodes do nothing (the report is dropped in `board/transport.c`).
-- **Keys:** matrix scan + debounce (3 scans in a row), 6 layers in RAM (`KEYMAP_LAYERS`), layer keys, tap-hold (LT/MT/OSM/OSL), tap dance, macros, encoder.
+- **Keys:** matrix scan + debounce (**a time: 5 ms**, as QMK does with its `DEBOUNCE`, with a floor of three agreeing samples), 6 layers in RAM (`KEYMAP_LAYERS`), layer keys, tap-hold (LT/MT/OSM/OSL), tap dance, macros, encoder.
 - **NKRO on USB:** the keyboard report (ID 3) is the bitmap — **112 usages**, not QMK's 120, because the chip's EP1 buffer is 16 bytes and the
   report ID takes one. Boot protocol still gets the 8-byte six-key report, so a BIOS works.
 - **Caps Word** (`QK_CAPS_WORD_TOGGLE`, offered by the Vial app because the firmware advertises the feature bit): the letters are shifted until the
@@ -113,6 +113,11 @@ polling loop: `watchdog_kick`, `tick_alive`, collect milliseconds, collect a sca
 Interrupts (exactly four vectors, checked by `tools/check_interrupts.py`): **Timer 2** (slot scheduler: LED subframes and key scans), **USB**, **UART0** (radio,
 highest priority), **INT4** (wake-up). Shared data has one writer or is read twice until it agrees; `--stack-auto` locals, no static overlay allowed.
 
+**Where the key latency comes from** (measured and compared with QMK): a scan costs ~510 µs on the keyboard (16 columns, 5 µs of settle before
+each of the two readings) and comes every ~2.4 ms; the debounce is 5 ms, as QMK's default; the USB interval is 1 ms. So a press shows up after
+about 5–9 ms, against QMK's ~6–7 ms — and the debounce is now a *time*, so the scan rate can change without the latency paying for it (it was a
+count of scans until 2026-11-02).
+
 **Timing model (important, it caused the two hardware failures below):** Timer 2 plays 4 LED slots (400 µs each, timed from the start of their own interrupt)
 and then 1 scan slot; the interrupt restarts the timer for the slot that begins and forces the next one as soon as a scan ends, so a long scan never cuts an
 LED slot short. Milliseconds are the sum of the time that really passed (2000 timer counts per ms). Details: `docs/architecture.md`, `core/sched.[ch]`,
@@ -130,7 +135,7 @@ nix develop --command make sim               # ~50 s: the real hex in the chip s
 nix develop --command make stages            # staged builds, see below
 ```
 
-Current budget: **flash 53177 / 56320 (3.1 KB of margin), XDATA 3939 / 4096 (157 B free), keymap slot 1709 of 2048 bytes.** Six layers since
+Current budget: **flash 53290 / 56320 (3.0 KB of margin), XDATA 3971 / 4096 (125 B free), keymap slot 1709 of 2048 bytes.** Six layers since
 2026-11-02 (8 → 6 freed 320 B of XDATA and 320 B of slot); the Mac pair moved from 7/6 to 5/4. The per-key colour buffer went away again with the
 painter (the app has none), which is why the slot has room for what comes next.; the stack is the other tight one (internal RAM, 223 B
 from 0x21 up; the USB interrupt used to keep 48 B of buffers on it, now static in XDATA). Check the `flash` line before every commit; a failed link
