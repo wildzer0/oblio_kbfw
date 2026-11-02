@@ -57,6 +57,15 @@ Il controllo di recupero Esc+1+2 va all'inizio del `main`, prima di USB e radio.
   30 ms (la coda della radio è di 4); la tastiera non va in sleep mentre scrive. Costa ~520 B di flash (54415/55296). È uno strumento di debug: da
   togliere insieme al registro in flash quando la scala della batteria è confermata.
 
+## 2026-11-02 (notte, 10) — pulizia: via il registro, il logger e la diagnostica superflua
+
+- Tolti: `core/blog.[ch]`, `board/blog_hw.c`, il suo test, il logger da tastiera (`battery_key`/`battery_log_task`) e `tools/battery-log.html`, la diagnostica
+  di tipo 2 (monitor radio col cavo), 3 (porte) e 4 (registro), la cattura «a batteria» della radio (`radio_status_on_battery`, `radio_monitor`,
+  `link_monitor`), i due contatori del registro, e il blocco dello sblocco sulla diagnostica (ora tutto è sola lettura e libero).
+- Il settore a 0xD800 torna al codice: **limite 0xDC00**, `FLASH_WRITE_MIN` 0xDC00. Flash 51797/56320 (4,5 KB liberi), XDATA 3755/4096, test host 27, `make sim` ok.
+- `diag.py` ora: contatori, `--radio` (stato, lettura e % della batteria, frame 08), `--watch`, `--daemon`. Restano i contatori (flicker, latenza BLE).
+- Documenti allineati (CLAUDE.md, architecture, firmware-report, first-boot, session-state).
+
 ## 2026-11-02 (notte, 9) — la scala della batteria dalla misura e dalla targa
 
 - Misure dell'utente: **4,0378 V a riposo** (tastiera spenta) e lettura **981** a tastiera accesa → ~**243 conteggi/volt** (il 222,6 della pagina era un'ipotesi

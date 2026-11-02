@@ -64,13 +64,6 @@ static void apply(link_mode_t selected)
     }
 }
 
-void link_monitor(bool on)
-{
-    if (mode == LINK_USB) {
-        radio_monitor(on);
-    }
-}
-
 void link_wake(void)
 {
     radio_init();

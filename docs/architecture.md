@@ -63,7 +63,7 @@ interrupt work by instructions (`make sim` has a guard) and by the durations the
 
 ## Memory
 
-Application flash ends at 0xD800. After it: the keymap store (two copies of four 512-byte sectors) up to 0xEBFF, the settings log at
+Application flash ends at 0xDC00. After it: the keymap store (two copies of four 512-byte sectors) up to 0xEBFF, the settings log at
 0xEC00 as a log of 56 small records (a save appends to the first erased one, so a power cut during a save keeps the previous settings and the sector
 is erased once every 56 saves), the bootloader's marker sector at 0xEE00 **untouched**,
 the stock bootloader from 0xF000 (never written: `hal/flash.c` refuses any address outside 0xDC00–0xF000). `make size` reports flash and XDATA use against 56320 and 4096

@@ -19,12 +19,10 @@ typedef enum {
     DIAG_USB_OVERFLOW,     // USB report packets that replaced or pushed out another
     DIAG_LED_US_MAX,       // longest LED slot, from its start to the end of its work, in us (the slot is 400; more means it ran late)
     DIAG_SCAN_US_MAX,      // the same for the scan slot (500)
-    DIAG_BLOG_WRITES,      // records the battery log tried to write to flash since the reset
     DIAG_BACKOFF,          // times the main loop was found starved and the backlight stood aside
     DIAG_SCAN_LATE,        // the same as DIAG_SLOT_LATE, for the scan slots
     DIAG_ERASE_US_MAX,     // the longest sector erase of a flash write, in us (the chip stalls while it runs)
     DIAG_RADIO_RX,         // frames from the radio that passed the checksum
-    DIAG_BLOG_BAD,         // of those, the ones the flash refused or did not hold (read back different)
     DIAG_COUNT
 } diag_id_t;
 
@@ -39,23 +37,11 @@ uint16_t diag_get(diag_id_t id);
 
 // VIA command 0xF1: the request is in `data` (32 bytes) and becomes the reply. [0xF1, kind, ...]
 //   kind 0: [0xF1, 0, DIAG_COUNT, counter 0 (lo, hi), counter 1, ...]
-//   kind 1: the radio: [0xF1, 1, 6 status bytes, 22 bytes of the last 08 frame, the battery byte and the flags byte as last seen on battery];
-//           read-only, so it needs no unlock either
-//   kind 2: [0xF1, 2, on]: listen to the radio with the cable in (on = 1), or stop; the reply echoes `on`
-//   kind 3: [0xF1, 3, P0, P1, P2, P3, P4, P5, P6, P7]: the raw port bytes, for finding out what an input that is not in the matrix does
+//   kind 1: the radio: [0xF1, 1, 6 status bytes, 22 bytes of the last 08 frame]
+//   both are read-only, so they need no unlock
 //   anything else: [0xFF, ...] (unhandled)
 void diag_receive(XDATA uint8_t *data, uint8_t length);
-
-void diag_hook_radio_monitor(bool on); // provided by the board
-
-// Provided by the board: the raw bytes of P0 .. P7, read with the timer and the backlight stopped (so the strobes show idle).
-#define DIAG_PORT_BYTES 8u
-void diag_hook_ports(XDATA uint8_t *out);
 
 // Provided by the board: the radio's last status bytes (6) and last 08 frame (22), for kind 1
 const uint8_t *diag_hook_radio_status(void);
 const uint8_t *diag_hook_radio_info(void);
-
-// Provided by the board: two bytes of the last status answer seen while the keyboard was on its battery - the battery byte and the flags byte.
-// They are the two free bytes of the kind 1 reply, and they are the only way to look at a reading that needs no cable.
-void diag_hook_radio_on_battery(uint8_t *battery, uint8_t *flags);

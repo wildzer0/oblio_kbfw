@@ -47,8 +47,7 @@ backlight flickers or keys miss, the scan slot (450 µs) does not hold its work:
 ### Stage 3 — the radio
 
 Move the mode switch to 2.4G, then to Bluetooth; Fn+B/N/M pick a slot (hold 3 s to pair). Look for the key 4 (2.4G) or 1–3 (slot) flashing, typing on the host, media keys and the knob in wireless.
-`tools/diag.py --radio --watch 2` shows the radio's counters (refusals, frames that never ended) and its last status bytes and 08 frame. **Battery:** write down those bytes for a full, a half and a
-low battery, charging and not, in each mode; `diag.py --monitor` (cable in) asks whether the radio answers without a mode. Fn+Backspace shows the level on the number keys, but until a source is decoded it blinks all ten in white.
+`tools/diag.py --radio --watch 2` shows the radio's counters (refusals, frames that never ended) and its last status bytes and 08 frame. **Battery:** Fn+Backspace shows the level on the number keys (ten white blinking keys = no reading yet); `diag.py --radio` prints the reading and the percentage (the reading is saturated with the cable).
 
 ### Stage 4 — sleep (the release build)
 

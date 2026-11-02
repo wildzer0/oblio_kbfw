@@ -3,15 +3,14 @@
 
 Linux: /dev/hidraw, no dependencies. Windows and macOS: `pip install hidapi` (the module is called `hid`).
 
-usage: diag.py [--radio] [--monitor] [--ports] [--watch SECONDS]
+usage: diag.py [--radio] [--watch SECONDS] [--daemon SECONDS [FILE]]
 
   (no option)  print the counters once
-  --radio      also print the radio's last status bytes and its last 08 frame
-  --monitor    with the cable in (USB mode): listen to the radio's status too (it is switched off in USB mode); implies --radio
-  --ports      print the raw port bytes (P0.5 is the Win/Mac switch: low = Mac; P0.3/P0.4 the mode selector)
+  --radio      also print the radio's last status bytes (with the battery reading they carry) and its last 08 frame
   --watch N    repeat every N seconds, printing only what changed
+  --daemon N   append the counters to a CSV every N seconds
 
-The counters, the radio data and --ports need no unlock (they are read-only); --monitor does, because it changes what the radio is doing.
+Everything here is read-only and needs no unlock. With the cable the battery reading is saturated: it only means something on battery.
 Run it as a user that may open the hidraw device (a udev rule, or sudo).
 """
 
@@ -44,12 +43,10 @@ NAMES = [
     ("USB report queue overflows", "{}"),
     ("longest LED slot (us, of 400)", "{}"),
     ("longest scan slot (us, of 500)", "{}"),
-    ("battery log: writes tried", "{}"),
     ("backlight back-offs (starved)", "{}"),
     ("scan slots that ran late", "{}"),
     ("longest sector erase (us)", "{}"),
     ("radio: frames received (checksum ok)", "{}"),
-    ("battery log: writes that did not hold", "{}"),
 ]
 
 
@@ -99,25 +96,12 @@ class Keyboard:
             sys.exit("diag: the keyboard did not answer")
         return os.read(self.fd, RAW_SIZE)
 
-    def unlock(self):
-        status = self.ask(0xFE, 0x05)
-        if status[0]:
-            return
-        keys = [(status[2 + 2 * i], status[3 + 2 * i]) for i in range(14) if status[2 + 2 * i] != 0xFF]
-        print("Hold the keys at (row, col) {} until it says unlocked...".format(keys))
-        self.ask(0xFE, 0x06)
-        while True:
-            answer = self.ask(0xFE, 0x07)
-            if answer[0]:
-                print("unlocked")
-                return
-            time.sleep(0.12)
 
 
 def counters(keyboard):
     reply = keyboard.ask(0xF1, 0)
     if reply[0] != 0xF1:
-        sys.exit("diag: the keyboard does not know the diagnostics command (is this an Oblio build, and is it unlocked?)")
+        sys.exit("diag: the keyboard does not know the diagnostics command (is this an Oblio build?)")
     count = reply[2]
     return list(struct.unpack_from("<" + "H" * count, reply, 3))
 
@@ -130,59 +114,28 @@ def show(values, previous=None):
         print("  {:32} {}".format(name, fmt.format(value)))
 
 
-def ports(keyboard):
-    reply = keyboard.ask(0xF1, 3)
-    names = ["P0", "P1", "P2", "P3", "P4", "P5", "P6", "P7"]
-    print("ports              : " + " ".join("{}={:02x}".format(n, b) for n, b in zip(names, reply[2:10])))
-
-
 def radio(keyboard):
     reply = keyboard.ask(0xF1, 1)
     print("radio status bytes : " + " ".join("{:02x}".format(b) for b in reply[2:8]))
     print("last 08 frame      : " + " ".join("{:02x}".format(b) for b in reply[8:30]))
 
-    # the status as last seen on battery: the one that carries the voltage (with the cable the reading saturates)
-    battery, flags = reply[30], reply[31]
-    if battery == 0xFF and flags == 0xFF:
-        print("on battery         : never seen (no status answer has come with the cable out)")
-    else:
-        print("on battery         : {}".format(describe_battery(battery, flags)))
+    # bytes 4 and 5 of the status: the battery as a 10-bit ADC reading (see core/radio.h)
+    raw = reply[2 + 4] | (reply[2 + 5] << 8)
+    note = "  (saturated: the cable)" if raw >= 1021 else "  (ADC not settled yet)" if raw < 600 else ""
+    print("battery            : reading {} -> ~{}%{}".format(raw, battery_percent(raw), note))
 
 
-def describe_battery(low, flags):
-    """The battery reading is 10 bits: the low byte, and the two high bits in bits 4-5 of the flags byte. The percent is the stock firmware's own
-    curve (found in the dump at 0x7CF0): (reading - 715) * 10 / 22, from 0 at 715 to 100 at 935."""
-    raw = low | (((flags >> 4) & 3) << 8)
-    percent = 0 if raw <= 715 else 100 if raw >= 935 else (raw - 715) * 10 // 22
-    saturated = "  (saturated: the cable)" if raw >= 0x3F0 else ""
-    return "reading {} ({:#05x})  ~{}%   flags {:#04x}{}".format(raw, raw, percent, flags, saturated)
+# The same curve as board/battery.c: a Li-Po discharge curve over the readings of 3.30 ... 4.20 V (243 counts to the volt, from one measured point)
+CURVE = [(800, 0), (850, 10), (875, 20), (899, 35), (923, 50), (948, 65), (972, 80), (996, 90), (1020, 100)]
 
 
-def blog(keyboard):
-    """The battery log the keyboard keeps while it runs on its battery: minutes awake, the battery reading and the flags byte of the status
-    answer. It is the only way to see those readings, because the diagnostics need a cable and with the cable the battery charges."""
-    first = keyboard.ask(0xF1, 4, 0)
-    count = first[2]
-
-    if count == 0:
-        print("battery log        : empty (it fills up while the keyboard runs on its battery)")
-        return
-
-    print("battery log        : {} records (minutes awake, battery reading, flags byte)".format(count))
-
-    index = 0
-    while index < count:
-        reply = keyboard.ask(0xF1, 4, index)
-        for at in range(3, len(reply) - 3, 4):
-            if index >= count:
-                break
-            minutes = reply[at] | (reply[at + 1] << 8)
-            battery = reply[at + 2]
-            flags = reply[at + 3]
-            cable = "  (cable in: the reading is saturated)" if flags & 0x40 else ""
-            print("  {:5d} min   {}{}".format(minutes, describe_battery(battery, flags), cable))
-            index += 1
-
+def battery_percent(raw):
+    if raw <= CURVE[0][0]:
+        return 0
+    for (r0, p0), (r1, p1) in zip(CURVE, CURVE[1:]):
+        if raw <= r1:
+            return p0 + (raw - r0) * (p1 - p0) // (r1 - r0)
+    return 100
 
 def daemon(keyboard, seconds, path):
     """The counters (and the radio, if asked) appended to a file every `seconds`, with the time: leave it running and read it afterwards."""
@@ -200,10 +153,7 @@ def daemon(keyboard, seconds, path):
 
 def main():
     args = sys.argv[1:]
-    want_monitor = "--monitor" in args
-    want_radio = "--radio" in args or want_monitor
-    want_ports = "--ports" in args
-    want_blog = "--blog" in args
+    want_radio = "--radio" in args
     watch = None
     if "--watch" in args:
         watch = float(args[args.index("--watch") + 1])
@@ -220,12 +170,6 @@ def main():
 
     keyboard = Keyboard(path)
 
-    if want_monitor:
-        keyboard.unlock()
-        if keyboard.ask(0xF1, 2, 1)[2] != 1:
-            sys.exit("diag: the keyboard did not start listening to the radio")
-        print("listening to the radio (only in USB mode; in the wireless modes it is in use anyway)")
-
     if daemon_seconds is not None:
         out = [a for a in args[args.index("--daemon") + 1:] if not a.startswith("--")]
         out = out[1] if len(out) > 1 else "oblio-log.csv"
@@ -238,10 +182,6 @@ def main():
     show(values)
     if want_radio:
         radio(keyboard)
-    if want_ports:
-        ports(keyboard)
-    if want_blog:
-        blog(keyboard)
 
     while watch:
         time.sleep(watch)
@@ -252,8 +192,6 @@ def main():
             values = new
         if want_radio:
             radio(keyboard)
-        if want_blog:
-            blog(keyboard)
 
 
 if __name__ == "__main__":

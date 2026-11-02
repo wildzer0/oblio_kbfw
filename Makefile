@@ -10,7 +10,7 @@ B     ?= build
 HOST_TESTS := $(patsubst %.c,%,$(wildcard tests/host/test_*.c))
 
 # Memory map: application code up to 0xDC00 (the keymap store starts there), 4 KB of XDATA.
-CODE_LIMIT := 0xD800 # the battery log keeps the sector at 0xD800 (core/blog.h); the keymap store follows at 0xDC00
+CODE_LIMIT := 0xDC00
 XRAM_SIZE  := 4096
 
 SDCC      ?= sdcc
@@ -39,15 +39,14 @@ LINK_keyboard := core/layer.c core/keymap.c core/report.c core/tapping.c core/ma
 LINK_tapping := core/keyboard.c core/layer.c core/keymap.c core/report.c core/macro.c core/encoder.c core/mouse.c core/combo.c core/override.c core/leader.c
 LINK_macro := core/keymap.c
 LINK_hud := core/keymap.c core/matrix.c core/layer.c core/report.c
-LINK_radio := core/diag.c core/blog.c
-LINK_link := core/radio.c core/settings.c core/diag.c core/blog.c
+LINK_radio := core/diag.c
+LINK_link := core/radio.c core/settings.c core/diag.c
 LINK_led := core/led_effect.c core/keymap.c
-LINK_via := core/vial.c core/vialrgb.c core/keymap.c core/matrix.c core/diag.c core/blog.c core/hud.c core/layer.c core/report.c
+LINK_via := core/vial.c core/vialrgb.c core/keymap.c core/matrix.c core/diag.c core/hud.c core/layer.c core/report.c
 LINK_combo :=
 LINK_override :=
 LINK_leader :=
-LINK_diag := core/blog.c
-LINK_blog :=
+LINK_diag :=
 LINK_usb_reports := core/report.c
 LINK_mouse := core/report.c
 LINK_store := core/keymap.c

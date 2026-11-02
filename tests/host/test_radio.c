@@ -452,7 +452,6 @@ static void test_the_status_answer_carries_the_battery_and_the_host_leds(void)
     inject(f, 10);
     run(2);
     CHECK(radio_battery_raw() == 0x03FF);
-    CHECK(radio_status_on_battery() == 0); // and nothing was noted down: that answer came with the cable
 
     // the same bytes on battery are a reading, and they are kept for the diagnostics to show (the cable is what reads them)
     on_battery = true;
@@ -464,7 +463,6 @@ static void test_the_status_answer_carries_the_battery_and_the_host_leds(void)
     inject(f, 10);
     run(2);
     CHECK(radio_battery_raw() == 0x0303);
-    CHECK(radio_status_on_battery() != 0 && radio_status_on_battery()[RADIO_STATUS_BATTERY_AT] == 0x03);
 
     on_battery = false;
 }
@@ -543,29 +541,6 @@ static void test_stop_and_sleep(void)
     CHECK(!radio_active() && !select_low && select_ok);
 }
 
-static void test_monitor_listens_without_a_mode(void)
-{
-    reset();
-    radio_monitor(true);
-    CHECK(radio_active());
-    run(1000);
-
-    CHECK(count_of(0x06, 6) >= 4);       // status requests, every 200 ms
-    CHECK(count_of(0x01, 6) == 0);       // no mode command
-    CHECK(count_of(0x02, 30) == 0 && count_of(0x03, 13) == 0 && count_of(0x09, 32) == 0); // no report, no name
-
-    tx_count = 0;
-    inject_frame(0x03, 0x11, 0x22, 0x33, 0x44); // but the radio's own frames are still answered
-    run(3);
-    CHECK(is_command(0, 0xF0));
-
-    radio_monitor(false);
-    CHECK(!radio_active());
-    tx_count = 0;
-    run(500);
-    CHECK(tx_count == 0);
-}
-
 static void test_idle(void)
 {
     reset();
@@ -597,7 +572,6 @@ int main(void)
     test_garbage_before_a_frame_is_skipped();
     test_a_frame_that_never_ends_is_given_up_after_50_ms();
     test_stop_and_sleep();
-    test_monitor_listens_without_a_mode();
     test_idle();
     return tests_result();
 }

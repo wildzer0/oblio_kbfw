@@ -26,11 +26,7 @@ void keyboard_hook_custom(uint16_t keycode, bool pressed)
     switch (keycode) {
 
         case B68_HUD_TOG: hud_toggle_pressed(); break; // the overlay sees the counter change; the host sees nothing
-        case B68_BATTERY:
-            if (!battery_key(board_now_ms())) { // pressed twice quickly: the live readout, see battery.c
-                led_show_battery(battery_percent());
-            }
-            break;
+        case B68_BATTERY: led_show_battery(battery_percent()); break;
         case B68_FX_PREV: led_effect_prev(); break;
         case B68_FX_NEXT: led_effect_next(); break;
         case B68_BRI_DN:  led_brightness_down(); break;

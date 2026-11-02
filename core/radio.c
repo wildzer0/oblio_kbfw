@@ -163,8 +163,6 @@ static uint8_t  consumer_head;
 static uint8_t  consumer_count;
 
 static bool     status_valid; // an answer to the status request has come since power-on
-static bool     battery_valid; // and one came while the keyboard was on its battery
-static uint8_t  status_battery[6];
 static uint8_t  rx_frame[INFO_LEN];
 static uint8_t  rx_length;
 static uint8_t  status[6];
@@ -242,11 +240,6 @@ const uint8_t *radio_status(void)
     return status_valid ? (const uint8_t *)status : (const uint8_t *)0;
 }
 
-const uint8_t *radio_status_on_battery(void)
-{
-    return battery_valid ? (const uint8_t *)status_battery : (const uint8_t *)0;
-}
-
 uint8_t radio_host_leds(void)
 {
     return status_valid ? (uint8_t)(status[RADIO_STATUS_FLAGS_AT] & 0x07u) : 0u;
@@ -284,9 +277,7 @@ void radio_init(void)
     t_status          = 0;
     clear_queues();
     status_valid  = false;
-    battery_valid = false;
     memset(status, 0, sizeof status);
-    memset(status_battery, 0, sizeof status_battery);
     memset(last_info, 0, sizeof last_info);
     radio_hook_select(false);
 }
@@ -322,19 +313,6 @@ void radio_stop(void)
     rx_length    = 0;
     clear_queues();
     radio_hook_select(false);
-}
-
-void radio_monitor(bool on)
-{
-    if (!on) {
-        radio_stop();
-        return;
-    }
-
-    active       = true;
-    mode_pending = false;
-    mode_unacked = false;
-    clear_queues();
 }
 
 // One frame, waiting for the radio (ATT) and for the end of the transmission with delays: the timer is stopped when this runs, so the
@@ -430,11 +408,6 @@ static void rx_frame_done(void)
             if (rx_frame[1] == CMD_STATUS && rx_length == STATUS_LEN) {
                 memcpy(status, &rx_frame[2], sizeof status);
                 status_valid = true;
-
-                if (radio_hook_on_battery() && radio_battery_raw() < 0x03F0u) { // the answer that matters for the battery: the one with no cable (a saturated reading is the cable, seen before the host enumerates)
-                    memcpy(status_battery, &rx_frame[2], sizeof status_battery);
-                    battery_valid = true;
-                }
             } else if (rx_frame[1] == 0x00u && rx_frame[2] == 0x01u) {
                 refused();
             } else if (rx_frame[1] == CMD_MODE) {

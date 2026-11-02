@@ -34,8 +34,5 @@ void link_key(uint8_t slot, bool pressed, uint16_t now);
 link_mode_t link_mode(void);
 bool        link_wireless(void); // the radio carries the reports
 
-// With the cable (USB mode): listen to the radio's status, or stop. Ignored in the wireless modes, where the radio is in use.
-void link_monitor(bool on);
-
 // After a sleep: the radio starts again and the selector is applied anew.
 void link_wake(void);

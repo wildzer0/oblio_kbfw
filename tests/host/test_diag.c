@@ -1,5 +1,4 @@
 #include "check.h"
-#include "blog.h"
 #include "diag.h"
 #include <string.h>
 
@@ -79,74 +78,6 @@ static void test_radio_reply(void)
     CHECK(data[0] == 0xF1 && data[1] == 1);
     CHECK(data[2] == 1 && data[7] == 6); // the six status bytes
     CHECK(data[8] == 0x08 && data[29] == 0x99); // the 22 bytes of the last 08 frame
-    CHECK(data[30] == 0x03 && data[31] == 0x01); // and the status as last seen on battery
-
-    // kind 4: the battery log, six records of four bytes from the index asked for
-    memset(data, 0, sizeof data);
-    data[0] = 0xF1;
-    data[1] = 4;
-    diag_receive(data, 32);
-    CHECK(data[2] == blog_count());
-    CHECK(data[2] == 0); // nothing has been logged in this test
-}
-
-// core/blog.c keeps its records in the board's flash: there is no flash in this test, so the log stays empty
-void blog_hook_read(uint16_t addr, uint8_t *out, uint8_t len) { (void)addr; for (uint8_t i = 0; i < len; i++) out[i] = 0xFF; }
-void blog_hook_program(uint16_t addr, const uint8_t *src, uint8_t len) { (void)addr; (void)src; (void)len; }
-void blog_hook_erase(uint16_t addr) { (void)addr; }
-
-// core/blog.c asks the radio for its last answer on battery: there is no radio in this test, and no log either
-const uint8_t *radio_status_on_battery(void) { return 0; }
-bool radio_hook_on_battery(void) { return false; }
-
-void diag_hook_radio_on_battery(uint8_t *battery, uint8_t *flags)
-{
-    *battery = 0x03;
-    *flags   = 0x01;
-}
-
-static bool monitoring;
-
-void diag_hook_radio_monitor(bool on) { monitoring = on; }
-
-void diag_hook_ports(uint8_t *out)
-{
-    for (uint8_t i = 0; i < DIAG_PORT_BYTES; i++) {
-        out[i] = (uint8_t)(0x10 + i);
-    }
-
-}
-
-static void test_ports_reply(void)
-{
-    uint8_t data[32];
-
-    memset(data, 0xAA, sizeof data);
-    data[0] = 0xF1;
-    data[1] = 3;
-    diag_receive(data, 32);
-
-    CHECK(data[0] == 0xF1 && data[1] == 3);
-    CHECK(data[2] == 0x10 && data[9] == 0x17);                   // P0 .. P7
-    CHECK(data[10] == 0);                                        // the rest of the packet is cleared
-}
-
-static void test_radio_monitor_switch(void)
-{
-    uint8_t data[32] = {0xF1, 2, 1};
-
-    diag_receive(data, 32);
-    CHECK(monitoring && data[0] == 0xF1 && data[1] == 2 && data[2] == 1);
-
-    uint8_t off[32] = {0xF1, 2, 0};
-
-    diag_receive(off, 32);
-    CHECK(!monitoring && off[2] == 0);
-
-    uint8_t odd[32] = {0xF1, 2, 7};
-
-    diag_receive(odd, 32);
-    CHECK(monitoring && odd[2] == 1);
 }
 
 static void test_unknown_kind_is_unhandled(void)
@@ -162,8 +93,6 @@ int main(void)
     test_counters();
     test_counters_reply();
     test_radio_reply();
-    test_radio_monitor_switch();
-    test_ports_reply();
     test_unknown_kind_is_unhandled();
     return tests_result();
 }

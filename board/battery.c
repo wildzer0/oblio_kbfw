@@ -1,9 +1,6 @@
 #include "battery.h"
-#include "keyboard.h"
-#include "keycodes.h"
 #include "led.h"
 #include "radio.h"
-#include "sleep.h"
 
 // The battery the way the radio reports it: its status answer carries the cell voltage as a 10-bit ADC reading (core/radio.h). The scale was
 // measured on the keyboard: 4.0378 V at rest read 981, which is about 243 counts to the volt, so 4.2 V (the charge voltage printed on the cell, a
@@ -52,77 +49,4 @@ uint8_t battery_percent(void)
     }
 
     return last_percent;
-}
-
-// ---- the live readout: the keyboard types its battery reading ----
-// The only road the keyboard has to the PC without the cable is the keyboard report, so for measuring it types: once a second, the raw
-// reading of the radio's ADC as decimal digits and Enter, into whatever has the focus (tools/battery-log.html listens for it and draws
-// the curve). Switched on and off by pressing the battery key (Fn+Backspace) twice within BATLOG_DOUBLE_MS. The characters go out one every
-// BATLOG_CHAR_MS: the radio's queue is four deep and a burst would lose keys. The keyboard is kept awake while it types.
-#define BATLOG_DOUBLE_MS 700u
-#define BATLOG_LINE_MS   1000u
-#define BATLOG_CHAR_MS   30u
-
-static bool     typing;
-static bool     pressed_before;
-static uint16_t pressed_at;
-static uint16_t line_at;
-static uint16_t char_at;
-static uint8_t  line[6];
-static uint8_t  line_len;
-static uint8_t  line_pos;
-
-bool battery_key(uint16_t now_ms)
-{
-    const bool toggled = pressed_before && (uint16_t)(now_ms - pressed_at) < BATLOG_DOUBLE_MS;
-
-    pressed_before = !toggled;
-    pressed_at     = now_ms;
-
-    if (toggled) {
-        typing   = !typing;
-        line_len = 0;
-        line_pos = 0;
-        line_at  = (uint16_t)(now_ms - BATLOG_LINE_MS);
-    }
-
-    return toggled;
-}
-
-void battery_log_task(uint16_t now_ms)
-{
-    if (!typing) {
-        return;
-    }
-
-    if (line_pos >= line_len) { // the last line is out: the next one is due a second after the start of this one
-        if ((uint16_t)(now_ms - line_at) < BATLOG_LINE_MS) {
-            return;
-        }
-
-        uint16_t raw = radio_battery_raw();
-        uint8_t  n   = 0;
-        uint8_t  digits[4];
-
-        do {
-            digits[n++] = (uint8_t)(raw % 10u);
-            raw         = (uint16_t)(raw / 10u);
-        } while (raw != 0 && n < 4);
-
-        line_len = 0;
-        while (n > 0) {
-            const uint8_t d = digits[--n];
-
-            line[line_len++] = (uint8_t)(d == 0 ? KC_0 : KC_1 + d - 1u);
-        }
-        line[line_len++] = KC_ENT;
-        line_pos         = 0;
-        line_at          = now_ms;
-        sleep_note_activity();
-    }
-
-    if ((uint16_t)(now_ms - char_at) >= BATLOG_CHAR_MS) {
-        char_at = now_ms;
-        keyboard_tap(line[line_pos++]);
-    }
 }

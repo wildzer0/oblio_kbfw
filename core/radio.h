@@ -43,10 +43,6 @@ void radio_set_link(uint8_t slot, bool pairing);
 // The selector went to USB: nothing more is sent.
 void radio_stop(void);
 
-// Listens to the radio without giving it a mode: only the status requests and the acknowledgements of its own frames go out (nothing the
-// radio would take for a link). For finding out what the radio says about the battery with the cable in; `false` stops it.
-void radio_monitor(bool on);
-
 // Before the MCU sleeps: the frames the stock firmware sends first (01 0C 08 07 00, then 01 0B 00), blocking, with delays by loops
 // (the timer is stopped). Leaves the radio idle.
 void radio_sleep(void);
@@ -80,10 +76,6 @@ uint16_t radio_battery_raw(void);
 
 // The whole status answer as last received, whatever the state of the cable (0 until one has come). The battery log writes this down as it is.
 const uint8_t *radio_status(void);
-
-// The whole status answer as it was last seen *on battery* (no cable): the only way to look at it, since the diagnostics themselves need the
-// cable, and with the cable the radio says something else (its battery byte reads 0xFF). Zeros until one has come.
-const uint8_t *radio_status_on_battery(void);
 
 // Provided by the caller: is the keyboard running on its battery (a wireless mode, no cable)?
 bool radio_hook_on_battery(void);

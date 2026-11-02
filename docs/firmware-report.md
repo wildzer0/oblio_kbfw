@@ -27,8 +27,7 @@ bootloader's marker sector and is **not touched**; **stock bootloader at 0xF000,
 
 `usb_device_configured()` means what it says: the cable is in **and** a host is driving the bus. Nothing on this chip reports a cable being pulled
 out (`configured` is only cleared by another `SET_CONFIGURATION` or a bus reset), so the firmware watches the start-of-frame interrupts: if none has
-come in 250 ms, the host is gone. Without that the keyboard believed for ever that it was plugged in, and the battery log - which writes only while
-on battery - wrote nothing.
+come in 250 ms, the host is gone. Without that the keyboard believed for ever that it was plugged in (and the battery gauge, which only reads on battery, never did).
 
 The USB device enumerates as `258a:dead`, product name "Oblio B68", with a keyboard interface (EP1) and a raw HID interface (usage page 0xFF60, EP2,
 32-byte packets) used by Vial, VIA, the HUD app and the diagnostics. On interface 0 the report IDs are: keyboard 3, system 1, consumer 2,
@@ -77,21 +76,16 @@ The USB device enumerates as `258a:dead`, product name "Oblio B68", with a keybo
   comes out, pastels included; the wheel is the HSV one, red-yellow-green-cyan-blue-magenta (it used to run red-blue-green, which turned an orange
   into a purple), **or the per-key picture painted in Vial** (`FX_VIAL`), all driven from the main loop into a framebuffer; the timer interrupt only copies pre-computed PWM widths
   (`core/led.c` keeps a ready-made `duty2` table, `board/led_hw.c` writes it with constant-address code). **Battery gauge** (Fn+Backspace, number keys
-  green/red for 3 s): the level comes from the radio's status answer, seven steps in three bits (`core/radio.h`), shown as even steps of a
-  percentage; the radio's "critically low" flag turns it red. In USB mode there is no radio reading and the gauge says "unknown" (white blinking).
-  **The host Caps Lock is shown on its key in the wireless modes too**, from the same status byte. **While the cable charges the battery the radio
-  answers `0xFF` in the battery byte**, which read as a level would be "full" at any charge: it is a sentinel (measured on the keyboard
-  2026-11-03), so the gauge ignores it and shows the last level it saw on battery.
+  green/red for 3 s): the battery is a **10-bit ADC reading** in bytes 4-5 of the radio's status answer (`core/radio.h`), turned into a percentage
+  by a Li-Po discharge curve (`board/battery.c`: reading 800 = 3.30 V = 0 % ... 1020 = 4.20 V = 100 %; the cell is 5000 mAh, 4.2 V charge). The scale
+  (~243 counts to the volt) rests on one measurement, 4.0378 V at rest = reading 981 - **provisional**. With the cable the reading saturates
+  (1023), so the gauge ignores it and shows the last reading it took on battery; just after power-on the ADC reads 1-3, which is ignored too (the gauge
+  says "unknown", ten white keys blinking). **The host Caps Lock is shown on its key in the wireless modes too**, from byte 1 of the same answer.
 - **Wireless:** 2.4G and Bluetooth through the BK3632 (`core/radio.c`, `core/link.c`, `board/radio_hw.c`): frames, flow control, mode, slots, pairing.
   The mode selector is read with a 50 ms stability filter. Keys go to the radio queues when `link_wireless()`, otherwise to the USB queue.
 - **Sleep:** in wireless modes only, after 1/5/10/30 min or never (default 10), or on demand; power-down with INT4 wake-up. Never sleeps on USB.
 - **Diagnostics** (`core/diag.c`, VIA command `0xF1`, `tools/diag.py`): counters readable **without** the Vial unlock (they are for when the keys
   do not work).
-- **Battery log** (`core/blog.c`): the keyboard writes the radio's battery and flag bytes down itself, because the diagnostics need a cable and
-  with the cable the battery charges (the byte is the sentinel `0xFF`). **128 records of four bytes in flash, in a sector of its own at 0xD800** -
-  the minutes it has been awake, the battery byte, the flags byte - one whenever the answer changes and at least every five minutes, *cable or
-  not* (with the cable the record is marked). Flash and not RAM because plugging the cable resets the board: a log in RAM dies exactly when it is
-  read. Read it with `diag.py --blog` (diag kind 4, six records per packet).
 - **Safety:** watchdog (kicked from the main loop and from `delay_us`, not from the scan wait), recovery chord at the start of `main`, flash writes confined to
   0xDC00–0xF000.
 
@@ -161,7 +155,7 @@ durations. It has a guard on instructions per interrupt (backlight subframe < 12
 | Vial app, HUD app, the keymap surviving power-off, encoder, tap-hold/macros on the keyboard | **not yet tested** on hardware |
 | Win/Mac switch | **verified by the user**: the switch changes side, and the polarity is the one measured on the keyboard (Mac = `P0.5` high) |
 | Sleep | **tested by the user**: it sleeps and wakes, but the LEDs stayed dark until a power cycle (cause found and fixed on 2026-11-01: `led_hw_init()` dropped the backlight permission and `led_app_task()` compared it against its own copy). Re-test pending |
-| Battery gauge | **not tested**; the battery percentage source is unknown |
+| Battery gauge | reading and scale **measured** (981 at 4.0378 V); the curve is provisional until a second point (the reading right after taking the charger off, expected ~1015-1020) is taken |
 
 ## 7. What went wrong on the hardware, and why (read before touching interrupts)
 
@@ -181,27 +175,23 @@ Works without unlocking Vial. Linux: `/dev/hidraw`, no dependencies. **Windows/m
 (keep the script in sync with the repo: an old copy prints wrong labels, because the order of the counters changes). Counters, in order: reset cause
 (RSTSTAT, 0 = power-on), stack used (bytes of 223; ~185 on USB), LED slots late, scans overwritten (harmless), slowest main-loop pass (ms), USB report queue
 overflows, longest LED slot work (µs; 93), longest scan (µs; 609–625), main passes between the last two scans, backlight back-offs (rare), scan slots
-late (0). `--radio` / `--monitor` (unlock needed) dump the radio's status bytes and last `08` frame, for decoding the battery. `--ports` (no unlock)
-answers the Win/Mac switch question: the raw bytes of P0…P7 and the columns in which P7.0 reads low. The 32-byte packet holds at most **14** counters;
+late (0). `--radio` (no unlock) dumps the radio's status bytes, the battery reading they carry and the last `08` frame. The 32-byte packet holds at most **14** counters;
 adding one means dropping one.
 
 ## 9. Open items, in priority order
 
 1. **Functional test on the keyboard** per `docs/first-boot.md`: Vial app connects and saves a change, HUD app connects, the keymap surviving power-off, the encoder, 2.4G/BT with the
    current hex, then sleep. Report any failure with `diag.py --watch 1` output.
-2. **Win/Mac switch — done (2026-11-01).** It is **`P0.5`**, an input with a pull-up, low on Mac: measured with `diag.py --ports` (one bit
+2. **Win/Mac switch — done (2026-11-01).** It is **`P0.5`**, an input with a pull-up, low on Mac: measured with a port readout (since removed; one bit
    different between the two positions, no dependence on the columns) and confirmed in the stock dump (the debounce at `0xA9D9`, the state in
    `XDATA[0x0307]`, used to pick between two sets of keymap tables). It now selects the default layer: 0 on Windows, `KEYMAP_MAC_LAYER` (7) on
    Mac, which is a copy of the base with Alt and GUI swapped. **To be tried on the keyboard**: on Mac the key labelled Win must send Command
    and the one labelled Alt must send Option, and Vial must show layer 7 editable. `P7.0` stays unused (the stock reads it with the rows but it
    is not a row and it does not follow the switch).
-3. **Battery percentage — the byte is right, the meaning is not settled.** The reference driver for the same radio (NuPhy) decodes the level in
-   the low three bits of one status byte with "awake" in bit 7, and the LEDs/connected/paired/low-power flags in another; the stock firmware of
-   this board copies that flag byte into the host-LED state at `0x06B6`. Byte 4 is that byte on this board, but what it says is not a level yet:
-   measured on the keyboard it reads `0xFF` with the cable (charging - a sentinel, now ignored), `0x03` after a while on battery and `0x01` right
-   after power-on, which is not how a battery discharges. **`diag.py --radio` now prints the status as it was last seen on battery** (the two
-   free bytes of that reply), which is the reading that has the level in it and can only be captured with the cable out. Two or three such
-   readings at known charge levels will settle the scale; until then the gauge is a guess and the report says so.
+3. **Battery percentage — decoded, scale provisional.** Bytes 4-5 of the status answer are a 10-bit ADC reading (found in the stock firmware: the status
+   handler at `0x05EA` builds `XDATA[0x02E6..7]` from them and the gauge routine at `0x7CF0` uses `(reading - 715) * 10 / 22`). Measured: 4.0378 V at rest
+   reads 981, about 243 counts to the volt; the cable saturates it. Oblio uses a Li-Po curve rather than the stock straight line (which calls
+   everything above ~3.85 V full). To confirm: the reading just after the charger comes off should be ~1015-1020.
 4. **The scan takes ~610 µs instead of the ~440 estimated** (32 busy-waits of 10 µs are 320 µs of it). Unexplained, harmless now; the clock check says the
    timer is right. If it were found, the backlight frame would go from ~9.6 to ~8 ms.
 5. **The main loop is slow**: 0–5 passes per scan period; a pass is ~1170 instructions in the simulator, 37 % of it `matrix_any_pressed()` called twice per pass
@@ -209,8 +199,7 @@ adding one means dropping one.
    second would give the real pass time.
 6. **Flash margin is 12.8 KB** (2026-11-01: the four profiles went and the store moved to the end of the flash). The next features fit; the limit to
    watch is now XDATA (324 B free) and the stack.
-7. **What is still missing, in the order a user would notice it:** the battery percentage (the gauge is there and always says "unknown"); the host
-   Caps Lock on the radio (the `08` frame probably carries it, like the battery); combos, key overrides and per-key RGB (vialrgb) from Vial — the
+7. **What is still missing, in the order a user would notice it:** the host Caps Lock is done (status byte 1); combos, key overrides and per-key RGB (vialrgb) from Vial — the
    key overrides (the entry layout is in `docs/vial.md`, the tapping term and the combos show the way); more than six keys at once on USB (no NKRO
    report, the radio has one).
 
