@@ -18,7 +18,7 @@ overrides, tab Lighting con colore pieno), NKRO, Caps Word, Leader, mouse dall'e
 | Deposito keymap | **1709 / 2048** (339 B liberi) |
 | Test host | **27 / 27** (`make test`, include il controllo della definizione Vial) |
 | Simulatore ucsim | **24 / 24** (`make sim`) |
-| Gradini | 1–3 costruiti (`make stages`), vettori interrupt ok (4) |
+| Vettori interrupt | 4, nessun overlay statico (`make check-interrupts`) |
 
 **Mappa flash**: codice fino a **0xDC00**, keymap con due copie **0xDC00–0xEBFF**, impostazioni **0xEC00** (log append-only), **0xEE00 = marcatore del bootloader, mai toccare**, bootloader stock a 0xF000. `hal/flash.c` rifiuta le scritture fuori da 0xDC00–0xF000; `make size` impone il limite di codice.
 
@@ -99,7 +99,6 @@ nix develop --command make test              # 28 test host + definizione Vial
 nix develop --command make fw size           # build/oblio.hex, flash e XDATA contro il budget
 nix develop --command make check-interrupts  # i quattro vettori, nessun overlay statico
 nix develop --command make sim               # ~60 s, il firmware vero nel simulatore (24 test)
-nix develop --command make stages            # build a gradini 1-3
 
 py tools\diag.py [--watch 1] [--radio] [--daemon N file.csv]     # Windows
 py tools\diag.py --daemon 60 oblio-log.csv                                # contatori in CSV, uno ogni 60 s

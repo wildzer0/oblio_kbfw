@@ -27,7 +27,6 @@ make test                    # unit tests of the platform-independent logic, run
 make fw size                 # the firmware (build/oblio.hex) and its flash / XDATA budget
 make check                   # the Vial definition and the interrupt vectors of the linked firmware
 make sim                     # the real firmware in a simulator of the chip: boot, USB, raw HID, recovery
-make stages                  # builds that start less of the firmware, for the first runs on the hardware
 ```
 
 ## Flashing
@@ -57,7 +56,7 @@ Details on recovery, including the hardware programming header, are in [docs/rec
 - [Developer guide: where to start](docs/guida-sviluppatore.md) (Italian)
 - [Architecture and design](docs/design.md) (modules, data flow, timing, persistence) and the [API reference](docs/api.md)
 - [How the firmware is put together](docs/architecture.md) (short version)
-- [First run on the keyboard](docs/first-boot.md)
+- [Flashing and checking the keyboard](docs/first-boot.md)
 - [Keyboard HUD protocol](docs/hud-protocol-v2.md)
 - [Board and pinout](docs/keyboards/yunzii-b68.md)
 - [BK3632 radio protocol](docs/keyboards/yunzii-b68-radio.md)

@@ -56,7 +56,6 @@
   - [`board/radio_hw.h`](#board-radio-hw-h) — The serial port and the pins of the link to the BK3632 radio: TXD = P5.5, RXD = P5.6 (EUART0), SEL = P0.2 (an 
   - [`board/recovery.h`](#board-recovery-h)
   - [`board/sleep_hw.h`](#board-sleep-hw-h)
-  - [`board/stage.h`](#board-stage-h) — Bring-up stage (see the Makefile): how much of the firmware is started
   - [`board/timebase.h`](#board-timebase-h)
   - [`board/usb_app.h`](#board-usb-app-h)
 
@@ -3791,17 +3790,6 @@ void sleep_hw_apply_level(uint8_t level, bool show);
 ```
 
 Applies a sleep level (settings.sleep_level) to the counting; with `show`, keys 1-5 flash the step.
-
-### `board/stage.h`
-
-Bring-up stage (see the Makefile): how much of the firmware is started. The code is the same in every stage; a lower stage leaves the later parts alone, so that a fault on the first runs on the hardware is found in the module that brought it. 1  matrix, USB, Vial, HUD, profiles, settings, encoder 2  + the backlight (PWM outputs, the timer's LED slots) 3  + the radio, the mode selector and the Bluetooth keys 4  + sleep: the release build
-
-```c
-#    define OBLIO_STAGE 4
-#define STAGE_LED   (OBLIO_STAGE >= 2)
-#define STAGE_RADIO (OBLIO_STAGE >= 3)
-#define STAGE_SLEEP (OBLIO_STAGE >= 4)
-```
 
 ### `board/timebase.h`
 

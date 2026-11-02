@@ -1,11 +1,6 @@
 # Oblio: one board, one hex. `make test` builds and runs the host tests (pure logic, plain gcc).
 # `make fw` builds the firmware with SDCC, `make size` checks the flash/XDATA budget.
-#
-# The first runs on the hardware go in stages, so that a fault is found in the module that brought it: `make stage N=1` builds the
-# keyboard over USB with Vial and the HUD and nothing else running, 2 adds the backlight, 3 the radio and the mode selector, 4 sleep
-# (stage 4 is the release build, `make fw`). Same code in every stage, only less of it started: see board/main.c.
-STAGE ?= 4
-B     ?= build
+B := build
 
 HOST_TESTS := $(patsubst %.c,%,$(wildcard tests/host/test_*.c))
 
@@ -16,15 +11,12 @@ XRAM_SIZE  := 4096
 SDCC      ?= sdcc
 SDCCFLAGS := --std-c23 --Werror -mmcs51 --model-large --stack-auto \
              --xram-loc 0x0000 --xram-size $(XRAM_SIZE) --code-size $(CODE_LIMIT) \
-             --opt-code-speed --out-fmt-ihx -DWATCHDOG_ENABLE=1 -DOBLIO_STAGE=$(STAGE)
+             --opt-code-speed --out-fmt-ihx -DWATCHDOG_ENABLE=1
 # every object depends on every header: coarse, but a changed header can never leave a stale object behind
 HEADERS := $(wildcard core/*.h hal/*.h board/*.h)
 
-# Sources compiled with SDCC but not linked, while a module waits for the hooks of the next step
-NOT_LINKED :=
-FW_SRC    := $(filter-out $(NOT_LINKED),$(wildcard core/*.c hal/*.c board/*.c))
-FW_REL    := $(patsubst %.c,$(B)/%.rel,$(FW_SRC)) $(B)/vial_data.rel
-CHECK_REL := $(patsubst %.c,$(B)/%.rel,$(NOT_LINKED))
+FW_SRC := $(wildcard core/*.c hal/*.c board/*.c)
+FW_REL := $(patsubst %.c,$(B)/%.rel,$(FW_SRC)) $(B)/vial_data.rel
 
 api:
 	python3 tools/gen_api.py
@@ -32,7 +24,7 @@ api:
 check-api:
 	python3 tools/gen_api.py --check
 
-.PHONY: api check-api test fw size clean check check-vial check-interrupts stage stages sim
+.PHONY: api check-api test fw size clean check check-vial check-interrupts sim
 .DELETE_ON_ERROR: # a failed build must not leave a half-made file that make takes for up to date
 
 test: $(HOST_TESTS) check-vial
@@ -97,19 +89,11 @@ check-vial:
 
 fw: $(B)/oblio.hex
 
-# `make stage N=2`: the firmware of that stage in build/stage2/, checked like the release one; `make stages`: 1 to 3 (4 is `make fw`)
-stage:
-	@test -n "$(N)" || { echo "usage: make stage N=1..4"; exit 1; }
-	$(MAKE) STAGE=$(N) B=build/stage$(N) fw size check-interrupts
-
-stages:
-	@for n in 1 2 3; do $(MAKE) stage N=$$n || exit 1; done
-
 $(B)/%.rel: %.c $(HEADERS)
 	@mkdir -p $(dir $@)
 	$(SDCC) $(SDCCFLAGS) -Icore -Ihal -Iboard -c $< -o $@
 
-$(B)/oblio.ihx: $(FW_REL) $(CHECK_REL)
+$(B)/oblio.ihx: $(FW_REL)
 	$(SDCC) $(SDCCFLAGS) $(FW_REL) -o $@
 
 $(B)/oblio.hex: $(B)/oblio.ihx

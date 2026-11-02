@@ -127,7 +127,6 @@ nix develop --command make test              # 27 host tests + Vial definition c
 nix develop --command make fw size           # build/oblio.hex ; flash and XDATA against 56320 / 4096
 nix develop --command make check-interrupts  # the four vectors, no static overlay
 nix develop --command make sim               # ~50 s: the real hex in the chip simulator (24 tests)
-nix develop --command make stages            # staged builds, see below
 ```
 
 Current budget: **flash 51827 / 56320 (4.4 KB of margin), XDATA 3755 / 4096 (341 B free), keymap slot 1709 of 2048 bytes.** Six layers since
@@ -137,9 +136,8 @@ from 0x21 up; the USB interrupt used to keep 48 B of buffers on it, now static i
 leaves no stale `.ihx` any more (`.DELETE_ON_ERROR`). SDCC pitfalls seen here: `%`, `/` and loops with a variable count are very costly; use typed `XDATA` pointers
 (`core/platform.h`), constant addresses in interrupts, `--std-c23 --Werror` (an empty `if` body is an error 110).
 
-**Staged builds** (`OBLIO_STAGE=1..4`, `board/stage.h`) for bring-up on the keyboard: 1 matrix + USB + Vial; 2 + backlight; 3 + radio and selector; 4 = release
-(+ sleep). `make stage N=2` → `build/stage2/oblio.hex`. CI (GitHub Actions) runs host tests, build, budget, vector check, stages and the simulation, uploads
-`oblio.hex` and the stages as artifacts, and publishes a Release on a `v*` tag.
+CI (GitHub Actions) runs host tests, the API check, build, budget, vector check and the simulation, uploads `oblio.hex` as an artifact, and publishes a Release on a `v*` tag.
+(The staged bring-up builds, `OBLIO_STAGE`, were removed on 2026-11-02: the code is the same as the release build, the stages only started less of it.)
 
 **Simulator caveat:** `make sim` runs the real firmware but its Timer 2 is a virtual flag — it proves *order* of events and **exact instruction counts**, not
 durations. It has a guard on instructions per interrupt (backlight subframe < 1200, scan < 8500; today 433 and 8305).
@@ -159,7 +157,7 @@ durations. It has a guard on instructions per interrupt (backlight subframe < 12
 
 ## 7. What went wrong on the hardware, and why (read before touching interrupts)
 
-1. **Stage 2 (backlight) — LEDs blinked, no key worked.** Cause: the timer interrupt work did not fit its slots. In the simulator a backlight subframe cost 4697
+1. **First run with the backlight — LEDs blinked, no key worked.** Cause: the timer interrupt work did not fit its slots. In the simulator a backlight subframe cost 4697
    instructions and a scan 8963; slots were 400/450 µs, so the main loop was starved (and then the watchdog fired). Fix: precomputed `duty2` table,
    constant-address unrolled interrupt code (now 433 instructions per subframe), a back-off that makes the backlight step aside if the main loop is starved
    (`hal/tick.c`), counters readable without the unlock.

@@ -23,16 +23,10 @@ jobs:
         run: nix develop --command make size
       - name: Interrupt vectors and overlay
         run: nix develop --command make check-interrupts
-      - name: Bring-up stages 1 to 3
-        run: nix develop --command make stages
       - uses: actions/upload-artifact@v4
         with:
           name: oblio-hex
           path: build/oblio.hex
-      - uses: actions/upload-artifact@v4
-        with:
-          name: oblio-stages
-          path: build/stage*/oblio.hex
 
   simulation:
     # The real firmware in the simulator of the chip: boot, interrupts, USB enumeration, the raw HID pipe, key reports, the recovery chord.

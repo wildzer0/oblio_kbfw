@@ -178,7 +178,7 @@ confinate nell'area scrivibile), `pwm` (18 canali, tre banchi da 6), `power` (po
 **`board/`** — `main` (§5), `matrix_hw` (scansione delle colonne), `led_hw` (PWM + strobe: un sottoquadro = colonna spenta, larghezze caricate, colonna accesa), `led_app` (colla dei LED),
 `radio_hw` (seriale, SEL/ATT), `link_app` (selettore P0.4/P0.3), `os_switch` (P0.5, Win/Mac), `usb_app` (colla USB, ISP, remote wakeup), `sleep_hw` (sequenza di power‑down),
 `store_hw` (hook di flash con la pausa dei LED), `battery` (gauge, avviso, sleep di protezione), `custom_keys` (i tasti `B68_*`), `keymap_default`, `leader`, `recovery`, `isp`,
-`diag_hw`, `slots`, `stage`, `timebase`, `transport`, `vial.json` (definizione che l'app Vial scarica).
+`diag_hw`, `slots`, `timebase`, `transport`, `vial.json` (definizione che l'app Vial scarica).
 
 ## 9. Persistenza
 
@@ -267,10 +267,9 @@ Il PWM suona una colonna alla volta: il «pieno» dei LED è la frazione di temp
 | `make fw size` | `build/oblio.hex` e budget (flash 56320 B, XDATA 4096 B) |
 | `make check-interrupts` | esattamente 4 vettori, nessun overlay statico |
 | `make sim` | l'hex vero nel simulatore `ucsim-sh68f90` (24 test: avvio, slot, stack, recupero, descrittori, VIA/Vial/HUD, report, ISP); ~45 s |
-| `make stages` | build a gradini 1–4 (impalcatura per il primo avvio) |
 | `make api` / `make check-api` | rigenera / verifica `docs/api.md` dagli header |
 
-CI (GitHub Actions): test host, build, budget, vettori, gradini, simulazione; l'hex è un artifact e il tag `v*` pubblica una Release. Il simulatore mostra l'**ordine** degli eventi e i conteggi di istruzioni, non le durate.
+CI (GitHub Actions): test host, build, budget, vettori, simulazione; l'hex è un artifact e il tag `v*` pubblica una Release. Il simulatore mostra l'**ordine** degli eventi e i conteggi di istruzioni, non le durate.
 
 ## 15. Decisioni di design e compromessi
 

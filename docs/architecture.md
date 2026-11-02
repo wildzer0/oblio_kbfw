@@ -76,14 +76,14 @@ core and was worth 1.5 KB of flash. Constant tables are `ROM`.
 
 Everything in the hook layer below `core/` has been written from the stock firmware's dump and the SMK port, and is **not yet tried on the hardware**: the exact
 duration of the interrupt work, the stack depth with every interrupt busy (91–104 bytes of 223 in the simulator), the PWM output, the radio serial port, the sleep sequence.
-`docs/first-boot.md` is the way to find out, one stage at a time, and `tools/diag.py` reads the counters that answer the questions.
+`docs/first-boot.md` says how to flash a build and what to look at, and `tools/diag.py` reads the counters that answer the questions.
 
 ## Testing
 
 | What | How | Cost |
 | --- | --- | --- |
 | Logic | `make test` (about 23 programs, plus the Vial definition check) | seconds |
-| Linked firmware | `make check-interrupts`, `make size`, `make stages` | seconds |
+| Linked firmware | `make check-interrupts`, `make size` | seconds |
 | The real binary on a simulated chip | `make sim` (needs `nix develop`): boot, timer slots, stack, the recovery chord, every USB descriptor, VIA/Vial/HUD over the raw HID pipe, key reports, the ISP command | 30 s |
 | Hardware | `docs/first-boot.md` | the owner |
 

@@ -57,6 +57,12 @@ Il controllo di recupero Esc+1+2 va all'inizio del `main`, prima di USB e radio.
   30 ms (la coda della radio è di 4); la tastiera non va in sleep mentre scrive. Costa ~520 B di flash (54415/55296). È uno strumento di debug: da
   togliere insieme al registro in flash quando la scala della batteria è confermata.
 
+## 2026-11-02 (notte, 22) — tolta la build a gradini
+
+- Eliminati `board/stage.h`, i blocchi `#if STAGE_LED/RADIO/SLEEP` di `main.c`, `led_hw.c` e `slots.c`, `OBLIO_STAGE` e i bersagli `make stage` / `make stages`, il passo e l'artifact dei gradini nella CI.
+  Il Makefile perde anche `STAGE`, `NOT_LINKED` e `CHECK_REL` (vuoti da tempo). **L'hex è identico a prima** (md5 `60c1117c304a12070d2a36aecab14b56`): lo stadio 4 compilava già tutto.
+- `docs/first-boot.md` riscritto: non è più la procedura a gradini del primo avvio ma «come flashare e cosa guardare» (comando, recupero, contatori sani, giro funzionale).
+
 ## 2026-11-02 (notte, 21) — chiusura
 
 - Tutte le prove dell'utente sull'hardware sono andate bene. Pulizia finale: tolti gli hex di bisezione, `CLAUDE.md` riscritto con lo stato attuale (era fermo al 2026-11-01), numeri di `session-state.md` aggiornati.

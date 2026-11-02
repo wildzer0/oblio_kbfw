@@ -20,14 +20,14 @@ copia-incolla; dove si adatta un file altrui si mantiene la sua licenza e si ele
 - `core/`: C puro testato sull'host con gcc (matrice+debounce, layer, tapping, combo, override, leader, macro, report, store/settings, radio, link, VIA/Vial/HUD/diag, USB).
 - `board/`: pin, matrice, LED, radio hw, sleep, selettore modo, switch Win/Mac, batteria, tasti personalizzati.
 - Una sola scheda, niente `#ifdef` per più schede, allocazione statica. Recupero Esc+1+2 nei primissimi istanti del `main`. Bootloader stock a 0xF000 invariato (flash con `sinowisp`).
-- Build: Nix + SDCC + Makefile (un hex). CI: GitHub Actions (test host, riferimento API, build, budget, vettori, gradini, simulazione; hex come artifact; Release al tag).
+- Build: Nix + SDCC + Makefile (un hex). CI: GitHub Actions (test host, riferimento API, build, budget, vettori, simulazione; hex come artifact; Release al tag).
 - Per il perché di ogni scelta: [docs/design.md](docs/design.md); per le funzioni: [docs/api.md](docs/api.md) (generato: `make api`); per iniziare: [docs/guida-sviluppatore.md](docs/guida-sviluppatore.md).
 
 ## Stato al 2026-11-02 (chiusura)
 Il firmware è **completo e provato dall'utente sulla tastiera**: USB e radio (2.4G e Bluetooth), Vial (keymap, tap dance, combo, key override, Lighting), NKRO, Caps Word, Leader, mouse dall'encoder,
 switch Win/Mac (P0.5), batteria (lettura ADC a 10 bit dalla radio, curva Li-Po, avviso e sleep di protezione), remote wakeup USB, backlight stabile (USB, HUD e salvataggi), keymap salvata come immagine + log.
 Ultimi numeri: flash ~53,8/56,3 KB, XDATA ~3,8/4 KB, 27 test host, 24 test nel simulatore. Cronologia in [CHANGELOG.md](CHANGELOG.md), punti ancora aperti in [docs/session-state.md](docs/session-state.md)
-(la scala della batteria poggia su un solo punto misurato; le build a gradini `make stages` sono impalcatura del primo avvio, eliminabile; le sequenze del Leader le decide l'utente in `board/leader.c`).
+(la scala della batteria poggia su un solo punto misurato; le build a gradini sono state tolte; le sequenze del Leader le decide l'utente in `board/leader.c`).
 Se compare un problema: `py tools\diag.py` (contatori, `--radio`) e `docs/session-state.md` → "Trappole già pagate".
 
 ## Come lavora l'utente (preferenze confermate)
