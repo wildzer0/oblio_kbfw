@@ -1,4 +1,5 @@
 #include "check.h"
+#include "diag_stubs.h"
 #include "usb_desc.h"
 #include "../../core/usb_device.c" // the .c itself: the test reaches its static send()
 #include <string.h>

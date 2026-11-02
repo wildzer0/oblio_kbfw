@@ -460,6 +460,7 @@ typedef enum {
     DIAG_RADIO_RX,         // frames from the radio that passed the checksum
     DIAG_TIMER_LATE_US,    // the longest the timer interrupt waited to start after its slot ended, in us (another interrupt or the flash holding it up; ignores the
                            // flash pauses, over 1 ms): above ~50 the backlight columns show it as a flicker
+    DIAG_USB_GONE,         // times the keyboard declared the host gone (no start-of-frame in a look at the bus): with the cable in and the PC on this stays 0
     DIAG_STORE_SAVES,      // times the whole keymap has been written to flash, ever (the sequence number in the header of the slot in use: it survives power-off)
     DIAG_STORE_LOG,        // records in the log of the slot in use (the keymap edits written since the last whole save)
     DIAG_COUNT

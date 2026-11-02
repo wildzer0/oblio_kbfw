@@ -64,7 +64,7 @@ tests/host/test_%: tests/host/test_%.c core/%.c FORCE
 	$(CC) -std=c11 -Wall -Wextra -Werror -Icore -Itests/host -o $@ $< core/$*.c $(LINK_$*)
 
 # includes core/usb_device.c itself, to reach its static functions
-tests/host/test_usb_device: tests/host/test_usb_device.c core/usb_desc.c FORCE
+tests/host/test_usb_device: tests/host/test_usb_device.c core/usb_desc.c core/diag.c FORCE
 	$(CC) -std=c11 -Wall -Wextra -Werror -Icore -Itests/host -o $@ $(filter %.c,$^)
 
 # the default keymap is board data, but plain C: checked against the matrix measured on the board

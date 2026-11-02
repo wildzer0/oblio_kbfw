@@ -64,6 +64,8 @@ Il controllo di recupero Esc+1+2 va all'inizio del `main`, prima di USB e radio.
   successivo: **LED spenti (in USB si accendono solo con l'host) e tasti scartati** per 250 ms, a intervalli casuali. Spariva in wireless (anche col cavo) perché lì i LED e i report non dipendono dall'USB.
   Corretto: contatore a 16 bit (`usb_hook_sof_ticks`), letto due volte fino a coincidere. Test: `test_a_full_turn_of_the_counter_is_not_a_host_that_went_away` prova ogni lunghezza di finestra da 250 a 770 ms.
 - Dati dell'utente che lo escludevano da altre cause: nessun salvataggio completo (sequenza 1), nessun erase, reset cause 0 (nessun reset).
+- La bisezione dell'utente ha confermato che non è una regressione recente: il problema c'è già in `d8c7df2.hex` e col backlight spento (quindi non sono né i LED né la corrente). Il bug esiste da `5780a8b`, quando è nato il controllo del bus.
+- Nuovo contatore `DIAG_USB_GONE` («USB: times the host was declared gone»): con il cavo nel PC acceso deve restare 0.
 
 ## 2026-11-02 (notte, 19) — la keymap è un'immagine più un log; contatore dei salvataggi
 

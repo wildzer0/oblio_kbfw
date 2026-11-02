@@ -1,4 +1,5 @@
 #include "usb_device.h"
+#include "diag.h"
 #include "usb_desc.h"
 #include <string.h>
 
@@ -110,7 +111,13 @@ void usb_device_bus_check(uint16_t now)
 
     const uint16_t ticks = usb_hook_sof_ticks();
 
-    bus_gone = (ticks == last_sof); // no start-of-frame since the last look: no host
+    const bool gone = (ticks == last_sof); // no start-of-frame since the last look: no host
+
+    if (gone && !bus_gone) {
+        diag_inc(DIAG_USB_GONE);
+    }
+
+    bus_gone = gone;
     last_sof = ticks;
     last_sof_look = now;
 }
