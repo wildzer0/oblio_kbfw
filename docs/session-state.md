@@ -37,7 +37,7 @@ Il registro in flash, il logger da tastiera e la diagnostica `--blog/--ports/--m
    (se cambia, è l'host); primo tasto dopo una pausa contro raffica (se solo il primo è lento, è lo slave latency). Resta da capire il massimo di 33–40 ms (ATT bassa
    a tratti?), uguale nei due modi.
 2. Provare **avviso di batteria** (`battery_task`: sotto 800 gauge rosso ogni 30 s, sotto 752 per 10 s sleep) e **remote wakeup USB** (PC in sospensione, un tasto lo sveglia).
-3. Togliere i contatori di diagnostica solo a lavoro finito.
+3. (fatto) diagnostica ridotta a 9 contatori e `--radio`.
 
 ## Da provare sulla tastiera
 

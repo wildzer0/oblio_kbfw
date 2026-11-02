@@ -41,8 +41,3 @@ const uint8_t *diag_hook_radio_status(void)
 {
     return radio_status();
 }
-
-const uint8_t *diag_hook_radio_info(void)
-{
-    return radio_last_info();
-}

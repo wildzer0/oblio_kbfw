@@ -4,7 +4,6 @@
 
 static unsigned refreshes;
 static uint8_t  status[22] = {1, 2, 3, 4, 5, 6};
-static uint8_t  info[22];
 
 void diag_hook_refresh(void)
 {
@@ -13,7 +12,6 @@ void diag_hook_refresh(void)
 }
 
 const uint8_t *diag_hook_radio_status(void) { return status; }
-const uint8_t *diag_hook_radio_info(void) { return info; }
 
 static void test_counters(void)
 {
@@ -31,13 +29,13 @@ static void test_counters(void)
     diag_max(DIAG_LOOP_MAX_MS, 9);
     CHECK(diag_get(DIAG_LOOP_MAX_MS) == 9);
 
-    diag_set(DIAG_SCAN_LOST, 0xFFFE);
-    diag_inc(DIAG_SCAN_LOST);
-    diag_inc(DIAG_SCAN_LOST); // saturates, does not wrap to 0
-    CHECK(diag_get(DIAG_SCAN_LOST) == 0xFFFF);
+    diag_set(DIAG_USB_OVERFLOW, 0xFFFE);
+    diag_inc(DIAG_USB_OVERFLOW);
+    diag_inc(DIAG_USB_OVERFLOW); // saturates, does not wrap to 0
+    CHECK(diag_get(DIAG_USB_OVERFLOW) == 0xFFFF);
 
     diag_init();
-    CHECK(diag_get(DIAG_SLOT_LATE) == 0 && diag_get(DIAG_SCAN_LOST) == 0);
+    CHECK(diag_get(DIAG_SLOT_LATE) == 0 && diag_get(DIAG_USB_OVERFLOW) == 0);
 }
 
 static void test_counters_reply(void)
@@ -67,9 +65,6 @@ static void test_radio_reply(void)
 {
     uint8_t data[32];
 
-    memset(info, 0, sizeof info);
-    info[0] = 0x08;
-    info[21] = 0x99;
     memset(data, 0, sizeof data);
     data[0] = 0xF1;
     data[1] = 1;
@@ -77,7 +72,7 @@ static void test_radio_reply(void)
 
     CHECK(data[0] == 0xF1 && data[1] == 1);
     CHECK(data[2] == 1 && data[7] == 6); // the six status bytes
-    CHECK(data[8] == 0x08 && data[29] == 0x99); // the 22 bytes of the last 08 frame
+    CHECK(data[8] == 0); // and nothing after them
 }
 
 static void test_unknown_kind_is_unhandled(void)

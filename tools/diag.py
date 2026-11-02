@@ -6,7 +6,7 @@ Linux: /dev/hidraw, no dependencies. Windows and macOS: `pip install hidapi` (th
 usage: diag.py [--radio] [--watch SECONDS] [--daemon SECONDS [FILE]]
 
   (no option)  print the counters once
-  --radio      also print the radio's last status bytes (with the battery reading they carry) and its last 08 frame
+  --radio      also print the radio's last status bytes, with the battery reading they carry
   --watch N    repeat every N seconds, printing only what changed
   --daemon N   append the counters to a CSV every N seconds
 
@@ -38,17 +38,12 @@ NAMES = [
     ("reset cause (RSTSTAT)", "{:#04x}"),
     ("stack used (bytes of 223)", "{}"),
     ("LED slots that ran late", "{}"),
-    ("scans overwritten (harmless)", "{}"),
     ("slowest main-loop pass (ms)", "{}"),
     ("USB report queue overflows", "{}"),
-    ("longest LED slot (us, of 400)", "{}"),
-    ("longest scan slot (us, of 500)", "{}"),
     ("backlight back-offs (starved)", "{}"),
     ("scan slots that ran late", "{}"),
     ("longest sector erase (us)", "{}"),
     ("radio: frames received (checksum ok)", "{}"),
-    ("radio: reports it answered 'not now' to", "{}"),
-    ("radio: longest key -> radio accepted (ms)", "{}"),
 ]
 
 
@@ -119,7 +114,6 @@ def show(values, previous=None):
 def radio(keyboard):
     reply = keyboard.ask(0xF1, 1)
     print("radio status bytes : " + " ".join("{:02x}".format(b) for b in reply[2:8]))
-    print("last 08 frame      : " + " ".join("{:02x}".format(b) for b in reply[8:30]))
 
     # bytes 4 and 5 of the status: the battery as a 10-bit ADC reading (see core/radio.h)
     raw = reply[2 + 4] | (reply[2 + 5] << 8)

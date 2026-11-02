@@ -1,8 +1,6 @@
 #include "diag.h"
 #include <string.h>
 
-#define DIAG_RADIO_INFO_LEN 22
-
 static uint16_t counter[DIAG_COUNT];
 
 void diag_init(void)
@@ -66,7 +64,6 @@ void diag_receive(XDATA uint8_t *data, uint8_t length)
             memcpy(&data[2], status, 6);
         }
 
-        memcpy(&data[8], diag_hook_radio_info(), DIAG_RADIO_INFO_LEN);
     } else {
         data[0] = 0xFF;
     }

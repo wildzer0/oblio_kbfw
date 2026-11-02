@@ -94,10 +94,6 @@ void tick_isr(void) __interrupt(INT_TIMER2)
     pending_reload = RELOAD(sched_slot_us(sched_upcoming()));
 
     if (slot == SLOT_SCAN) {
-        if (scan_ready) {
-            diag_inc(DIAG_SCAN_LOST); // the main loop never took the previous one
-        }
-
         tick_hook_scan(scan_raw);
         scan_ready = true;
 
@@ -131,8 +127,6 @@ void tick_isr(void) __interrupt(INT_TIMER2)
         diag_inc(slot == SLOT_SCAN ? DIAG_SCAN_LATE : DIAG_SLOT_LATE);
         used = (uint16_t)(SCHED_COUNTS_PER_US * sched_slot_us(slot));
     }
-
-    diag_max(slot == SLOT_SCAN ? DIAG_SCAN_US_MAX : DIAG_LED_US_MAX, (uint16_t)(used / SCHED_COUNTS_PER_US));
 
     prev_reload = reload;
 

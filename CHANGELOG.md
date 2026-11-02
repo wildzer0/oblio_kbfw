@@ -57,6 +57,13 @@ Il controllo di recupero Esc+1+2 va all'inizio del `main`, prima di USB e radio.
   30 ms (la coda della radio è di 4); la tastiera non va in sleep mentre scrive. Costa ~520 B di flash (54415/55296). È uno strumento di debug: da
   togliere insieme al registro in flash quando la scala della batteria è confermata.
 
+## 2026-11-02 (notte, 14) — diagnostica ridotta all'essenziale
+
+- Tolti: i contatori «scansioni sovrascritte» (innocuo), «slot LED più lungo» e «scansione più lunga» (misure nell'interrupt: ora costa meno), «rifiuti della radio» e
+  «tasto → radio» (la latenza del BLE è chiusa), e il frame `08` (mai decodificato) con il suo buffer. Restano 9 contatori: causa del reset, stack, slot LED e scansioni in
+  ritardo (il rivelatore del flicker), passata più lenta del main, overflow della coda USB, back-off della retroilluminazione, erase più lungo, frame ricevuti dalla radio;
+  e `--radio` (stato della radio con la lettura della batteria). Flash 52049/56320, XDATA 3735/4096, 27 test host, `make sim` ok (24).
+
 ## 2026-11-02 (notte, 13) — latenza del BLE: la misura dice che non è il firmware
 
 - Dati dell'utente: rifiuti della radio ai report **0** in BLE e in 2.4G; massimo da tasto a «accettato dalla radio» **33 ms (BLE)** e **40 ms (2.4G)**. Il percorso del

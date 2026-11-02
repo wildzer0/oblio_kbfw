@@ -81,9 +81,6 @@ const uint8_t *radio_status(void);
 bool radio_hook_on_battery(void);
 uint8_t radio_host_leds(void);     // bit 0 num lock, bit 1 caps lock, bit 2 scroll lock
 
-// The last 08 frame from the radio, whole (22 bytes, zeros until one has come): its content is not decoded yet.
-const uint8_t *radio_last_info(void);
-
 // ---- hooks: the serial port and the pins (board/radio_hw.c, or a test) ----
 bool     radio_hook_ready(void);              // ATT: the radio is free to take a frame
 void     radio_hook_select(bool low);         // SEL: low while a frame goes out, released (high) afterwards

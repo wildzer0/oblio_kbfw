@@ -173,10 +173,9 @@ durations. It has a guard on instructions per interrupt (backlight subframe < 12
 
 Works without unlocking Vial. Linux: `/dev/hidraw`, no dependencies. **Windows/macOS: `py -m pip install hidapi`**, then `py tools\diag.py [--watch 1]`
 (keep the script in sync with the repo: an old copy prints wrong labels, because the order of the counters changes). Counters, in order: reset cause
-(RSTSTAT, 0 = power-on), stack used (bytes of 223; ~185 on USB), LED slots late, scans overwritten (harmless), slowest main-loop pass (ms), USB report queue
-overflows, longest LED slot work (µs; 93), longest scan (µs; 609–625), main passes between the last two scans, backlight back-offs (rare), scan slots
-late (0). `--radio` (no unlock) dumps the radio's status bytes, the battery reading they carry and the last `08` frame. The 32-byte packet holds at most **14** counters;
-adding one means dropping one.
+(RSTSTAT, 0 = power-on), stack used (bytes of 223), LED slots late (0), slowest main-loop pass (ms), USB report queue overflows, backlight back-offs (rare),
+scan slots late (0), longest sector erase (µs), frames received from the radio. `--radio` (no unlock) dumps the radio's six status bytes and the battery reading and
+percentage they carry. The 32-byte packet holds at most **14** counters (nine today).
 
 ## 9. Open items, in priority order
 

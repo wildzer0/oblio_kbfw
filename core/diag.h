@@ -14,17 +14,12 @@ typedef enum {
     DIAG_RESET_CAUSE,      // RSTSTAT as read at power-on, before the first watchdog kick
     DIAG_STACK_USED,       // bytes of the stack used at most (internal RAM from 0x21 up)
     DIAG_SLOT_LATE,        // LED slots whose work ran past their end (the timer had already overflowed again)
-    DIAG_SCAN_LOST,        // scans overwritten before the main loop took them: harmless, the matrix is a state (as in the SMK port), only the debounce is slower
     DIAG_LOOP_MAX_MS,      // the slowest pass of the main loop
     DIAG_USB_OVERFLOW,     // USB report packets that replaced or pushed out another
-    DIAG_LED_US_MAX,       // longest LED slot, from its start to the end of its work, in us (the slot is 400; more means it ran late)
-    DIAG_SCAN_US_MAX,      // the same for the scan slot (500)
     DIAG_BACKOFF,          // times the main loop was found starved and the backlight stood aside
     DIAG_SCAN_LATE,        // the same as DIAG_SLOT_LATE, for the scan slots
     DIAG_ERASE_US_MAX,     // the longest sector erase of a flash write, in us (the chip stalls while it runs)
     DIAG_RADIO_RX,         // frames from the radio that passed the checksum
-    DIAG_RADIO_REFUSED,    // keyboard reports the radio answered "not now" to (each is offered again after REFUSED_RETRY_MS)
-    DIAG_RADIO_ACK_MS,     // the longest a keyboard report took from the key to the radio accepting it (ms); the rest, up to the host, is the radio's
     DIAG_COUNT
 } diag_id_t;
 
@@ -39,11 +34,10 @@ uint16_t diag_get(diag_id_t id);
 
 // VIA command 0xF1: the request is in `data` (32 bytes) and becomes the reply. [0xF1, kind, ...]
 //   kind 0: [0xF1, 0, DIAG_COUNT, counter 0 (lo, hi), counter 1, ...]
-//   kind 1: the radio: [0xF1, 1, 6 status bytes, 22 bytes of the last 08 frame]
+//   kind 1: the radio: [0xF1, 1, its 6 status bytes] (the battery reading is in bytes 4-5)
 //   both are read-only, so they need no unlock
 //   anything else: [0xFF, ...] (unhandled)
 void diag_receive(XDATA uint8_t *data, uint8_t length);
 
-// Provided by the board: the radio's last status bytes (6) and last 08 frame (22), for kind 1
+// Provided by the board: the radio's last status bytes (6), for kind 1 (null until the first answer)
 const uint8_t *diag_hook_radio_status(void);
-const uint8_t *diag_hook_radio_info(void);

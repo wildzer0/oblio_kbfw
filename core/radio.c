@@ -156,8 +156,6 @@ static uint8_t names_step;   // 1: the LE name goes next, 2: the classic one
 // The reports wait in two small queues, in order: a tap is a press and a release back to back, and "the latest state" alone would
 // lose the press. Full: the newest replaces the last.
 static uint8_t  key_queue[KEY_QUEUE][7]; // modifiers, 6 keys
-static uint16_t key_time[KEY_QUEUE];      // when each was queued, for the latency counter
-static uint16_t last_time;                // ... of the one in flight
 static uint8_t  key_head;
 static uint8_t  key_count;
 static uint16_t consumer_queue[CONSUMER_QUEUE];
@@ -168,7 +166,6 @@ static bool     status_valid; // an answer to the status request has come since 
 static uint8_t  rx_frame[INFO_LEN];
 static uint8_t  rx_length;
 static uint8_t  status[6];
-static uint8_t  last_info[INFO_LEN]; // the last 08 frame, whole: what is in it is not known yet (diag.h)
 
 static void key_push(uint8_t mods, const uint8_t *keys)
 {
@@ -182,7 +179,6 @@ static void key_push(uint8_t mods, const uint8_t *keys)
     }
 
     key_queue[at][0] = mods;
-    key_time[at]     = radio_hook_now_ms();
     memcpy(&key_queue[at][1], keys, 6);
 }
 
@@ -191,7 +187,6 @@ static void key_unpop(void) // a refused report goes back to the front
     if (key_count < KEY_QUEUE) {
         key_head              = (uint8_t)((key_head + KEY_QUEUE - 1u) & (KEY_QUEUE - 1u));
         key_queue[key_head][0] = last_mods;
-        key_time[key_head]     = last_time;
         memcpy(&key_queue[key_head][1], last_keys, 6);
         key_count++;
     }
@@ -249,11 +244,6 @@ uint8_t radio_host_leds(void)
     return status_valid ? (uint8_t)(status[RADIO_STATUS_FLAGS_AT] & 0x07u) : 0u;
 }
 
-const uint8_t *radio_last_info(void)
-{
-    return last_info;
-}
-
 static void clear_queues(void)
 {
     key_head       = 0;
@@ -282,7 +272,6 @@ void radio_init(void)
     clear_queues();
     status_valid  = false;
     memset(status, 0, sizeof status);
-    memset(last_info, 0, sizeof last_info);
     radio_hook_select(false);
 }
 
@@ -377,7 +366,6 @@ static void refused(void)
 {
     // "not now": what the frame was sent for has to be offered again, unless it changed nothing
     if (last_kind == KIND_REPORT && !last_report_is_acked()) {
-        diag_inc(DIAG_RADIO_REFUSED);
         key_unpop();
         backoff   = true;
         t_backoff = (uint16_t)(radio_hook_now_ms() + REFUSED_RETRY_MS);
@@ -405,7 +393,6 @@ static void rx_frame_done(void)
             break;
 
         case HEADER_INFO:
-            memcpy(last_info, rx_frame, INFO_LEN);
             ack_info = true;
             break;
 
@@ -419,7 +406,6 @@ static void rx_frame_done(void)
                 mode_answered();
             } else if (rx_frame[1] == CMD_REPORT && last_kind == KIND_REPORT) {
                 acked_mods = last_mods;
-                diag_max(DIAG_RADIO_ACK_MS, (uint16_t)(radio_hook_now_ms() - last_time));
                 memcpy(acked_keys, last_keys, sizeof acked_keys);
                 acked_valid = true;
             } else if (rx_frame[1] == CMD_CONSUMER && last_kind == KIND_CONSUMER) {
@@ -512,7 +498,6 @@ static void pick_next(void)
         start_frame(KIND_NAME);
     } else if (key_count && !backoff) {
         last_mods = key_queue[key_head][0];
-        last_time = key_time[key_head];
         memcpy(last_keys, &key_queue[key_head][1], 6);
         key_head = (uint8_t)((key_head + 1u) & (KEY_QUEUE - 1u));
         key_count--;
