@@ -79,6 +79,13 @@
             binutils
             sinowisp.packages."${system}".default # flashing over the USB ISP
           ];
+
+          # SDCC headers for the editor (IntelliSense / clangd): the store path changes with every sdcc update
+          SDCC_INCLUDE = "${pkgs.sdcc}/share/sdcc/include";
+
+          shellHook = ''
+            ln -sfn "$SDCC_INCLUDE" .sdcc-include
+          '';
         };
       });
 }

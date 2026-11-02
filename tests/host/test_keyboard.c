@@ -184,6 +184,24 @@ static void test_oneshot_shift_applies_to_one_key(void)
     CHECK(sent[sent_count - 1].boot[0] == 0);
 }
 
+// A key set on the Fn layer from Vial (dynamic_keymap_set_keycode) is what Fn + that key sends, in place of the transparent one
+static void test_a_key_edited_on_the_fn_layer_is_what_fn_sends(void)
+{
+    reset();
+    CHECK(keymap_set(1, 0, 2, 0x4Au));
+
+    key(2, true); // without Fn: the base key
+    CHECK(sent[sent_count - 1].boot[2] == KC_B && sent[sent_count - 1].boot[0] == 0x02); // LSFT(B)
+    key(2, false);
+
+    sent_count = 0;
+    key(1, true); // Fn
+    key(2, true);
+    CHECK(sent_count == 1 && sent[0].boot[2] == 0x4Au && sent[0].boot[0] == 0);
+    key(2, false);
+    key(1, false);
+}
+
 static void test_oneshot_layer_applies_to_one_key(void)
 {
     reset();
@@ -288,6 +306,7 @@ int main(void)
     test_modifier_key();
     test_mods_plus_key_order();
     test_layer_key_then_layer_key();
+    test_a_key_edited_on_the_fn_layer_is_what_fn_sends();
     test_consumer_and_system();
     test_oneshot_shift_applies_to_one_key();
     test_oneshot_layer_applies_to_one_key();

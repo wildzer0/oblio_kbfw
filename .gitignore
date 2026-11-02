@@ -6,3 +6,4 @@ tests/host/test_*
 *.Zone.Identifier
 .vscode/
 __pycache__/
+.sdcc-include
