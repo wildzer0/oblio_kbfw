@@ -59,7 +59,13 @@ void diag_receive(XDATA uint8_t *data, uint8_t length)
         }
     } else if (kind == 1) {
         memset(&data[2], 0, (size_t)(length - 2));
-        memcpy(&data[2], diag_hook_radio_status(), 6);
+
+        const uint8_t *status = diag_hook_radio_status();
+
+        if (status != 0) { // none has come yet: the zeros stay
+            memcpy(&data[2], status, 6);
+        }
+
         memcpy(&data[8], diag_hook_radio_info(), DIAG_RADIO_INFO_LEN);
     } else {
         data[0] = 0xFF;

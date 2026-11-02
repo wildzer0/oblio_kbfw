@@ -57,6 +57,14 @@ Il controllo di recupero Esc+1+2 va all'inizio del `main`, prima di USB e radio.
   30 ms (la coda della radio è di 4); la tastiera non va in sleep mentre scrive. Costa ~520 B di flash (54415/55296). È uno strumento di debug: da
   togliere insieme al registro in flash quando la scala della batteria è confermata.
 
+## 2026-11-02 (notte, 11) — controllo di completezza
+
+- `docs/parity.md`: tabella funzione per funzione (stock/SMK contro Oblio), con provato / non provato / mancante. Mancano: **avviso di batteria scarica** e spegnimento di
+  protezione (lo stock avvisa sotto la lettura 800 e va critico sotto 752), **remote wakeup USB** (il descrittore lo dichiara, il firmware non lo usa), mouse in wireless
+  (limite del protocollo). Da confrontare con lo stock: indicatore di carica, frame `08`.
+- `core/diag.c`: la lettura dello stato della radio non copia più 6 byte da un puntatore nullo prima della prima risposta.
+- Numeri del `firmware-report.md` aggiornati (27 test, flash 51827/56320).
+
 ## 2026-11-02 (notte, 10) — pulizia: via il registro, il logger e la diagnostica superflua
 
 - Tolti: `core/blog.[ch]`, `board/blog_hw.c`, il suo test, il logger da tastiera (`battery_key`/`battery_log_task`) e `tools/battery-log.html`, la diagnostica

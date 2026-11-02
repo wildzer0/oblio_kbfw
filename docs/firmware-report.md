@@ -123,14 +123,14 @@ LED slot short. Milliseconds are the sum of the time that really passed (2000 ti
 All inside `nix develop` (SDCC 4.5, gcc, python, `ucsim-sh68f90` from the flake):
 
 ```
-nix develop --command make test              # 22 host tests + Vial definition check
+nix develop --command make test              # 27 host tests + Vial definition check
 nix develop --command make fw size           # build/oblio.hex ; flash and XDATA against 56320 / 4096
 nix develop --command make check-interrupts  # the four vectors, no static overlay
 nix develop --command make sim               # ~50 s: the real hex in the chip simulator (24 tests)
 nix develop --command make stages            # staged builds, see below
 ```
 
-Current budget: **flash 53290 / 56320 (3.0 KB of margin), XDATA 3971 / 4096 (125 B free), keymap slot 1709 of 2048 bytes.** Six layers since
+Current budget: **flash 51827 / 56320 (4.4 KB of margin), XDATA 3755 / 4096 (341 B free), keymap slot 1709 of 2048 bytes.** Six layers since
 2026-11-02 (8 → 6 freed 320 B of XDATA and 320 B of slot); the Mac pair moved from 7/6 to 5/4. The per-key colour buffer went away again with the
 painter (the app has none), which is why the slot has room for what comes next.; the stack is the other tight one (internal RAM, 223 B
 from 0x21 up; the USB interrupt used to keep 48 B of buffers on it, now static in XDATA). Check the `flash` line before every commit; a failed link
@@ -148,7 +148,7 @@ durations. It has a guard on instructions per interrupt (backlight subframe < 12
 
 | Area | State |
 | --- | --- |
-| Host logic (22 test programs), Vial definition, vectors, simulator (24 tests), CI | **verified**, green |
+| Host logic (27 test programs), Vial definition, vectors, simulator (24 tests), CI | **verified**, green |
 | Keyboard on USB: typing | **verified by the user**: responsive, no visible latency |
 | Keyboard on USB: backlight | **verified by the user**: stable after the timing fix (it flickered before) |
 | 2.4G and Bluetooth | user reported "everything works normally" without the cable, on a build before the final timing change; **re-check on the current hex** |
