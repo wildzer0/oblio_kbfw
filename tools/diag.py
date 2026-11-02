@@ -47,6 +47,8 @@ NAMES = [
     ("scan slots that ran late", "{}"),
     ("longest sector erase (us)", "{}"),
     ("radio: frames received (checksum ok)", "{}"),
+    ("radio: reports it answered 'not now' to", "{}"),
+    ("radio: longest key -> radio accepted (ms)", "{}"),
 ]
 
 

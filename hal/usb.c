@@ -153,6 +153,15 @@ bool usb_hw_suspended(void)
     return suspended;
 }
 
+void usb_hw_wake_host(bool on)
+{
+    if (on) {
+        USBCON |= USBCON_WKUP;
+    } else {
+        USBCON &= (uint8_t)~USBCON_WKUP;
+    }
+}
+
 // How many start-of-frame interrupts have come: a counter that stops moving is a bus with nobody driving it - the cable is out.
 uint8_t usb_hook_sof_ticks(void)
 {

@@ -57,6 +57,15 @@ Il controllo di recupero Esc+1+2 va all'inizio del `main`, prima di USB e radio.
   30 ms (la coda della radio è di 4); la tastiera non va in sleep mentre scrive. Costa ~520 B di flash (54415/55296). È uno strumento di debug: da
   togliere insieme al registro in flash quando la scala della batteria è confermata.
 
+## 2026-11-02 (notte, 12) — avviso di batteria, remote wakeup USB, misure per il BLE
+
+- **Avviso di batteria** (`board/battery.c`, `battery_task`): sotto la lettura 800 (~3,3 V) il gauge (rosso, un tasto) si mostra subito e ogni 30 s; sotto 752 (~3,09 V) per 10 s la
+  tastiera va in sleep per non scaricare la cella fino alla protezione (un tasto la sveglia; se è ancora scarica ridorme dopo 10 s). Solo a batteria, con lettura valida.
+- **Remote wakeup USB** (`board/usb_app.c`, `hal/usb.c`): con il bus sospeso dall'host e il wakeup abilitato (il descrittore lo dichiarava già), un tasto preme `USBCON.WKUP` per
+  10 ms, come lo stock (`0x9D73`/`0x7F11`); il tasto non esce, serve solo a svegliare. **Non provabile nel simulatore**: da provare mettendo il PC in sospensione.
+- **Latenza BLE**: nessuna modifica alla cieca. Due contatori nuovi (14 su 14 nel pacchetto): rifiuti della radio ai report e il massimo da tasto a «accettato dalla radio»
+  (l'intervallo BLE dopo è della radio). Flash 52381/56320, XDATA 3785/4096.
+
 ## 2026-11-02 (notte, 11) — controllo di completezza
 
 - `docs/parity.md`: tabella funzione per funzione (stock/SMK contro Oblio), con provato / non provato / mancante. Mancano: **avviso di batteria scarica** e spegnimento di

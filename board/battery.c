@@ -1,6 +1,7 @@
 #include "battery.h"
 #include "led.h"
 #include "radio.h"
+#include "sleep.h"
 
 // The battery the way the radio reports it: its status answer carries the cell voltage as a 10-bit ADC reading (core/radio.h). The scale was
 // measured on the keyboard: 4.0378 V at rest read 981, which is about 243 counts to the volt, so 4.2 V (the charge voltage printed on the cell, a
@@ -49,4 +50,54 @@ uint8_t battery_percent(void)
     }
 
     return last_percent;
+}
+
+// ---- the warning ----
+// The stock firmware warns below the reading 800 (3.30 V) and goes critical below 752 (3.09 V); so does this. Low: the gauge (red, one key) shows
+// itself for 3 s, at once and then every 30 s. Critical for 10 s: the keyboard goes to sleep, so that it does not run the cell down to its protection
+// circuit (a key wakes it; if the battery is still that low it sleeps again 10 s later - charge it).
+#define BATTERY_RAW_WARN     800u
+#define BATTERY_RAW_CRITICAL 752u
+#define LOW_CHECK_MS         250u
+#define LOW_WARN_CHECKS      120u // 30 s
+#define LOW_CRITICAL_CHECKS  40u  // 10 s
+
+void battery_task(uint16_t now_ms)
+{
+    static uint16_t checked_at;
+    static uint8_t  warn_checks;
+    static uint8_t  critical_checks;
+
+    if ((uint16_t)(now_ms - checked_at) < LOW_CHECK_MS) {
+        return;
+    }
+
+    checked_at = now_ms;
+
+    const uint16_t raw = radio_battery_raw();
+
+    if (raw < BATTERY_RAW_FLOOR || raw >= BATTERY_RAW_CABLE || !radio_hook_on_battery()) { // no reading, or the cable: nothing to say
+        warn_checks     = 0;
+        critical_checks = 0;
+        return;
+    }
+
+    if (raw >= BATTERY_RAW_WARN) {
+        warn_checks     = 0;
+        critical_checks = 0;
+        return;
+    }
+
+    if (warn_checks == 0) {
+        led_show_battery(percent_of(raw));
+    }
+
+    warn_checks = (uint8_t)(warn_checks + 1u >= LOW_WARN_CHECKS ? 0u : warn_checks + 1u);
+
+    if (raw >= BATTERY_RAW_CRITICAL) {
+        critical_checks = 0;
+    } else if (++critical_checks >= LOW_CRITICAL_CHECKS) {
+        critical_checks = 0;
+        sleep_now();
+    }
 }

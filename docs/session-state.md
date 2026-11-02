@@ -30,9 +30,12 @@ Il registro in flash, il logger da tastiera e la diagnostica `--blog/--ports/--m
 
 ## Prossimi passi concordati
 
-1. Controllo di completezza del firmware (tabella funzioni stock/SMK contro Oblio, fatto/provato/mancante) e documenti allineati.
-2. **Latenza del BLE** (più lenta del 2.4G): prima misurare (tempo dal tasto al frame sulla seriale) per capire se è la radio (intervallo di connessione, deciso dall'host)
-   o il nostro codice (attesa di ATT, un frame alla volta, «non ora» riprovato dopo 10 ms, richiesta di stato ogni 200 ms).
+1. **Latenza del BLE** (più lenta del 2.4G). Il percorso del firmware è breve (tasto → coda → frame seriale da ~1,2 ms): il sospetto è la radio (l'intervallo di
+   connessione lo decide l'host) o i «non ora» (ogni rifiuto costa 10 ms, `REFUSED_RETRY_MS`). Misura pronta: `py tools\diag.py --radio` mostra
+   **«reports it answered 'not now' to»** e **«longest key -> radio accepted (ms)»**. Prova: con il cavo (solo per alimentare e leggere) in modo Bluetooth, scrivere
+   un paragrafo, leggere i due contatori; ripetere in 2.4G. Se i rifiuti sono molti in BLE → abbassare `REFUSED_RETRY_MS`; se il massimo è piccolo e il ritardo si
+   sente comunque → è la radio, non il firmware.
+2. Provare **avviso di batteria** (`battery_task`: sotto 800 gauge rosso ogni 30 s, sotto 752 per 10 s sleep) e **remote wakeup USB** (PC in sospensione, un tasto lo sveglia).
 3. Togliere i contatori di diagnostica solo a lavoro finito.
 
 ## Da provare sulla tastiera

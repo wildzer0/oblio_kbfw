@@ -23,6 +23,8 @@ typedef enum {
     DIAG_SCAN_LATE,        // the same as DIAG_SLOT_LATE, for the scan slots
     DIAG_ERASE_US_MAX,     // the longest sector erase of a flash write, in us (the chip stalls while it runs)
     DIAG_RADIO_RX,         // frames from the radio that passed the checksum
+    DIAG_RADIO_REFUSED,    // keyboard reports the radio answered "not now" to (each is offered again after REFUSED_RETRY_MS)
+    DIAG_RADIO_ACK_MS,     // the longest a keyboard report took from the key to the radio accepting it (ms); the rest, up to the host, is the radio's
     DIAG_COUNT
 } diag_id_t;
 

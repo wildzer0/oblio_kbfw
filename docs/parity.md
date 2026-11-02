@@ -20,7 +20,7 @@ sull'hardware · **M** = manca · **?** = non so cosa faccia lo stock: da confro
 
 | Funzione | Oblio | Stato |
 | --- | --- | --- |
-| 2.4G, Bluetooth, selettore, 3 slot, accoppiamento (Fn+B/N/M, 3 s) | `core/radio`, `core/link` | P (il BLE funziona; più lento del 2.4G: da misurare) |
+| 2.4G, Bluetooth, selettore, 3 slot, accoppiamento (Fn+B/N/M, 3 s) | `core/radio`, `core/link` | P (il BLE funziona; più lento del 2.4G: due contatori in `diag.py --radio` per misurare) |
 | Nome Bluetooth «OBLIO» | sì | P |
 | Caps Lock dell'host sul LED in wireless | dal byte 1 dello stato | S |
 | Frame `08` della radio (22 byte) | confermato con `F1`, non decodificato | ? potrebbe portare collegato/carica |
@@ -34,10 +34,10 @@ sull'hardware · **M** = manca · **?** = non so cosa faccia lo stock: da confro
 | --- | --- | --- |
 | Sleep (1/5/10/30 min, mai; Fn+Tab; Fn+O/P) | `core/sleep`, `board/sleep_hw` | P dorme e si sveglia; ripetere la prova dopo la correzione dei LED |
 | Gauge batteria (Fn+Backspace, 10 tasti) | lettura ADC, curva Li‑Po | S, scala **provvisoria** (un punto misurato) |
-| **Avviso di batteria scarica** | — | **M**: lo stock avvisa sotto ~3,29 V (lettura 800) e va critico sotto ~3,09 V (752); Oblio non fa niente |
-| **Spegnimento di protezione** a batteria quasi vuota | — | **M**: la cella ha la sua protezione, ma meglio dormire prima |
+| Avviso di batteria scarica | `battery_task`: sotto la lettura 800 (~3,3 V) il gauge rosso compare subito e ogni 30 s | S |
+| Sleep di protezione a batteria quasi vuota | sotto 752 (~3,09 V) per 10 s va in sleep; un tasto lo sveglia, e se è ancora scarica ridorme dopo 10 s | S |
 | Indicatore di carica col cavo | — | ? cosa mostra lo stock (LED di stato vicino a Caps?) |
-| Remote wakeup USB (svegliare il PC con un tasto) | il descrittore lo dichiara (`0xA0`), il firmware non lo usa | **M** |
+| Remote wakeup USB (svegliare il PC con un tasto) | `usb_wake_task`: bit WKUP per 10 ms con il bus sospeso e il wakeup abilitato dall'host (come lo stock a `0x9D73`) | S; **da provare** mettendo il PC in sospensione |
 | Sospensione USB (corrente del bus) | — | **M**/? |
 
 ## Luci
@@ -59,10 +59,8 @@ sull'hardware · **M** = manca · **?** = non so cosa faccia lo stock: da confro
 | Recupero Esc+1+2, ISP | `board/recovery` | P (non usato) |
 | Diagnostica (`diag.py`) | contatori, `--radio`, `--watch`, `--daemon` | P |
 
-## Cosa farei, in ordine
+## Cosa resta
 
-1. **Latenza del BLE** (già concordata): misurare prima, poi decidere.
-2. **Avviso di batteria scarica** (lettura sotto 800: tasti rossi lampeggianti; sotto 752: sleep): ora che la batteria è decodificata costa poche righe.
-3. **Remote wakeup USB**, se vuoi svegliare il PC dalla tastiera.
-4. **Confrontare con lo stock** i punti «?»: carica col cavo, cosa fa il LED di stato, cosa fanno i tasti Fn originali. Servono le tue osservazioni sulla tastiera originale.
-5. Riprovare sull'hardware quel che è solo **S**: soprattutto Vial (combo, key override), NKRO, Caps Word, Leader.
+1. **Latenza del BLE**: provare con i contatori nuovi (vedi `docs/session-state.md`) e decidere.
+2. Riprovare sull'hardware quel che è solo **S**: Vial (combo, key override), NKRO, Caps Word, Leader, avviso batteria, remote wakeup.
+3. I punti «?» (carica col cavo, frame `08`, tasti Fn dello stock) non interessano all'utente: lasciati.

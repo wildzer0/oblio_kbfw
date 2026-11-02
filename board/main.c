@@ -1,6 +1,7 @@
 // Oblio entry point: clock, pins, recovery check, then the timer interrupt (backlight subframes and matrix scans), and a main loop
 // that debounces the keys, runs the key logic and looks after USB, profiles, settings and the backlight.
 
+#include "battery.h"
 #include "clock.h"
 #include "diag.h"
 #include "diag_hw.h"
@@ -128,6 +129,7 @@ void main(void)
         os_switch_task(now_ms);
         store_task(now_ms, any_key_down);
         settings_task(now_ms, any_key_down);
+        usb_wake_task(any_key_down, now_ms);
         usb_task(now_ms);
 #if STAGE_LED
         led_task();
@@ -135,6 +137,7 @@ void main(void)
 #endif
 #if STAGE_RADIO
         link_task(now_ms);
+        battery_task(now_ms);
 #endif
 #if STAGE_SLEEP
         sleep_hw_task(now_ms);

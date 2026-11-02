@@ -48,6 +48,30 @@ uint8_t usb_reports_hook_protocol(void)
 static bool     bootloader_wait;
 static uint16_t bootloader_since;
 
+// The remote wakeup: a key pressed while the host has suspended the bus, and the host has allowed the device to wake it, drives the resume
+// signal for WAKE_HOLD_MS (the USB spec asks for 1 to 15 ms). The key itself is not sent: the host is asleep and treats it as the wake-up.
+#define WAKE_HOLD_MS 10u
+
+void usb_wake_task(bool any_key_down, uint16_t now)
+{
+    static bool     was_down;
+    static bool     waking;
+    static uint16_t woke_at;
+
+    if (waking) {
+        if ((uint16_t)(now - woke_at) >= WAKE_HOLD_MS) {
+            usb_hw_wake_host(false);
+            waking = false;
+        }
+    } else if (any_key_down && !was_down && usb_hw_suspended() && usb_device_remote_wakeup()) {
+        usb_hw_wake_host(true);
+        woke_at = now;
+        waking  = true;
+    }
+
+    was_down = any_key_down;
+}
+
 // From the main loop
 void usb_task(uint16_t now)
 {
