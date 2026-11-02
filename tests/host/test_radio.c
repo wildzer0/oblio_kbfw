@@ -421,8 +421,8 @@ static void test_status_is_polled_every_200_ms_and_kept(void)
     CHECK(radio_status()[0] == 0x00 && radio_status()[1] == 0x01 && radio_status()[3] == 0x03 && radio_status()[4] == 0xFF);
 }
 
-// The battery and the host's LEDs come out of the status answer: one byte carries the level in its low three bits (and "awake" in bit 7),
-// another the LEDs in bits 0-2, "connected" in 3, "paired" in 4 and "critically low" in 7 (see core/radio.h)
+// The battery and the host's LEDs come out of the status answer: bytes 4-5 are the 10-bit battery reading (little endian), byte 1 carries
+// the LEDs in bits 0-2 (see core/radio.h)
 static void test_the_status_answer_carries_the_battery_and_the_host_leds(void)
 {
     uint8_t f[10];
@@ -430,32 +430,31 @@ static void test_the_status_answer_carries_the_battery_and_the_host_leds(void)
     reset();
     settle_in_mode(0);
 
-    CHECK(radio_battery_level() == RADIO_BATTERY_NONE); // nothing has come yet
-    CHECK(radio_host_leds() == 0 && !radio_low_power());
+    CHECK(radio_battery_raw() == 0); // nothing has come yet
+    CHECK(radio_host_leds() == 0);
 
-    // battery 5 of 7, awake, and caps lock + a connected host down the flag byte
-    const uint8_t status[10] = {0x02, 0x06, 0x00, 0x02, 0x00, 0x03, 0x85, 0x00, 0x01, 0};
+    // a reading of 0x0303 (771: ~25%) in bytes 4 (low) and 5 (high), and caps lock down the flag byte
+    const uint8_t status[10] = {0x02, 0x06, 0x00, 0x02, 0x00, 0x03, 0x03, 0x03, 0x01, 0};
 
     memcpy(f, status, 10);
     f[9] = radio_checksum(f, 9);
     inject(f, 10);
     run(2);
 
-    CHECK(radio_battery_level() == 5);
+    CHECK(radio_battery_raw() == 0x0303);
     CHECK(radio_host_leds() == 2); // bit 1: caps lock
-    CHECK(!radio_low_power());
 
-    // with the cable the radio answers 0xFF in the battery byte: not a level (7 of 7 would be "full" at any charge), a sentinel
+    // with the cable the reading saturates (measured: 00 01 00 03 ff 03 = 0x03FF)
     const uint8_t charging[10] = {0x02, 0x06, 0x00, 0x01, 0x00, 0x03, 0xFF, 0x03, 0x01, 0};
 
     memcpy(f, charging, 10);
     f[9] = radio_checksum(f, 9);
     inject(f, 10);
     run(2);
-    CHECK(radio_battery_level() == RADIO_BATTERY_NONE);
+    CHECK(radio_battery_raw() == 0x03FF);
     CHECK(radio_status_on_battery() == 0); // and nothing was noted down: that answer came with the cable
 
-    // the same byte while on battery is the level, and it is kept for the diagnostics to show (the cable is what reads them)
+    // the same bytes on battery are a reading, and they are kept for the diagnostics to show (the cable is what reads them)
     on_battery = true;
 
     const uint8_t on_batt[10] = {0x02, 0x06, 0x00, 0x01, 0x00, 0x03, 0x03, 0x03, 0x01, 0};
@@ -464,22 +463,10 @@ static void test_the_status_answer_carries_the_battery_and_the_host_leds(void)
     f[9] = radio_checksum(f, 9);
     inject(f, 10);
     run(2);
-    CHECK(radio_battery_level() == 3);
+    CHECK(radio_battery_raw() == 0x0303);
     CHECK(radio_status_on_battery() != 0 && radio_status_on_battery()[RADIO_STATUS_BATTERY_AT] == 0x03);
 
     on_battery = false;
-
-    // the radio says the battery is critically low, and the cable gives us num lock instead of caps
-    const uint8_t low[10] = {0x02, 0x06, 0x00, 0x81, 0x00, 0x03, 0x81, 0x00, 0x01, 0};
-
-    memcpy(f, low, 10);
-    f[9] = radio_checksum(f, 9);
-    inject(f, 10);
-    run(2);
-
-    CHECK(radio_battery_level() == 1);
-    CHECK(radio_low_power());
-    CHECK(radio_host_leds() == 1);
 }
 
 static void test_the_queue_keeps_eight_and_replaces_the_newest(void)

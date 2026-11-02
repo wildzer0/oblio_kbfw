@@ -228,17 +228,13 @@ bool radio_idle(void)
     return !transmitting && !mode_pending && key_count == 0 && consumer_count == 0 && !ack_event && !ack_info && names_step == 0;
 }
 
-uint8_t radio_battery_level(void)
+uint16_t radio_battery_raw(void)
 {
     if (!status_valid) {
-        return RADIO_BATTERY_NONE;
+        return 0;
     }
 
-    // While the cable charges the battery the radio answers 0xFF in that byte - every bit, which read as a level would be "full" at any charge.
-    // It is a sentinel, not a reading (measured on the keyboard, 2026-11-03: 0xFF with the cable, 0x01-0x03 on battery).
-    const uint8_t raw = status[RADIO_STATUS_BATTERY_AT];
-
-    return (raw == 0xFFu) ? RADIO_BATTERY_NONE : (uint8_t)(raw & 0x07u);
+    return (uint16_t)(status[RADIO_STATUS_BATTERY_AT] | ((uint16_t)status[RADIO_STATUS_BATTERY_HI_AT] << 8));
 }
 
 const uint8_t *radio_status(void)
@@ -249,11 +245,6 @@ const uint8_t *radio_status(void)
 const uint8_t *radio_status_on_battery(void)
 {
     return battery_valid ? (const uint8_t *)status_battery : (const uint8_t *)0;
-}
-
-bool radio_low_power(void)
-{
-    return status_valid && (status[RADIO_STATUS_FLAGS_AT] & 0x80u) != 0;
 }
 
 uint8_t radio_host_leds(void)
@@ -440,14 +431,13 @@ static void rx_frame_done(void)
                 memcpy(status, &rx_frame[2], sizeof status);
                 status_valid = true;
 
-                if (radio_hook_on_battery()) { // the answer that matters for the battery: the one with no cable
+                if (radio_hook_on_battery() && radio_battery_raw() < 0x03F0u) { // the answer that matters for the battery: the one with no cable (a saturated reading is the cable, seen before the host enumerates)
                     memcpy(status_battery, &rx_frame[2], sizeof status_battery);
                     battery_valid = true;
                 }
             } else if (rx_frame[1] == 0x00u && rx_frame[2] == 0x01u) {
                 refused();
             } else if (rx_frame[1] == CMD_MODE) {
-                diag_inc(DIAG_RADIO_MODE);
                 mode_answered();
             } else if (rx_frame[1] == CMD_REPORT && last_kind == KIND_REPORT) {
                 acked_mods = last_mods;

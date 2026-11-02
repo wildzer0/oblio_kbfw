@@ -12,6 +12,59 @@
 
 Il controllo di recupero Esc+1+2 va all'inizio del `main`, prima di USB e radio.
 
+## 2026-11-02 (notte, 4) — la batteria è una lettura ADC a 10 bit, formula dallo stock
+
+- **Trovato nel dump stock, senza aspettare ore di registro**: il gestore del frame di stato (`0x05EA–0x0690`) costruisce `XDATA[0x02E6..7] = byte5:byte4`
+  (byte 4 basso, byte 5 alto), e la routine del gauge (`0x7CF0`) calcola `% = (lettura − 715) × 10 / 22` (0 sotto 715, 100 da 935 in su). Non è un
+  livello a 3 bit (quello era il layout NuPhy, ipotesi sbagliata). Le soglie dello stock: lettura < 800 = avviso, < 752 = critica. Lo stock **non usa**
+  l'ADC/LPD del chip (`0xEDCE` azzera solo `LPDCON/LPDSEL`): la tensione la misura la radio.
+- Rilettura dei dati vecchi: `00 01 00 03 ff 03` col cavo = `0x03FF` (ADC saturo); «`0x03` in uso» = `0x0303` = 771 ≈ 25 %. Nessun mistero: non scendeva
+  perché la lettura era un byte basso di un numero più grande.
+- `board/battery.c` usa la curva dello stock; col cavo la lettura satura e si ignora (resta l'ultima presa a batteria). `radio_battery_level()` e
+  `radio_low_power()` (il bit 7 era un'ipotesi) tolti; c'è `radio_battery_raw()`. Registro e `diag.py` mostrano lettura e % (i 2 bit alti stanno nei
+  bit 4–5 del byte dei flag). Flash 53664/55296, XDATA 3779/4096, test host 28. **Da provare sulla tastiera**: Fn+Backspace a batteria.
+
+## 2026-11-02 (notte, 5) — transitorio dell'ADC e registro che non consuma la flash
+
+- **Prova dell'utente**: appena accesa il gauge dava «rosso su 1», dopo qualche secondo «verde su 0». La lettura all'accensione è 1–3 (ADC non
+  assestato), poi salta al valore vero. `board/battery.c` ora ignora le letture sotto 600 (`BATTERY_RAW_FLOOR`): finché non c'è una lettura vera il gauge
+  dice «sconosciuto» (dieci tasti bianchi lampeggianti) invece di inventare uno 0 %.
+- **Registro**: l'ADC ondeggia di 1–2 conteggi a ogni risposta, e il registro scriveva a ogni cambio: il settore (128 record) si riempiva in pochi
+  decine di secondi e veniva cancellato di continuo (usura della flash + 32 ms di blocco a ogni erase). Ora un cambio vale solo se la lettura si è mossa di
+  `BLOG_STEP` (8) conteggi o i flag cambiano; altrimenti un record ogni 5 minuti. Flash 53762/55296.
+- `--opt-code-size` al posto di `--opt-code-speed` risparmia solo 26 byte: non vale il rischio sul budget dell'ISR.
+
+## 2026-11-02 (notte, 6) — il registro resta vuoto: contatori per capire perché
+
+- Dati dell'utente (nuovo hex, `--radio --blog` dopo la prova del carico): «on battery» = lettura **1023** (satura) e **registro vuoto**. La cattura
+  «a batteria» avviene nell'attimo in cui si infila il cavo, prima che il PC enumeri: non è una lettura a batteria. Ora `radio.c` la scarta se è satura
+  (≥ 0x3F0). Il registro vuoto invece non ha spiegazione nel codice: dopo il reset del cavo la radio gira e il primo stato valido deve scrivere un record.
+- Due contatori (al posto di «passi del main tra due scansioni» e «risposte al comando di modo», che servivano poco; il pacchetto raw HID ne
+  regge al massimo 14): **battery log: writes tried** e **writes that did not hold** (la scrittura rilegge il record). Se «tried» è 0 il registro non
+  scrive; se «tried» > 0 e «did not hold» > 0 la flash a 0xD800 non tiene i dati.
+
+## 2026-11-02 (notte, 7) — il registro non era vuoto: era illeggibile
+
+- Contatori dell'utente: **267 scritture tentate, 0 fallite**, eppure `--blog` diceva «empty». Causa: `core/via.c` lasciava passare senza sblocco solo i tipi
+  0, 1 e 3 della diagnostica; il tipo 4 (registro) veniva rimandato indietro con conteggio 0. Ora anche il tipo 4 è libero (sola lettura).
+- Da capire ancora: 267 scritture in pochi minuti col cavo sono troppe per la soglia di 8 conteggi: guardare il registro (fino a 128 record).
+
+## 2026-11-02 (notte, 8) — la tastiera digita la lettura della batteria (log dal vivo)
+
+- Per misurare senza cavo e senza ore di attesa: **Fn+Backspace due volte di fila** (entro 700 ms) accende/spegne un log: la tastiera digita ogni secondo la
+  lettura ADC grezza in decimale + Invio, nel campo in primo piano, a 2.4G/Bluetooth (l'unica strada senza cavo: il dongle è solo una tastiera).
+  `tools/battery-log.html` (pagina locale, nessun server) ascolta i tasti, registra ora e lettura, disegna la curva, scarica il CSV. Un carattere ogni
+  30 ms (la coda della radio è di 4); la tastiera non va in sleep mentre scrive. Costa ~520 B di flash (54415/55296). È uno strumento di debug: da
+  togliere insieme al registro in flash quando la scala della batteria è confermata.
+
+## 2026-11-02 (notte, 9) — la scala della batteria dalla misura e dalla targa
+
+- Misure dell'utente: **4,0378 V a riposo** (tastiera spenta) e lettura **981** a tastiera accesa → ~**243 conteggi/volt** (il 222,6 della pagina era un'ipotesi
+  sbagliata). Targa: Li-Po **5000 mAh**, carica 4,2 V, nominale 3,7 V. A 243 conteggi/volt il fondo scala dell'ADC (1023) è ~4,2 V: spiega la saturazione col cavo.
+- `board/battery.c`: la percentuale segue una **curva di scarica Li-Po** (800 = 3,30 V = 0 % … 1020 = 4,20 V = 100 %), non la retta dello stock (715–935, che
+  chiama «pieno» tutto sopra ~3,85 V). 4,04 V → ~83 %. **Provvisoria**: poggia su un punto solo; il secondo (lettura appena tolto il caricatore, attesa ~1015–1020)
+  la conferma. Soglia «cavo» 1021. Flash 54646/55296.
+
 ## 2026-11-02 (notte, 3) — il registro della batteria va in flash, e scrive sempre
 
 - **I numeri dell'utente** dicevano questo: `reset cause 0x00` (power-on) e `radio: frames received 1945` — cioè la scheda era accesa da **pochi

@@ -59,9 +59,9 @@ Flash con Vial chiusa:
 
 ## Domande aperte
 
-1. **Scala della batteria.** Il byte giusto è il 4 dello stato radio, ma i valori visti non sono una carica che scende: `0xff` col cavo
-   (sentinella), `0x03` in uso, `0x01` appena accesa. Servono 2–3 letture a cariche note: il registro le raccoglie da solo. Se la scala è un'altra
-   si cambiano due punti: `RADIO_STATUS_BATTERY_AT` in `core/radio.h` e il calcolo in `board/battery.c`.
+1. **Batteria — risolta sulla carta (2026-11-02 notte), da confermare sulla tastiera.** Il dump stock dice: lettura ADC a 10 bit = byte5:byte4 del
+   frame di stato, `% = (lettura − 715) × 10 / 22` (0x7CF0). Dettagli in `core/radio.h` e CHANGELOG. Prova: Fn+Backspace a batteria deve dare un valore
+   plausibile (la lettura `0x0303` vista = ~25 %); `py tools\diag.py --blog` mostra lettura e %. Col cavo la lettura è satura (0x03FF) e si ignora.
 2. **Causa del flicker.** La pausa del flash è già scesa (~100 → ~20 ms) e la ISR della scansione pesa un terzo in meno, ma la conferma arriva
    dai contatori del punto 6.
 3. **Sequenze del Leader**: due esempi (Esc, mute). Le sequenze vere le decide l'utente, si scrivono in `board/leader.c` (compile-time, come QMK).

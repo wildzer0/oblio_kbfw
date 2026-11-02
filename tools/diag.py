@@ -44,12 +44,12 @@ NAMES = [
     ("USB report queue overflows", "{}"),
     ("longest LED slot (us, of 400)", "{}"),
     ("longest scan slot (us, of 500)", "{}"),
-    ("main passes between the last 2 scans", "{}"),
+    ("battery log: writes tried", "{}"),
     ("backlight back-offs (starved)", "{}"),
     ("scan slots that ran late", "{}"),
     ("longest sector erase (us)", "{}"),
     ("radio: frames received (checksum ok)", "{}"),
-    ("radio: answers to the mode command", "{}"),
+    ("battery log: writes that did not hold", "{}"),
 ]
 
 
@@ -141,16 +141,25 @@ def radio(keyboard):
     print("radio status bytes : " + " ".join("{:02x}".format(b) for b in reply[2:8]))
     print("last 08 frame      : " + " ".join("{:02x}".format(b) for b in reply[8:30]))
 
-    # the status as last seen on battery: the one that carries the level (with the cable the radio answers 0xFF there)
+    # the status as last seen on battery: the one that carries the voltage (with the cable the reading saturates)
     battery, flags = reply[30], reply[31]
     if battery == 0xFF and flags == 0xFF:
         print("on battery         : never seen (no status answer has come with the cable out)")
     else:
-        print("on battery         : battery byte {:#04x} (level {}), flags byte {:#04x}".format(battery, battery & 0x07, flags))
+        print("on battery         : {}".format(describe_battery(battery, flags)))
+
+
+def describe_battery(low, flags):
+    """The battery reading is 10 bits: the low byte, and the two high bits in bits 4-5 of the flags byte. The percent is the stock firmware's own
+    curve (found in the dump at 0x7CF0): (reading - 715) * 10 / 22, from 0 at 715 to 100 at 935."""
+    raw = low | (((flags >> 4) & 3) << 8)
+    percent = 0 if raw <= 715 else 100 if raw >= 935 else (raw - 715) * 10 // 22
+    saturated = "  (saturated: the cable)" if raw >= 0x3F0 else ""
+    return "reading {} ({:#05x})  ~{}%   flags {:#04x}{}".format(raw, raw, percent, flags, saturated)
 
 
 def blog(keyboard):
-    """The battery log the keyboard keeps while it runs on its battery: minutes awake, the battery byte and the flags byte of the status
+    """The battery log the keyboard keeps while it runs on its battery: minutes awake, the battery reading and the flags byte of the status
     answer. It is the only way to see those readings, because the diagnostics need a cable and with the cable the battery charges."""
     first = keyboard.ask(0xF1, 4, 0)
     count = first[2]
@@ -159,7 +168,7 @@ def blog(keyboard):
         print("battery log        : empty (it fills up while the keyboard runs on its battery)")
         return
 
-    print("battery log        : {} records (minutes awake, battery byte, flags byte)".format(count))
+    print("battery log        : {} records (minutes awake, battery reading, flags byte)".format(count))
 
     index = 0
     while index < count:
@@ -170,8 +179,8 @@ def blog(keyboard):
             minutes = reply[at] | (reply[at + 1] << 8)
             battery = reply[at + 2]
             flags = reply[at + 3]
-            cable = "  (cable in: charging, the byte is the sentinel)" if flags & 0x40 else ""
-            print("  {:5d} min   battery {:#04x} (level {})   flags {:#04x}{}".format(minutes, battery, battery & 0x07, flags, cable))
+            cable = "  (cable in: the reading is saturated)" if flags & 0x40 else ""
+            print("  {:5d} min   {}{}".format(minutes, describe_battery(battery, flags), cable))
             index += 1
 
 

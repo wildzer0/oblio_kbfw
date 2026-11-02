@@ -99,7 +99,7 @@ static void test_every_answer_is_written_and_the_cable_marked(void)
 static void test_a_changed_answer_is_written_at_once(void)
 {
     reset();
-    status[RADIO_STATUS_BATTERY_AT] = 0x07;
+    status[RADIO_STATUS_BATTERY_AT] = 0x48;
     status[RADIO_STATUS_FLAGS_AT]   = 0x01;
 
     advance(1000, true);
@@ -108,12 +108,16 @@ static void test_a_changed_answer_is_written_at_once(void)
     advance(1000, true);
     CHECK(blog_count() == 1); // nothing changed, and five minutes have not passed
 
-    status[RADIO_STATUS_BATTERY_AT] = 0x06;
+    status[RADIO_STATUS_BATTERY_AT] = 0x49; // the ADC wobbles by a count: not a change
+    advance(1000, true);
+    CHECK(blog_count() == 1);
+
+    status[RADIO_STATUS_BATTERY_AT] = 0x38;
     advance(1000, true);
     CHECK(blog_count() == 2);
 
     uint8_t record[4];
-    CHECK(blog_get(1, record) && record[2] == 0x06);
+    CHECK(blog_get(1, record) && record[2] == 0x38);
 }
 
 static void test_an_unchanged_answer_every_five_minutes(void)
@@ -140,11 +144,11 @@ static void test_an_unchanged_answer_every_five_minutes(void)
 static void test_it_survives_a_reset(void)
 {
     reset();
-    status[RADIO_STATUS_BATTERY_AT] = 0x04;
+    status[RADIO_STATUS_BATTERY_AT] = 0x40;
     status[RADIO_STATUS_FLAGS_AT]   = 0x01;
 
     advance(1000, true);
-    status[RADIO_STATUS_BATTERY_AT] = 0x03;
+    status[RADIO_STATUS_BATTERY_AT] = 0x30;
     advance(60u * 1000u, true);
     CHECK(blog_count() == 2);
 
@@ -153,11 +157,11 @@ static void test_it_survives_a_reset(void)
     CHECK(blog_count() == 2);
 
     uint8_t record[4];
-    CHECK(blog_get(0, record) && record[2] == 0x04);
-    CHECK(blog_get(1, record) && record[2] == 0x03);
+    CHECK(blog_get(0, record) && record[2] == 0x40);
+    CHECK(blog_get(1, record) && record[2] == 0x30);
 
     // and it goes on writing after the reset
-    status[RADIO_STATUS_BATTERY_AT] = 0x02;
+    status[RADIO_STATUS_BATTERY_AT] = 0x20;
     advance(1000, true);
     CHECK(blog_count() == 3);
 }
@@ -168,7 +172,7 @@ static void test_the_sector_starts_over_when_full(void)
     status[RADIO_STATUS_FLAGS_AT] = 0x01;
 
     for (uint8_t i = 0; i < BLOG_RECORDS + 4; i++) {
-        status[RADIO_STATUS_BATTERY_AT] = (uint8_t)(i & 0x07u);
+        status[RADIO_STATUS_BATTERY_AT] = (uint8_t)((i & 0x07u) << 4);
         advance(1000, true);
     }
 
@@ -177,7 +181,7 @@ static void test_the_sector_starts_over_when_full(void)
 
     uint8_t record[4];
     CHECK(blog_get(0, record) && record[2] == 0);                              // the oldest kept
-    CHECK(blog_get(3, record) && record[2] == (BLOG_RECORDS + 3) % 8);         // the newest
+    CHECK(blog_get(3, record) && record[2] == (((BLOG_RECORDS + 3) % 8) << 4));         // the newest
     CHECK(!blog_get(4, record));                                              // and nothing beyond it
 }
 

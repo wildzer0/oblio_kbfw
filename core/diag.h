@@ -19,12 +19,12 @@ typedef enum {
     DIAG_USB_OVERFLOW,     // USB report packets that replaced or pushed out another
     DIAG_LED_US_MAX,       // longest LED slot, from its start to the end of its work, in us (the slot is 400; more means it ran late)
     DIAG_SCAN_US_MAX,      // the same for the scan slot (500)
-    DIAG_PASSES_LAST,      // passes of the main loop between the last two scans
+    DIAG_BLOG_WRITES,      // records the battery log tried to write to flash since the reset
     DIAG_BACKOFF,          // times the main loop was found starved and the backlight stood aside
     DIAG_SCAN_LATE,        // the same as DIAG_SLOT_LATE, for the scan slots
     DIAG_ERASE_US_MAX,     // the longest sector erase of a flash write, in us (the chip stalls while it runs)
     DIAG_RADIO_RX,         // frames from the radio that passed the checksum
-    DIAG_RADIO_MODE,       // of those, the answers to the mode command: the radio took the mode and the slot
+    DIAG_BLOG_BAD,         // of those, the ones the flash refused or did not hold (read back different)
     DIAG_COUNT
 } diag_id_t;
 

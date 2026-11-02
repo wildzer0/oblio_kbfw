@@ -361,10 +361,10 @@ void via_receive(XDATA uint8_t *data, uint8_t length)
             break;
 
         case id_oblio_diag:
-            // The counters (kind 0), the radio data (kind 1) and the port readout (kind 3) are read-only and harmless, so they need no
+            // The counters (kind 0), the radio data (kind 1), the port readout (kind 3) and the battery log (kind 4) are read-only and harmless, so they need no
             // unlock: they are what is needed when the keys do not work or when something has to be measured. Only the monitoring (kind 2),
             // which changes what the radio is doing, does.
-            if (vial_is_unlocked() || data[1] == 0 || data[1] == 1 || data[1] == 3) {
+            if (vial_is_unlocked() || data[1] == 0 || data[1] == 1 || data[1] == 3 || data[1] == 4) {
                 diag_receive(data, length);
             } else {
                 data[0] = id_unhandled;

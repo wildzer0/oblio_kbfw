@@ -1,4 +1,5 @@
 #include "blog.h"
+#include "diag.h"
 #include "flash.h"
 #include "led_hw.h"
 #include "tick.h"
@@ -12,7 +13,24 @@ void blog_hook_read(uint16_t addr, uint8_t *out, uint8_t len)
 void blog_hook_program(uint16_t addr, const uint8_t *src, uint8_t len)
 {
     watchdog_kick(); // the main loop is the one that kicks the watchdog and it is stuck in here
-    flash_program(addr, src, len);
+    diag_inc(DIAG_BLOG_WRITES);
+
+    // Held? The log never trusts the write: it reads the record back, and counts it if the flash refused or kept something else.
+    uint8_t back[BLOG_RECORD_BYTES];
+
+    if (!flash_program(addr, src, len)) {
+        diag_inc(DIAG_BLOG_BAD);
+        return;
+    }
+
+    flash_read(addr, back, len);
+
+    for (uint8_t i = 0; i < len; i++) {
+        if (back[i] != src[i]) {
+            diag_inc(DIAG_BLOG_BAD);
+            break;
+        }
+    }
 }
 
 void blog_hook_erase(uint16_t addr)

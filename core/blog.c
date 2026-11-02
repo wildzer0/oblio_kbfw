@@ -4,7 +4,7 @@
 static uint8_t count; // records in the log
 static uint8_t next;  // where the next one goes (the same as count while appending)
 
-static uint8_t  last_battery; // what the last record says, so an unchanged answer is not written twice
+static uint16_t last_raw; // what the last record says, so a reading that only wobbles is not written again
 static uint8_t  last_flags;
 static uint16_t last_minutes;
 
@@ -28,7 +28,7 @@ void blog_init(void)
     last_ms      = 0;
     seconds      = 0;
     minutes      = 0;
-    last_battery = 0;
+    last_raw     = 0;
     last_flags   = 0;
     last_minutes = (uint16_t)(0u - BLOG_PERIOD_MIN); // so the first answer after a reset always gets a record: minutes - last >= period
 
@@ -63,7 +63,7 @@ bool blog_get(uint8_t index, uint8_t out[4])
     return true;
 }
 
-static void add(uint8_t battery, uint8_t flags)
+static void add(uint16_t raw, uint8_t flags)
 {
     if (next >= BLOG_RECORDS) { // full: the sector starts over
         blog_hook_erase(BLOG_ADDR);
@@ -75,7 +75,7 @@ static void add(uint8_t battery, uint8_t flags)
 
     record[0] = (uint8_t)(minutes & 0xFFu);
     record[1] = (uint8_t)(minutes >> 8);
-    record[2] = battery;
+    record[2] = (uint8_t)(raw & 0xFFu);
     record[3] = flags;
 
     blog_hook_program(record_addr(next), record, BLOG_RECORD_BYTES);
@@ -83,7 +83,7 @@ static void add(uint8_t battery, uint8_t flags)
     next++;
     count = next;
 
-    last_battery = battery;
+    last_raw     = raw;
     last_flags   = flags;
     last_minutes = minutes;
 }
@@ -111,11 +111,20 @@ void blog_task(uint16_t now_ms, bool on_battery, const uint8_t *status)
     }
 
     const uint8_t battery = status[RADIO_STATUS_BATTERY_AT];
-    const uint8_t flags   = on_battery ? status[RADIO_STATUS_FLAGS_AT]
-                                       : (uint8_t)(status[RADIO_STATUS_FLAGS_AT] | BLOG_FLAG_CABLE);
+    // the high two bits of the 10-bit reading go in bits 4-5 of the flags byte, so the record keeps the whole reading in four bytes
+    uint8_t flags = (uint8_t)((status[RADIO_STATUS_FLAGS_AT] & 0x8Fu) | ((status[RADIO_STATUS_BATTERY_HI_AT] & 0x03u) << 4));
 
-    if (count == 0 || battery != last_battery || flags != last_flags
+    if (!on_battery) {
+        flags |= BLOG_FLAG_CABLE;
+    }
+
+    // The ADC wobbles by a count or two from one answer to the next: written on every change the sector would fill in half a minute and be
+    // erased again and again (a flash sector lasts some thousands of erases). So a reading counts as changed only when it has moved BLOG_STEP.
+    const uint16_t raw   = (uint16_t)(battery | ((uint16_t)(status[RADIO_STATUS_BATTERY_HI_AT] & 0x03u) << 8));
+    const uint16_t moved = (raw > last_raw) ? (uint16_t)(raw - last_raw) : (uint16_t)(last_raw - raw);
+
+    if (count == 0 || moved >= BLOG_STEP || ((flags ^ last_flags) & 0xCFu) != 0
         || (uint16_t)(minutes - last_minutes) >= BLOG_PERIOD_MIN) {
-        add(battery, flags);
+        add(raw, flags);
     }
 }

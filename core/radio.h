@@ -66,18 +66,17 @@ bool radio_idle(void); // nothing in flight and nothing waiting to go out
 // The last answer to the status request (bytes after the command byte), zeros until one has come.
 const uint8_t *radio_status(void);
 
-// What the status answer says. The layout is the one the same radio uses on the keyboards the reference driver was written for (NuPhy, over
-// SPI): one byte carries the battery level in its low three bits and an "awake" bit in bit 7, another carries the host's LEDs (num, caps,
-// scroll), whether a host is connected, whether the link is paired and whether the battery is critically low. On this board the answer has six
-// bytes; which of them is which comes from docs/keyboards/yunzii-b68-radio.md plus one measured answer (00 01 00 03 ff 03 at full charge, in
-// 2.4G): byte 4 read 0xff (awake, level 7 of 7) and byte 1 carried the LEDs. If the gauge ever sticks at 0 or never moves, those two offsets
-// are the one line to change.
-#define RADIO_STATUS_FLAGS_AT   1u // LEDs in bits 0-2, connected bit 3, paired bit 4, low power bit 7
-#define RADIO_STATUS_BATTERY_AT 4u // level in bits 0-2, "awake" in bit 7 - and 0xFF, the whole byte, while the cable charges the battery
+// What the status answer says. Six bytes after the command. Byte 1 carries the host's LEDs in bits 0-2 (num, caps, scroll); the stock firmware
+// copies it to its LED state at 0x06B6. Bytes 4 and 5 are the **battery voltage as a 10-bit ADC reading**, little endian (byte 4 low, byte 5 the
+// high two bits): the stock handler of the status frame (0x05EA-0x0690) builds XDATA[0x02E6..7] = byte5:byte4 and the gauge routine (0x7CF0)
+// turns it into percent as (reading - 715) * 10 / 22, 0 below 715 and 100 above 935. It is *not* a 3-bit level (that was the NuPhy layout, and
+// a wrong guess here). With the cable the reading saturates (0x03FF, 0x03FD ...), so it says nothing about the charge.
+#define RADIO_STATUS_FLAGS_AT      1u // host LEDs in bits 0-2
+#define RADIO_STATUS_BATTERY_AT    4u // battery reading, low byte
+#define RADIO_STATUS_BATTERY_HI_AT 5u // battery reading, high byte (0..3)
 
-#define RADIO_BATTERY_NONE 0xFFu // no answer has come yet, or the byte the level lives in says nothing
-
-uint8_t radio_battery_level(void); // 0..7, or RADIO_BATTERY_NONE
+// The battery reading as the radio sent it (0 to 1023), or 0 when no answer has come yet.
+uint16_t radio_battery_raw(void);
 
 // The whole status answer as last received, whatever the state of the cable (0 until one has come). The battery log writes this down as it is.
 const uint8_t *radio_status(void);
@@ -88,7 +87,6 @@ const uint8_t *radio_status_on_battery(void);
 
 // Provided by the caller: is the keyboard running on its battery (a wireless mode, no cable)?
 bool radio_hook_on_battery(void);
-bool    radio_low_power(void);     // the radio says the battery is critically low
 uint8_t radio_host_leds(void);     // bit 0 num lock, bit 1 caps lock, bit 2 scroll lock
 
 // The last 08 frame from the radio, whole (22 bytes, zeros until one has come): its content is not decoded yet.
