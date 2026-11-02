@@ -55,7 +55,7 @@ The USB device enumerates as `258a:dead`, product name "Oblio B68", with a keybo
   replacement (Shift+Backspace = Delete, say), optionally on a set of layers only, with modifiers that must not be held and modifiers to take
   away while it acts; the trigger itself never reaches the host and its release releases the replacement. The "when does it activate" options
   are read and ignored (none of them changes the everyday use).
-- **Combos** (`core/combo.c`, Vial's Combos tab): up to 8 chords of up to 4 keycodes each giving one other keycode. A key that is an input of a
+- **Combos** (`core/combo.c`, Vial's Combos tab): up to 6 chords of up to 4 keycodes each giving one other keycode. A key that is an input of a
   configured combo is held back for at most 50 ms waiting for the rest of the chord; if it closes, the keys are dropped and the output is pressed
   (released when they are let go), if not they go out as usual. Exact matches only, one chord at a time. A key outside every chord pays nothing.
   Default keymap in `board/keymap_default.c`: layer 0 = ANSI-ish B68 layout with the encoder push as tap dance 0 (tap mute, hold play/pause, double tap next

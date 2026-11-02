@@ -3,7 +3,7 @@
 // What the host is told: the keyboard state as a report, and the current consumer and system usages. This module only holds the state and
 // builds the bytes; the transport (USB or radio) asks for them when keyboard.c says something changed (report_hook_send).
 //
-// Two keyboard reports, and the host gets one of them at a time: the 120-bit NKRO one in report protocol, and QMK's 8-byte six-key one in boot
+// Two keyboard reports, and the host gets one of them at a time: the 112-bit NKRO one in report protocol (the chip's EP1 buffer is 16 bytes and the report ID takes one), and QMK's 8-byte six-key one in boot
 // protocol (a BIOS has no idea what a bitmap is).
 
 #include <stdbool.h>

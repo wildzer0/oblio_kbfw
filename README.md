@@ -54,7 +54,8 @@ Details on recovery, including the hardware programming header, are in [docs/rec
 
 ## Documentation
 
-- [How the firmware is put together](docs/architecture.md)
+- [Architecture and design](docs/design.md) (modules, data flow, timing, persistence) and the [API reference](docs/api.md)
+- [How the firmware is put together](docs/architecture.md) (short version)
 - [First run on the keyboard](docs/first-boot.md)
 - [Keyboard HUD protocol](docs/hud-protocol-v2.md)
 - [Board and pinout](docs/keyboards/yunzii-b68.md)

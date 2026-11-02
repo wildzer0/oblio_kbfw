@@ -57,6 +57,14 @@ Il controllo di recupero Esc+1+2 va all'inizio del `main`, prima di USB e radio.
   30 ms (la coda della radio è di 4); la tastiera non va in sleep mentre scrive. Costa ~520 B di flash (54415/55296). È uno strumento di debug: da
   togliere insieme al registro in flash quando la scala della batteria è confermata.
 
+## 2026-11-02 (notte, 16) — documentazione di architettura e riferimento delle API
+
+- **`docs/design.md`** (italiano): vincoli, principi, mappa di memoria, avvio e main loop, tempo e interrupt, pipeline dei tasti, moduli uno per uno, persistenza, USB e protocolli, radio, backlight, energia
+  e batteria, build e test, decisioni di design e compromessi, limiti noti, come estendere.
+- **`docs/api.md`**: riferimento di tutte le funzioni, macro e tipi dei 54 header di `hal/`, `core/` e `board/`, **generato** da `tools/gen_api.py` leggendo i commenti `//` che già stanno sopra ogni dichiarazione
+  (Doxygen legge solo `///` e `/** */`: avrebbe richiesto di riscrivere i commenti). `make api` lo rigenera, `make check-api` fallisce se è vecchio.
+- Commenti vecchi corretti negli header (NKRO a 112 bit, diagnostica senza sblocco, riferimenti a funzioni tolte); combo: 6, non 8, nei documenti; `architecture.md` e `parity.md` allineati.
+
 ## 2026-11-02 (notte, 15) — HUD e salvataggio: i LED non devono più sfarfallare
 
 - **HUD**: l'interrupt USB copiava i 32 byte di ogni richiesta due volte con puntatori generici (lenti), e teneva fermo l'interrupt del timer dei LED: ogni richiesta

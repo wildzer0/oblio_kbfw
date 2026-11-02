@@ -1,8 +1,8 @@
 #pragma once
 
 // The keymap held in RAM: KEYMAP_LAYERS layers of MATRIX_ROWS x MATRIX_COLS keycodes, plus the two rotation
-// keycodes of the encoder on each layer. It starts from the compiled-in default; later phases load and save it
-// through the profile store.
+// keycodes of the encoder on each layer. It starts from the compiled-in default; store.h loads and saves it.
+// The cfg fields of the lighting are held here in RAM too, but settings.h saves them (see keymap_cfg_set).
 
 #include "matrix.h"
 #include <stdbool.h>

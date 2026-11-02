@@ -1,6 +1,6 @@
 #pragma once
 
-// Counters for the first runs on the hardware, read over the raw HID interface (VIA command 0xF1, only on an unlocked keyboard;
+// Counters for the first runs on the hardware, read over the raw HID interface (VIA command 0xF1, no unlock needed: they are read-only;
 // tools/diag.py prints them). They are there to answer questions the host tests cannot: did the chip reset and why, how deep did
 // the stack go, did the timer slots fit in their time, did the main loop stall.
 //

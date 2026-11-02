@@ -1,5 +1,7 @@
 # Oblio — how the firmware is put together
 
+*The short version. The detailed one, module by module, is [design.md](design.md) (Italian); every function is in [api.md](api.md).*
+
 One board (Yunzii B68: SH68F90A, 8051 core at 24 MHz, 64 KB flash, 4 KB of XDATA, BK3632 radio), one hex. Code is static: no `malloc`, no `#ifdef`s
 for other boards. Everything that does not need a register is plain C that also runs on the host under `gcc`, so it is unit-tested.
 
@@ -9,7 +11,7 @@ for other boards. Everything that does not need a register is plain C that also 
 | --- | --- | --- |
 | `core/` | hardware-independent logic: matrix debounce, layers, tapping (LT/MT/tap dance), reports, mouse keys, macros, keymap store, settings, VIA/Vial/HUD/diagnostics protocols, USB descriptors and control-endpoint state machine, radio protocol and link logic, backlight effects, sleep timing, encoder decoder, timer-slot sequence | `tests/host/` (`make test`, plain gcc, `-Wall -Wextra -Werror`) |
 | `hal/` | the SH68F90A's registers and drivers: GPIO, clock, delays, Timer 2 slot interrupt, USB controller, flash self-programming, PWM, power-down | the simulator (`make sim`) and the hardware |
-| `board/` | what is specific to the B68: pinout, matrix scan, LED PWM channels, radio serial port and pins, mode selector, Win/Mac switch (`os_switch`, which picks between two pairs of layers: 0/1 on Windows and 7/6 on Mac), sleep sequence, the default keymap, the custom keycodes, the Vial definition | `check_vial.py`, the simulator, the hardware |
+| `board/` | what is specific to the B68: pinout, matrix scan, LED PWM channels, radio serial port and pins, mode selector, Win/Mac switch (`os_switch`, which picks between two pairs of layers: 0/1 on Windows and 5/4 on Mac), sleep sequence, the default keymap, the custom keycodes, the Vial definition | `check_vial.py`, the simulator, the hardware |
 | `tools/` | build helpers (Vial definition generator, budget, interrupt and Vial checks) and `diag.py` | `make check` |
 
 `core/` never touches hardware. When it needs something from the outside it declares a **hook**, a function the board (or a test) defines:
@@ -31,7 +33,7 @@ timer the core reads itself.
                                       send_keycode ──► report state (core/report.c) ──► report_hook_send
                                                                                             │
                                          link_wireless() ?  radio queues (core/radio.c)  ◄─┴─►  USB queue (core/usb_reports.c) ──► EP1
- raw HID (EP2) ──► raw_hid ──► via_receive ──► keymap / macros / tap dances / settings / HUD (0xF0) / diagnostics (0xF1, unlocked only)
+ raw HID (EP2) ──► raw_hid ──► via_receive ──► keymap / macros / tap dances / settings / HUD (0xF0) / diagnostics (0xF1, read-only)
 ```
 
 ## Timing: the timer interrupt owns the columns
@@ -64,8 +66,8 @@ interrupt work by instructions (`make sim` has a guard) and by the durations the
 ## Memory
 
 Application flash ends at 0xDC00. After it: the keymap store (two copies of four 512-byte sectors) up to 0xEBFF, the settings log at
-0xEC00 as a log of 56 small records (a save appends to the first erased one, so a power cut during a save keeps the previous settings and the sector
-is erased once every 56 saves), the bootloader's marker sector at 0xEE00 **untouched**,
+0xEC00 as a log of 36 small records (sleep, Bluetooth slot and the lighting; 14 bytes each) (a save appends to the first erased one, so a power cut during a save keeps the previous settings and the sector
+is erased once every 36 saves), the bootloader's marker sector at 0xEE00 **untouched**,
 the stock bootloader from 0xF000 (never written: `hal/flash.c` refuses any address outside 0xDC00–0xF000). `make size` reports flash and XDATA use against 56320 and 4096
 bytes. Pointers into XDATA are typed (`XDATA uint8_t *`, `core/platform.h`) in the packet paths: a generic pointer costs three bytes and a slow access on this
 core and was worth 1.5 KB of flash. Constant tables are `ROM`.

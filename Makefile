@@ -26,7 +26,13 @@ FW_SRC    := $(filter-out $(NOT_LINKED),$(wildcard core/*.c hal/*.c board/*.c))
 FW_REL    := $(patsubst %.c,$(B)/%.rel,$(FW_SRC)) $(B)/vial_data.rel
 CHECK_REL := $(patsubst %.c,$(B)/%.rel,$(NOT_LINKED))
 
-.PHONY: test fw size clean check check-vial check-interrupts stage stages sim
+api:
+	python3 tools/gen_api.py
+
+check-api:
+	python3 tools/gen_api.py --check
+
+.PHONY: api check-api test fw size clean check check-vial check-interrupts stage stages sim
 .DELETE_ON_ERROR: # a failed build must not leave a half-made file that make takes for up to date
 
 test: $(HOST_TESTS) check-vial

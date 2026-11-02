@@ -9,7 +9,7 @@
 // same idea as here, where it picks between two complete keyboards - layers 0/1 on Windows, layers KEYMAP_MAC_LAYER/KEYMAP_MAC_FN_LAYER
 // on Mac, the second pair being a copy of the first with Alt and GUI swapped and its own Fn layer, both editable in Vial.
 //
-// Measured on the board (diag kind 3, 2026-11-01): P0.5 reads HIGH with the switch on Mac and LOW with it on Windows, and the level does
+// Measured on the board (with a port readout, since removed, 2026-11-01): P0.5 reads HIGH with the switch on Mac and LOW with it on Windows, and the level does
 // not depend on the column strobes (it is not wired into the matrix). The two captures alone could not tell which position was which; the
 // keyboard did, when the layer came out on the wrong side.
 

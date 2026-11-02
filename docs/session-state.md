@@ -4,6 +4,8 @@ Ultimo commit: **vedi `git log`** (la sessione del 2026-11-02 ha chiuso la batte
 una prova sulla tastiera, cosa è verificato e le trappole già pagate. La storia sta in `CHANGELOG.md`, il quadro tecnico in
 `docs/firmware-report.md`, le regole di lavoro in `CLAUDE.md`.
 
+Documentazione di riferimento: **[design.md](design.md)** (architettura e design, per moduli) e **[api.md](api.md)** (riferimento delle API generato dagli header: `make api`, `make check-api`).
+
 ## Dove siamo
 
 Il firmware è **completo e usabile**: USB e radio (2.4G e Bluetooth), backlight con effetti, Vial completo (keymap, tap dance, combo, key

@@ -47,7 +47,7 @@ sull'hardware · **M** = manca · **?** = non so cosa faccia lo stock: da confro
 | Effetti, luminosità, velocità, colore (tab Lighting di Vial, Fn+Q…I) | `core/led`, `led_effect`, `vialrgb` | S (colore da riconfermare) |
 | LED Caps Lock sul tasto Caps | sì | S |
 | Lampi di modo/slot/pairing sulla riga dei numeri | sì | S |
-| Flicker della retroilluminazione | pausa del salvataggio ~20 ms, back‑off | **da confermare** con `diag.py --watch 1` |
+| Flicker della retroilluminazione | ISR USB senza copia (HUD), luci nel log delle impostazioni (nessun erase a ogni tasto luce), pausa solo attorno agli erase, back‑off | **da confermare** con `diag.py --watch 1` («timer interrupt: longest start delay» sotto ~50 µs) |
 
 ## Configurazione e strumenti
 
