@@ -51,6 +51,8 @@ static uint16_t bootloader_since;
 // From the main loop
 void usb_task(uint16_t now)
 {
+    usb_device_bus_check(now); // is anybody still driving the bus?
+
     if (usb_hw_take_event()) {
         usb_reports_flush(); // a bus reset or a new configuration: what was queued is stale
 

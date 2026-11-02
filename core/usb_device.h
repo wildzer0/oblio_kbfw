@@ -19,7 +19,11 @@ void usb_hook_ep0_in(const uint8_t *data, uint8_t len); // arm EP0 IN with this 
 void usb_hook_ep0_out_arm(void);                         // accept the next OUT packet on EP0
 void usb_hook_ep0_stall(void);                           // answer the transfer with a STALL
 void usb_hook_set_address(uint8_t address);              // the device address, applied after the status stage
-void usb_hook_configured(bool configured);               // SET_CONFIGURATION: endpoints in the initial state (toggles, stalls)
+void usb_hook_configured(bool configured);
+
+// Provided by the hardware: start-of-frame interrupts seen since power-on, wrapping. It stops counting when nothing drives the bus, which is
+// what the cable being pulled out looks like.
+uint8_t usb_hook_sof_ticks(void);               // SET_CONFIGURATION: endpoints in the initial state (toggles, stalls)
 void usb_hook_ep_halt(uint8_t endpoint, bool halted);    // SET/CLEAR_FEATURE(ENDPOINT_HALT) on 0x81, 0x82 or 0x02
 
 // Provided by the application.
@@ -35,6 +39,10 @@ void usb_device_setup(const uint8_t packet[USB_SETUP_SIZE], bool previous_status
 void usb_device_ep0_in_done(void);
 void usb_device_ep0_out(const uint8_t *data, uint8_t len);
 
+// From the main loop, every so often: notices that the host has gone away (the cable is out), which nothing else reports.
+void usb_device_bus_check(uint16_t now);
+
+// True while a host is there and has configured the keyboard: the cable is in *and* somebody is driving the bus.
 bool    usb_device_configured(void);
 bool    usb_device_remote_wakeup(void);
 uint8_t usb_device_protocol(uint8_t interface); // 0 boot, 1 report

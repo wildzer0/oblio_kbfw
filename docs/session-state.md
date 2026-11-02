@@ -14,8 +14,8 @@ key overrides, tab Lighting), NKRO, Caps Word, Leader, mouse dall'encoder, switc
 
 | | |
 | --- | --- |
-| Flash | **53069 / 56320** (3,3 KB liberi) |
-| XDATA | **3934 / 4096** (162 B liberi) |
+| Flash | **53177 / 56320** (3,1 KB liberi) |
+| XDATA | **3939 / 4096** (157 B liberi) |
 | Deposito keymap | **1709 / 2048** (339 B liberi) |
 | Test host | **28 / 28** |
 | Simulatore (ucsim) | **24 / 24** |
@@ -32,6 +32,7 @@ key overrides, tab Lighting), NKRO, Caps Word, Leader, mouse dall'encoder, switc
 | `8088c75` | **Tinta + saturazione** in una parola da 16 bit: colore completo, **0 byte di memoria**, +333 B di flash |
 | `38ed7a8` | **Batteria**: `0xFF` col cavo è una sentinella (non 100%), e lo stato letto **a batteria** ora si legge con `diag.py --radio` |
 | `45732e0` | **Logger di batteria a bordo** (`core/blog.c`, 192 B di XDATA): il registro si scrive da solo mentre la tastiera è a batteria e si legge con `diag.py --blog`; `diag.py --daemon N file.csv` per lasciare un demone sul cavo |
+| — | **Bug del cavo**: `configured` non tornava mai a 0 quando il cavo usciva, quindi il registro non scriveva (niente per tutta una notte). Ora conta gli start-of-frame: niente SOF per 250 ms = cavo fuori |
 
 ## Da provare sulla tastiera (in quest'ordine)
 
@@ -55,6 +56,17 @@ key overrides, tab Lighting), NKRO, Caps Word, Leader, mouse dall'encoder, switc
    **`longest sector erase (us)`**.
 
 > Cambiando predefiniti e definizione Vial, **la keymap salvata riparte dai default** e il PC può reinstallare il dispositivo: è normale.
+
+## Da verificare prima di riprovare una notte
+
+Il registro vive in **RAM**: se attaccare il cavo **resetta** la scheda, il registro muore proprio quando lo si vuole leggere (e lo stesso vale per
+i contatori, che ripartono). Prova da un minuto, dopo aver flashato questa build:
+
+1. staccare il cavo, premere qualche tasto, aspettare ~30 s (qualche record);
+2. riattaccare e lanciare subito `py .\diag.py --blog`:
+   - **ci sono record** → il cavo non resetta, il registro funziona e una notte intera si raccoglie;
+   - **vuoto** → il cavo resetta la scheda: il registro va spostato in flash (c'è un settore libero a **0xED00**, fra le impostazioni e il
+     marcatore del bootloader) prima di riprovare.
 
 ## Domande aperte
 

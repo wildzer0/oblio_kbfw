@@ -12,6 +12,25 @@
 
 Il controllo di recupero Esc+1+2 va all'inizio del `main`, prima di USB e radio.
 
+## 2026-11-02 (notte) — perché il registro era vuoto: la tastiera credeva di essere collegata
+
+- **Il bug**: `configured` viene messo a 1 da `SET_CONFIGURATION` e **azzerato solo** da un'altra `SET_CONFIGURATION(0)` o da un bus reset. Quando
+  si **stacca il cavo** non succede né l'uno né l'altro: la tastiera restava convinta di essere attaccata al PC per sempre. Con quel flag,
+  `radio_hook_on_battery()` (wireless **e** niente cavo) restava **falso**, quindi il registro della batteria non ha scritto **niente** per tutta
+  la notte. Non era il gate sbagliato: era lo stato "cavo dentro" che non tornava mai indietro.
+- **La correzione**: quello che il chip può dire è se **qualcuno sta pilotando il bus**. Ora `hal/usb.c` conta gli **start-of-frame** (uno al
+  millisecondo con un host vivo) e `core/usb_device.c` guarda il contatore ogni 250 ms (`usb_device_bus_check`, chiamata da `usb_task`): se non è
+  avanzato, il cavo è fuori. `usb_device_configured()` significa quindi "cavo dentro **e** qualcuno che pilota il bus" — così anche la logica dei
+  LED e l'invio dei report USB vedono la verità.
+- Il core non dipende da `hal/`: il conteggio arriva dall'hook `usb_hook_sof_ticks()`, come gli altri `usb_hook_*`, e il test può farlo salire e
+  fermare a piacere.
+- Test nuovo `test_a_host_that_goes_away_leaves_the_keyboard_unconfigured`: configura, il bus batte, il bus tace (→ non configurata), il bus torna
+  (→ configurata di nuovo, senza un nuovo `SET_CONFIGURATION`).
+- **Conseguenza per la notte persa**: il registro è in RAM e il cavo si attacca per leggerlo; se attaccare il cavo resetta la scheda, il registro
+  muore proprio quando serve. Prima di riprovare una notte conviene verificarlo con una prova da un minuto (sotto).
+
+Budget: flash **53177/56320** (3,1 KB liberi), XDATA **3939/4096** (157 B liberi). `make test` 28/28, `make sim` 24/24, vettori ok.
+
 ## 2026-11-02 (notte) — il registro della batteria dentro la tastiera
 
 - **Il problema fisico, detto chiaro**: la diagnostica viaggia sull'USB della tastiera, e col cavo la batteria **si carica** (il byte risponde

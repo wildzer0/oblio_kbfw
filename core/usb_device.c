@@ -3,6 +3,7 @@
 #include <string.h>
 
 // bmRequestType
+#define USB_BUS_LOOK_MS 250u // how often the main loop looks for the host's start-of-frame
 #define DIR_IN       0x80
 #define TYPE_MASK    0x60
 #define TYPE_STD     0x00
@@ -94,9 +95,29 @@ void usb_device_reset(void)
     halted          = 0;
 }
 
+// The host is gone when nothing drives the bus: `configured` is set by SET_CONFIGURATION and cleared only by another one or by a bus reset,
+// neither of which happens when the cable is simply pulled out. Without this the keyboard believed for ever that it was plugged in - and the
+// battery log, which writes only while on battery, wrote nothing at all overnight.
+static bool     bus_gone;
+static uint8_t  last_sof;
+static uint16_t last_sof_look;
+
+void usb_device_bus_check(uint16_t now)
+{
+    if ((uint16_t)(now - last_sof_look) < USB_BUS_LOOK_MS) {
+        return;
+    }
+
+    const uint8_t ticks = usb_hook_sof_ticks();
+
+    bus_gone = (ticks == last_sof); // no start-of-frame since the last look: no host
+    last_sof = ticks;
+    last_sof_look = now;
+}
+
 bool usb_device_configured(void)
 {
-    return configured;
+    return configured && !bus_gone;
 }
 
 bool usb_device_remote_wakeup(void)

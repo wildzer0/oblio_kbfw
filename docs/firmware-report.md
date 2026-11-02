@@ -25,6 +25,11 @@ bootloader's marker sector and is **not touched**; **stock bootloader at 0xF000,
 | Recovery | hold **Esc+1+2 while plugging the USB cable**: the firmware jumps to the stock ISP bootloader before USB or radio start. There is **no ICP programmer** — this is the only way back |
 | Flashing | `sinowisp write --platform sh68f90 --vendor_id 0x258a --product_id 0xdead --format ihex --isp_iface_num 0 -f build/oblio.hex` |
 
+`usb_device_configured()` means what it says: the cable is in **and** a host is driving the bus. Nothing on this chip reports a cable being pulled
+out (`configured` is only cleared by another `SET_CONFIGURATION` or a bus reset), so the firmware watches the start-of-frame interrupts: if none has
+come in 250 ms, the host is gone. Without that the keyboard believed for ever that it was plugged in, and the battery log - which writes only while
+on battery - wrote nothing.
+
 The USB device enumerates as `258a:dead`, product name "Oblio B68", with a keyboard interface (EP1) and a raw HID interface (usage page 0xFF60, EP2,
 32-byte packets) used by Vial, VIA, the HUD app and the diagnostics. On interface 0 the report IDs are: keyboard 3, system 1, consumer 2,
 **mouse 7** (five buttons, X and Y in 16 bits, wheel — as the stock firmware had it) and the ISP feature report 5.
@@ -125,7 +130,7 @@ nix develop --command make sim               # ~50 s: the real hex in the chip s
 nix develop --command make stages            # staged builds, see below
 ```
 
-Current budget: **flash 53069 / 56320 (3.3 KB of margin), XDATA 3934 / 4096 (162 B free), keymap slot 1709 of 2048 bytes.** Six layers since
+Current budget: **flash 53177 / 56320 (3.1 KB of margin), XDATA 3939 / 4096 (157 B free), keymap slot 1709 of 2048 bytes.** Six layers since
 2026-11-02 (8 → 6 freed 320 B of XDATA and 320 B of slot); the Mac pair moved from 7/6 to 5/4. The per-key colour buffer went away again with the
 painter (the app has none), which is why the slot has room for what comes next.; the stack is the other tight one (internal RAM, 223 B
 from 0x21 up; the USB interrupt used to keep 48 B of buffers on it, now static in XDATA). Check the `flash` line before every commit; a failed link

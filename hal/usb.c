@@ -4,7 +4,8 @@
 #include "raw_hid.h"
 
 static volatile bool event;     // a bus reset or a configuration change: see usb_hw_take_event()
-static volatile bool suspended;
+static volatile bool    suspended;
+static volatile uint8_t sof_ticks; // one per start-of-frame: the host drives the bus once a millisecond, or there is no host
 static volatile bool setup_seen;
 
 // The buffers the interrupt copies the endpoint data into. They are static, not locals: with --stack-auto a local lives on the
@@ -152,6 +153,12 @@ bool usb_hw_suspended(void)
     return suspended;
 }
 
+// How many start-of-frame interrupts have come: a counter that stops moving is a bus with nobody driving it - the cable is out.
+uint8_t usb_hook_sof_ticks(void)
+{
+    return sof_ticks;
+}
+
 static void bus_reset(void)
 {
     // the USB module is reset by pulsing SWRST; a few cycles in between
@@ -190,6 +197,7 @@ void usb_isr(void) __interrupt(7)
     if (if1 & USBIF1_SOFIF) {
         USBIF1 &= (uint8_t)~USBIF1_SOFIF;
         suspended = false; // a start-of-frame means the host is driving the bus again
+        sof_ticks++;
     }
 
     if (if1 & USBIF1_RESMIF) {
