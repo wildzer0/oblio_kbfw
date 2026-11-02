@@ -22,8 +22,9 @@ void usb_hook_set_address(uint8_t address);              // the device address, 
 void usb_hook_configured(bool configured);
 
 // Provided by the hardware: start-of-frame interrupts seen since power-on, wrapping. It stops counting when nothing drives the bus, which is
-// what the cable being pulled out looks like.
-uint8_t usb_hook_sof_ticks(void);               // SET_CONFIGURATION: endpoints in the initial state (toggles, stalls)
+// what the cable being pulled out looks like. 16 bits: one start-of-frame a millisecond, an 8-bit counter came round exactly once in 256 ms, so a
+// look at the bus that came 256 ms after the last one saw "no change" and declared the host gone (the backlight went off and the keys stopped).
+uint16_t usb_hook_sof_ticks(void);               // SET_CONFIGURATION: endpoints in the initial state (toggles, stalls)
 void usb_hook_ep_halt(uint8_t endpoint, bool halted);    // SET/CLEAR_FEATURE(ENDPOINT_HALT) on 0x81, 0x82 or 0x02
 
 // Provided by the application.

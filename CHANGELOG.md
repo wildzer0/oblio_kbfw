@@ -57,6 +57,14 @@ Il controllo di recupero Esc+1+2 va all'inizio del `main`, prima di USB e radio.
   30 ms (la coda della radio è di 4); la tastiera non va in sleep mentre scrive. Costa ~520 B di flash (54415/55296). È uno strumento di debug: da
   togliere insieme al registro in flash quando la scala della batteria è confermata.
 
+## 2026-11-02 (notte, 20) — in USB i LED si spegnevano e i tasti cadevano per ~250 ms: contatore dei SOF a 8 bit
+
+- **Bug** (latente da quando c'è `usb_device_bus_check`): il contatore degli start-of-frame era a 8 bit e a 1 SOF al millisecondo gira esattamente in 256 ms. Il controllo del bus parte ogni ~250 ms e confronta il contatore
+  con quello dell'ultima volta: se la finestra durava 256 ms (basta un giro del main un po' lungo) i due valori erano **uguali** e la tastiera dichiarava «host sparito» (`usb_device_configured()` falso) fino al controllo
+  successivo: **LED spenti (in USB si accendono solo con l'host) e tasti scartati** per 250 ms, a intervalli casuali. Spariva in wireless (anche col cavo) perché lì i LED e i report non dipendono dall'USB.
+  Corretto: contatore a 16 bit (`usb_hook_sof_ticks`), letto due volte fino a coincidere. Test: `test_a_full_turn_of_the_counter_is_not_a_host_that_went_away` prova ogni lunghezza di finestra da 250 a 770 ms.
+- Dati dell'utente che lo escludevano da altre cause: nessun salvataggio completo (sequenza 1), nessun erase, reset cause 0 (nessun reset).
+
 ## 2026-11-02 (notte, 19) — la keymap è un'immagine più un log; contatore dei salvataggi
 
 - **Log della keymap** (`core/store.c`, `core/keymap.c`): le modifiche da Vial non salvano più la keymap intera (4 cancellazioni, ~130 ms di LED spenti). Ogni modifica annota l'offset della parola cambiata (`note()`, fino a 24);

@@ -99,7 +99,7 @@ void usb_device_reset(void)
 // neither of which happens when the cable is simply pulled out. Without this the keyboard believed for ever that it was plugged in - and the
 // battery log, which writes only while on battery, wrote nothing at all overnight.
 static bool     bus_gone;
-static uint8_t  last_sof;
+static uint16_t last_sof;
 static uint16_t last_sof_look;
 
 void usb_device_bus_check(uint16_t now)
@@ -108,7 +108,7 @@ void usb_device_bus_check(uint16_t now)
         return;
     }
 
-    const uint8_t ticks = usb_hook_sof_ticks();
+    const uint16_t ticks = usb_hook_sof_ticks();
 
     bus_gone = (ticks == last_sof); // no start-of-frame since the last look: no host
     last_sof = ticks;

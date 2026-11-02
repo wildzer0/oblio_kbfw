@@ -3164,10 +3164,10 @@ void usb_hook_configured(bool configured);
 #### `usb_hook_sof_ticks`
 
 ```c
-uint8_t usb_hook_sof_ticks(void);
+uint16_t usb_hook_sof_ticks(void);
 ```
 
-Provided by the hardware: start-of-frame interrupts seen since power-on, wrapping. It stops counting when nothing drives the bus, which is what the cable being pulled out looks like.
+Provided by the hardware: start-of-frame interrupts seen since power-on, wrapping. It stops counting when nothing drives the bus, which is what the cable being pulled out looks like. 16 bits: one start-of-frame a millisecond, an 8-bit counter came round exactly once in 256 ms, so a look at the bus that came 256 ms after the last one saw "no change" and declared the host gone (the backlight went off and the keys stopped).
 
 SET_CONFIGURATION: endpoints in the initial state (toggles, stalls)
 

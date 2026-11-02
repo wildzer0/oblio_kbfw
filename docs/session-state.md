@@ -41,6 +41,7 @@ Il registro in flash, il logger da tastiera e la diagnostica `--blog/--ports/--m
 2. Provare **avviso di batteria** (`battery_task`: sotto 800 gauge rosso ogni 30 s, sotto 752 per 10 s sleep) e **remote wakeup USB** (PC in sospensione, un tasto lo sveglia).
 3. (fatto) diagnostica ridotta a 9 contatori e `--radio` (+ «timer interrupt: longest start delay»).
 5. **Da provare (log della keymap)**: modifica un tasto da Vial: i LED **non** devono spegnersi; `diag.py` mostra «keymap: records in the log» che sale di 1 a modifica e «whole saves ever» che resta fermo; dopo ~70 modifiche un solo buio di ~130 ms. Spegni/riaccendi: le modifiche restano.
+6. **Da provare (SOF a 16 bit)**: slider su USB con il cavo: i LED non devono più spegnersi a intervalli e i tasti devono sempre rispondere.
 4. **Da provare**: con l'app HUD collegata i LED non devono più sfarfallare (guardare il nuovo contatore con `diag.py --watch 1`: dovrebbe restare sotto ~50 µs);
    i tasti luce non devono più spegnere i LED per ~130 ms 2 s dopo (ora solo ogni 36 salvataggi, e quando si salva la keymap da Vial).
 
@@ -64,6 +65,7 @@ Flash con Vial chiusa: `sinowisp write --platform sh68f90 --vendor_id 0x258a --p
 
 - **`usb_device_configured()` è "cavo dentro *e* host che pilota il bus"**: sul chip niente segnala il cavo staccato, quindi si guarda il
   contatore di start-of-frame ogni 250 ms (`usb_device_bus_check`). Fidarsi del solo `configured` ha fatto perdere una notte di misure.
+- **Un contatore che serve a vedere se «si è mosso» non deve poter fare il giro nel tempo di una finestra**: il contatore SOF a 8 bit (256 ms a 1 kHz) dichiarava il cavo staccato quando la finestra era di 256 ms. Confrontare con differenza, o usare un contatore largo abbastanza.
 - **Il simulatore non sa misurare i tempi**: il suo Timer 2 è un flag virtuale. Un debounce puramente a tempo non si chiude lì, per questo
   `MATRIX_DEBOUNCE_SAMPLES` esiste come pavimento.
 - **Il rapporto slot LED / scansioni resta 4**: portarlo a 8 rompe il test dei tasti nel simulatore (con 8:1 il test che tiene premuta una riga

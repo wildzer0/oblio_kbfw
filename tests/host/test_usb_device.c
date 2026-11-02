@@ -32,9 +32,9 @@ void usb_hook_ep0_stall(void) { stalled = true; }
 void usb_hook_set_address(uint8_t a) { address = a; }
 
 // The bus: a counter of start-of-frame interrupts, which this test decides whether to move
-static uint8_t sof_ticks;
+static uint16_t sof_ticks;
 
-uint8_t usb_hook_sof_ticks(void) { return sof_ticks; }
+uint16_t usb_hook_sof_ticks(void) { return sof_ticks; }
 
 void usb_hook_configured(bool c)
 {
@@ -212,6 +212,36 @@ static void test_a_host_that_goes_away_leaves_the_keyboard_unconfigured(void)
     sof_ticks++;
     usb_device_bus_check(1900); // plugged back in: the bus beats again
     CHECK(usb_device_configured());
+}
+
+// The host is there, the interrupts count one a millisecond, and the look at the bus comes exactly 256 ms after the last: an 8-bit counter had come
+// round to the same value and the keyboard declared the host gone - LEDs off, keys dropped - until the next look
+static void test_a_full_turn_of_the_counter_is_not_a_host_that_went_away(void)
+{
+    bus_reset();
+    sof_ticks = 0;
+
+    usb_device_bus_check(1000);
+    sof_ticks += 5;
+    usb_device_bus_check(1250);
+
+    CHECK(control_nodata(0x00, 5, 7, 0));
+    CHECK(control_nodata(0x00, 9, 1, 0));
+    CHECK(usb_device_configured());
+
+    for (unsigned gap = 250; gap <= 770; gap++) { // every length of window the main loop can produce, 256 and 512 ms among them
+        const uint16_t now = (uint16_t)(1250 + gap);
+
+        sof_ticks += (uint16_t)gap;
+        usb_device_bus_check(now);
+        CHECK(usb_device_configured());
+
+        usb_device_bus_check((uint16_t)(now + 250)); // and a window with no interrupt at all is still a host that is gone
+        CHECK(!usb_device_configured());
+        sof_ticks += 3;
+        usb_device_bus_check((uint16_t)(now + 500));
+        CHECK(usb_device_configured());
+    }
 }
 
 static void test_address_waits_for_the_status_stage(void)
@@ -460,6 +490,7 @@ int main(void)
 {
     test_enumeration_as_a_host_does_it();
     test_a_host_that_goes_away_leaves_the_keyboard_unconfigured();
+    test_a_full_turn_of_the_counter_is_not_a_host_that_went_away();
     test_address_waits_for_the_status_stage();
     test_every_descriptor_in_every_length();
     test_empty_packet_ends_a_transfer_of_whole_packets();

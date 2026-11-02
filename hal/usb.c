@@ -5,7 +5,7 @@
 
 static volatile bool event;     // a bus reset or a configuration change: see usb_hw_take_event()
 static volatile bool    suspended;
-static volatile uint8_t sof_ticks; // one per start-of-frame: the host drives the bus once a millisecond, or there is no host
+static volatile uint16_t sof_ticks; // one per start-of-frame: the host drives the bus once a millisecond, or there is no host
 static volatile bool setup_seen;
 
 // The buffers the interrupt copies the endpoint data into. They are static, not locals: with --stack-auto a local lives on the
@@ -169,9 +169,17 @@ void usb_hw_wake_host(bool on)
 }
 
 // How many start-of-frame interrupts have come: a counter that stops moving is a bus with nobody driving it - the cable is out.
-uint8_t usb_hook_sof_ticks(void)
+uint16_t usb_hook_sof_ticks(void)
 {
-    return sof_ticks;
+    uint16_t a;
+    uint16_t b;
+
+    do { // 16 bits are not read atomically: twice until they agree
+        a = sof_ticks;
+        b = sof_ticks;
+    } while (a != b);
+
+    return a;
 }
 
 static void bus_reset(void)
