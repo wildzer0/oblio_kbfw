@@ -44,6 +44,7 @@ NAMES = [
     ("scan slots that ran late", "{}"),
     ("longest sector erase (us)", "{}"),
     ("radio: frames received (checksum ok)", "{}"),
+    ("timer interrupt: longest start delay (us)", "{}"),
 ]
 
 

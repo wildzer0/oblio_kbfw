@@ -68,6 +68,7 @@ static void init(void)
     watchdog_kick();
     settings_load();
     store_init();     // the keymap from flash, or the defaults
+    settings_apply_led(); // the lighting is saved with the settings, not with the keymap
     os_switch_init(); // which of the two base layers the keyboard starts on (the Win/Mac switch)
     encoder_init();
     led_init(); // the framebuffer is cheap and the lighting keys write settings: always there

@@ -1,3 +1,5 @@
+#include "keymap.h"
+#include "settings.h"
 #include "diag.h"
 #include "led.h"
 #include "usb_app.h"
@@ -36,4 +38,19 @@ void led_app_task(uint16_t now)
     if (on != led_hw_enabled()) {
         led_hw_enable(on);
     }
+}
+
+// The lighting is saved with the settings (core/settings.c), from the keymap's cfg fields
+uint16_t settings_hook_led_get(uint8_t index)
+{
+    static const uint8_t field[4] = {CFG_LED_EFFECT, CFG_LED_BRIGHT, CFG_LED_SPEED, CFG_LED_COLOR};
+
+    return keymap_cfg_get(field[index & 3u]);
+}
+
+void settings_hook_led_set(uint8_t index, uint16_t value)
+{
+    static const uint8_t field[4] = {CFG_LED_EFFECT, CFG_LED_BRIGHT, CFG_LED_SPEED, CFG_LED_COLOR};
+
+    keymap_cfg_set(field[index & 3u], value);
 }

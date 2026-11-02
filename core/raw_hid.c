@@ -1,19 +1,21 @@
 #include "raw_hid.h"
 
 static uint8_t       packet[RAW_HID_SIZE];
-static volatile bool pending; // a request is in `packet`; no other is accepted until it is answered
+static volatile bool received; // a packet is in the endpoint's buffer, not read yet
+static bool          pending;  // a request is in `packet`; no other is accepted until it is answered
 static bool          processed;
 
 void raw_hid_reset(void)
 {
+    received  = false;
     pending   = false;
     processed = false;
     raw_hid_hook_out_arm();
 }
 
-void raw_hid_out(const uint8_t *data, uint8_t length)
+void raw_hid_out(uint8_t length)
 {
-    if (pending) {
+    if (pending || received) {
         return; // cannot happen while the endpoint is not armed; a stray one is ignored
     }
 
@@ -22,17 +24,19 @@ void raw_hid_out(const uint8_t *data, uint8_t length)
         return;
     }
 
-    for (uint8_t i = 0; i < RAW_HID_SIZE; i++) {
-        packet[i] = data[i];
-    }
-
-    pending = true;
+    received = true;
 }
 
 void raw_hid_task(void)
 {
     if (!pending) {
-        return;
+        if (!received) {
+            return;
+        }
+
+        raw_hid_hook_out_read(packet);
+        received = false;
+        pending  = true;
     }
 
     if (!processed) {

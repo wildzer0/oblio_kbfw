@@ -1,10 +1,12 @@
 #include "settings.h"
+#include <string.h>
 #include "store.h"
 
 #define MAGIC0  'O'
 #define MAGIC1  'S'
-#define VERSION 1u
-#define SIZE    9u // magic 2, version 1, three fields, CRC 2, one byte unused (0)
+#define VERSION 2u
+#define SIZE    14u // magic 2, version 1, one byte unused, sleep, slot, lighting effect, brightness, speed, colour (2), CRC 2, one byte unused
+#define CRC_AT  11u // the CRC follows the 11 bytes it covers
 
 #define SLEEP_LEVELS 5 // see sleep.h: 1, 5, 10, 30 minutes, never
 
@@ -13,6 +15,11 @@ settings_t settings;
 static bool     dirty;
 static uint16_t last_change;
 static uint8_t  next_slot; // where the next save goes; SETTINGS_SLOTS = no room, the sector has to be erased first
+
+// The lighting: effect, brightness, speed, colour - in the order of the record (the board maps them to the keymap's cfg fields)
+static uint16_t led_seen[4]; // what was last saved (or loaded): a different cfg value is a change to save
+static uint16_t led_saved[4];
+static bool     led_have;    // the record read at start-up had a lighting
 
 static uint16_t crc16(const uint8_t *data, uint8_t length)
 {
@@ -56,14 +63,15 @@ static bool slot_blank(const uint8_t *record)
 static bool record_valid(const uint8_t *record)
 {
     return record[0] == MAGIC0 && record[1] == MAGIC1 && record[2] == VERSION
-        && crc16(record, 6) == (uint16_t)(record[6] | ((uint16_t)record[7] << 8));
+        && crc16(record, CRC_AT) == (uint16_t)(record[CRC_AT] | ((uint16_t)record[CRC_AT + 1] << 8));
 }
 
 void settings_load(void)
 {
     uint8_t record[SIZE];
 
-    dirty = false;
+    dirty    = false;
+    led_have = false;
     defaults();
 
     next_slot = SETTINGS_SLOTS; // the sector is full (or unreadable): the first save erases it
@@ -85,6 +93,22 @@ void settings_load(void)
         // profile in use: it is ignored now, and written back as 0.
         settings.sleep_level = (record[4] < SLEEP_LEVELS) ? record[4] : SETTINGS_SLEEP_DEFAULT;
         settings.bt_slot     = (record[5] >= 1 && record[5] <= 3) ? record[5] : 1;
+        led_saved[0]         = record[6];
+        led_saved[1]         = record[7];
+        led_saved[2]         = record[8];
+        led_saved[3]         = (uint16_t)(record[9] | ((uint16_t)record[10] << 8));
+        led_have             = true;
+    }
+}
+
+void settings_apply_led(void)
+{
+    for (uint8_t i = 0; i < 4; i++) {
+        if (led_have) {
+            settings_hook_led_set(i, led_saved[i]);
+        }
+
+        led_seen[i] = settings_hook_led_get(i);
     }
 }
 
@@ -125,28 +149,36 @@ void settings_flush(void)
 
     dirty = false;
 
+    memset(record, 0, sizeof record);
     record[0] = MAGIC0;
     record[1] = MAGIC1;
     record[2] = VERSION;
-    record[3] = 0;
     record[4] = settings.sleep_level;
     record[5] = settings.bt_slot;
 
-    const uint16_t crc = crc16(record, 6);
+    for (uint8_t i = 0; i < 4; i++) {
+        led_seen[i] = settings_hook_led_get(i);
+    }
 
-    record[6] = (uint8_t)(crc & 0xFFu);
-    record[7] = (uint8_t)(crc >> 8);
-    record[8] = 0;
+    record[6]  = (uint8_t)led_seen[0];
+    record[7]  = (uint8_t)led_seen[1];
+    record[8]  = (uint8_t)led_seen[2];
+    record[9]  = (uint8_t)(led_seen[3] & 0xFFu);
+    record[10] = (uint8_t)(led_seen[3] >> 8);
 
-    store_hook_flush_begin();
+    const uint16_t crc = crc16(record, CRC_AT);
+
+    record[CRC_AT]     = (uint8_t)(crc & 0xFFu);
+    record[CRC_AT + 1] = (uint8_t)(crc >> 8);
 
     if (next_slot >= SETTINGS_SLOTS) { // the log is full: start it over, and only now is the old content given up
+        store_hook_flush_begin(); // only the erase stalls the chip for long (~32 ms): the backlight stands still for that and for nothing else
         store_hook_erase(SETTINGS_ADDR);
+        store_hook_flush_end();
         next_slot = 0;
     }
 
-    store_hook_program(slot_addr(next_slot), record, SIZE);
-    store_hook_flush_end();
+    store_hook_program(slot_addr(next_slot), record, SIZE); // a byte at a time, microseconds each: the display runs on
 
     next_slot++;
 }
@@ -154,6 +186,14 @@ void settings_flush(void)
 void settings_task(uint16_t now, bool any_key_down)
 {
     static bool timing;
+
+    for (uint8_t i = 0; i < 4; i++) { // the lighting keys and the Vial lighting tab change the cfg: that is a setting to save
+        if (settings_hook_led_get(i) != led_seen[i]) {
+            led_seen[i] = settings_hook_led_get(i);
+            changed();
+            break;
+        }
+    }
 
     if (!dirty) {
         timing = false;

@@ -1,6 +1,7 @@
 #pragma once
 
-// Settings that belong to the keyboard, not to the keymap: the sleep time and the Bluetooth slot. A small record
+// Settings that belong to the keyboard, not to the keymap: the sleep time, the Bluetooth slot and the lighting (effect, brightness, speed,
+// colour - they live in the keymap's cfg fields in RAM, but are saved here: see keymap_cfg_set). A small record
 // with a magic, a version and a CRC, written as a LOG in its own sector at 0xEC00: every save appends at the first erased slot and
 // the last complete record wins. A save therefore never erases anything (no power cut can lose the previous settings, and the sector
 // is erased once every SETTINGS_SLOTS saves instead of at each one). The profiles themselves are in store.h.
@@ -14,7 +15,7 @@
 
 #define SETTINGS_ADDR       0xEC00u // the sector after the keymap store (0xEE00 holds the bootloader's marker: never touched)
 #define SETTINGS_SECTOR     512u
-#define SETTINGS_SLOTS      56u     // 9-byte records back to back in the sector
+#define SETTINGS_SLOTS      36u     // 14-byte records back to back in the sector
 #define SETTINGS_QUIET_MS   500u    // changes are written once nothing has changed for this long and no key is down
 #define SETTINGS_SLEEP_DEFAULT 2     // 10 minutes (the levels are listed in sleep.h)
 
@@ -25,8 +26,16 @@ typedef struct {
 
 extern settings_t settings; // read freely; change through the setters
 
+// Provided by the board: the four lighting values (0 effect, 1 brightness, 2 speed, 3 colour, 16 bits each), which live in the keymap's cfg fields.
+// Setting one is not an edit of the keymap (core/keymap.c).
+uint16_t settings_hook_led_get(uint8_t index);
+void     settings_hook_led_set(uint8_t index, uint16_t value);
+
 // Reads the record, or takes the defaults if there is none (or it is not valid). Values out of range are put back in range.
 void settings_load(void);
+
+// After the keymap is loaded (its store holds the cfg fields too): puts the saved lighting back. Without a saved one the keymap's stay.
+void settings_apply_led(void);
 
 void settings_set_sleep_level(uint8_t level);
 void settings_set_bt_slot(uint8_t slot);

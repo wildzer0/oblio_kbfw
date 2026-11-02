@@ -20,6 +20,8 @@ typedef enum {
     DIAG_SCAN_LATE,        // the same as DIAG_SLOT_LATE, for the scan slots
     DIAG_ERASE_US_MAX,     // the longest sector erase of a flash write, in us (the chip stalls while it runs)
     DIAG_RADIO_RX,         // frames from the radio that passed the checksum
+    DIAG_TIMER_LATE_US,    // the longest the timer interrupt waited to start after its slot ended, in us (another interrupt or the flash holding it up; ignores the
+                           // flash pauses, over 1 ms): above ~50 the backlight columns show it as a flicker
     DIAG_COUNT
 } diag_id_t;
 

@@ -6,6 +6,11 @@
 #include "store.h"
 #include <string.h>
 
+// the lighting values the board keeps in the keymap's cfg
+static uint16_t led_values[4];
+uint16_t settings_hook_led_get(uint8_t index) { return led_values[index]; }
+void settings_hook_led_set(uint8_t index, uint16_t value) { led_values[index] = value; }
+
 static bool on_battery; // the radio's status counts as "on battery" when this is set
 
 bool radio_hook_on_battery(void) { return on_battery; }

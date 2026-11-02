@@ -57,6 +57,19 @@ Il controllo di recupero Esc+1+2 va all'inizio del `main`, prima di USB e radio.
   30 ms (la coda della radio è di 4); la tastiera non va in sleep mentre scrive. Costa ~520 B di flash (54415/55296). È uno strumento di debug: da
   togliere insieme al registro in flash quando la scala della batteria è confermata.
 
+## 2026-11-02 (notte, 15) — HUD e salvataggio: i LED non devono più sfarfallare
+
+- **HUD**: l'interrupt USB copiava i 32 byte di ogni richiesta due volte con puntatori generici (lenti), e teneva fermo l'interrupt del timer dei LED: ogni richiesta
+  dell'app (decine al secondo) spostava l'inizio di uno slot e la colonna si accendeva più o meno a lungo. Ora l'interrupt non copia niente: segna che il pacchetto è arrivato
+  e il main lo legge dal buffer dell'endpoint (che non è riarmato finché non si risponde). Nuovo contatore **«timer interrupt: longest start delay (us)»** per verificarlo
+  (sopra ~50 µs si vede).
+- **Salvataggio**: i tasti luce (effetto, luminosità, velocità, colore) scrivevano nel **deposito della keymap**, che a ogni salvataggio cancella 4 settori: ~130 ms di LED spenti,
+  2 s dopo l'ultimo tocco. Ora stanno nel **log delle impostazioni** (un append, nessun erase salvo una volta ogni 36 salvataggi): `keymap_cfg_set` non conta più come modifica
+  della keymap per questi quattro campi, `core/settings` li salva e li rimette dopo il caricamento della keymap (`settings_apply_led`). Il pause dei LED sta solo attorno all'erase.
+  Il record delle impostazioni passa a 14 byte (v2): sleep e slot Bluetooth tornano ai predefiniti una volta; la luce resta (viene dal deposito).
+  Restano ~130 ms al buio solo quando si salva la **keymap** da Vial (tasti, combo, ecc.) o ogni 36 salvataggi della luce.
+- Flash 52601/56320, XDATA 3723/4096, 27 test host, `make sim` ok.
+
 ## 2026-11-02 (notte, 14) — diagnostica ridotta all'essenziale
 
 - Tolti: i contatori «scansioni sovrascritte» (innocuo), «slot LED più lungo» e «scansione più lunga» (misure nell'interrupt: ora costa meno), «rifiuti della radio» e

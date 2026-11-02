@@ -13,7 +13,6 @@ static volatile bool setup_seen;
 // was doing. (Static, they go to XDATA with --model-large. The interrupt is not reentrant, so one copy of each is enough.)
 static uint8_t isr_setup[USB_SETUP_SIZE];
 static uint8_t isr_ep0[EP0_BUF_SIZE];
-static uint8_t isr_raw[RAW_HID_SIZE];
 
 // ---- endpoint control ----
 static void ep0_count(uint8_t n)
@@ -111,6 +110,13 @@ void raw_hid_hook_ep2_send(const uint8_t *data, uint8_t length)
     EP2CON |= EPCON_IRDY;
 }
 
+void raw_hid_hook_out_read(XDATA uint8_t *dst)
+{
+    for (uint8_t i = 0; i < RAW_HID_SIZE; i++) {
+        dst[i] = EP2_OUT_BUF[i];
+    }
+}
+
 void raw_hid_hook_out_arm(void)
 {
     EP2CON |= EPCON_ORDY;
@@ -190,8 +196,8 @@ static void bus_reset(void)
     event = true;
 }
 
-// The ISR calls only raw_hid_out() of what the main loop shares, which hands over through a flag and does not run while
-// raw_hid_task() works on the same packet (the endpoint is not armed then). Otherwise it does not call anything the main loop calls: it works on the EP0 state and the hardware, and tells the main loop
+// The ISR calls only raw_hid_out() of what the main loop shares, which hands over through a flag (the packet itself stays in the endpoint, which is
+// not armed again until it is answered). Otherwise it does not call anything the main loop calls: it works on the EP0 state and the hardware, and tells the main loop
 // through `event`, the ISP flag and the LED byte.
 void usb_isr(void) __interrupt(7)
 {
@@ -261,16 +267,11 @@ void usb_isr(void) __interrupt(7)
     }
 
     if (if2 & USBIF2_OEP2IF) {
-        uint8_t      *data = isr_raw;
-        const uint8_t n    = OEP2CNT & 0x7F;
+        const uint8_t n = OEP2CNT & 0x7F;
 
         USBIF2 &= (uint8_t)~USBIF2_OEP2IF;
 
-        for (uint8_t i = 0; i < RAW_HID_SIZE; i++) {
-            data[i] = EP2_OUT_BUF[i];
-        }
-
-        raw_hid_out(data, n);
+        raw_hid_out(n); // the request stays in the endpoint's buffer: the main loop reads it
     }
 
     // the completion of EP1 / EP2 IN needs no bookkeeping: IRDY reads back as busy / free

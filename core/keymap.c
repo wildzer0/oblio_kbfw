@@ -182,7 +182,13 @@ bool keymap_cfg_set(uint8_t field, uint16_t value)
     }
 
     cfg[field] = value;
-    version++;
+
+    // The lighting (effect, brightness, speed, colour) is kept in the settings log, which is cheap to write (an append), and not in the keymap
+    // store, whose save erases four sectors (~130 ms of dark backlight). So it is not an edit of the keymap: the version does not move.
+    if (field != CFG_LED_EFFECT && field != CFG_LED_BRIGHT && field != CFG_LED_SPEED && field != CFG_LED_COLOR) {
+        version++;
+    }
+
     return true;
 }
 

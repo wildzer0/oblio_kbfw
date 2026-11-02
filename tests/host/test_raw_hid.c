@@ -8,7 +8,10 @@ static unsigned sends;
 static uint8_t  sent[RAW_HID_SIZE];
 static unsigned processed;
 
+static uint8_t ep_out[RAW_HID_SIZE]; // the endpoint's buffer
+
 bool raw_hid_hook_ep2_free(void) { return ep2_free; }
+void raw_hid_hook_out_read(XDATA uint8_t *dst) { memcpy(dst, ep_out, RAW_HID_SIZE); }
 void raw_hid_hook_out_arm(void) { arms++; }
 
 void raw_hid_hook_ep2_send(const uint8_t *data, uint8_t length)
@@ -41,13 +44,11 @@ static void reset(void)
 
 static void request(uint8_t first)
 {
-    uint8_t packet[RAW_HID_SIZE];
-
     for (unsigned i = 0; i < RAW_HID_SIZE; i++) {
-        packet[i] = (uint8_t)(first + i);
+        ep_out[i] = (uint8_t)(first + i);
     }
 
-    raw_hid_out(packet, RAW_HID_SIZE);
+    raw_hid_out(RAW_HID_SIZE);
 }
 
 static void test_request_and_reply(void)
@@ -80,22 +81,20 @@ static void test_no_second_request_while_one_is_in_flight(void)
 {
     reset();
     request(1);
-    request(100); // a stray one
+    raw_hid_out(RAW_HID_SIZE); // a stray one (the endpoint is not armed: it cannot happen) is ignored
     raw_hid_task();
     CHECK(sends == 1 && sent[0] == 2);
 }
 
 static void test_a_packet_of_another_size_is_dropped(void)
 {
-    uint8_t packet[64] = {0};
-
     reset();
-    raw_hid_out(packet, 16);
+    raw_hid_out(16);
     CHECK(arms == 1); // taken the next one
     raw_hid_task();
     CHECK(processed == 0 && sends == 0);
 
-    raw_hid_out(packet, 64);
+    raw_hid_out(64);
     CHECK(arms == 2 && processed == 0);
 }
 

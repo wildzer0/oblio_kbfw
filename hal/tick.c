@@ -88,6 +88,10 @@ void tick_isr(void) __interrupt(INT_TIMER2)
 
     timer_start(reload);
 
+    if (entered < 1000u * SCHED_COUNTS_PER_US) { // a longer wait is the flash pause (the interrupt was off), not a delay by another interrupt
+        diag_max(DIAG_TIMER_LATE_US, (uint16_t)(entered / SCHED_COUNTS_PER_US));
+    }
+
     const slot_t slot = sched_step((uint16_t)(prev_len + (uint16_t)(entered - prev_reload)), &milliseconds);
 
     ticks += milliseconds;

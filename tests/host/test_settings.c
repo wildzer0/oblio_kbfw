@@ -3,6 +3,11 @@
 #include "store.h"
 #include <string.h>
 
+// the lighting values the board keeps in the keymap's cfg
+static uint16_t led_values[4];
+uint16_t settings_hook_led_get(uint8_t index) { return led_values[index]; }
+void settings_hook_led_set(uint8_t index, uint16_t value) { led_values[index] = value; }
+
 static uint8_t  flash[0x10000];
 static unsigned erases;
 static unsigned programs;
@@ -30,7 +35,7 @@ void store_hook_erase(uint16_t sector)
 
 void store_hook_program(uint16_t addr, const uint8_t *src, uint8_t len)
 {
-    if (!flushing || addr < SETTINGS_ADDR || addr + len > SETTINGS_ADDR + SETTINGS_SECTOR) {
+    if (addr < SETTINGS_ADDR || addr + len > SETTINGS_ADDR + SETTINGS_SECTOR) {
         violations++;
         return;
     }
@@ -103,7 +108,7 @@ static void test_out_of_range_values_are_refused(void)
 // The record of a save, at slot `slot`
 static uint16_t record_at(uint8_t slot)
 {
-    return (uint16_t)(SETTINGS_ADDR + slot * 9u);
+    return (uint16_t)(SETTINGS_ADDR + slot * 14u);
 }
 
 // A damaged record is skipped and the one before it stays the newest: the settings are never lost by a bad save
@@ -170,16 +175,16 @@ static void test_values_from_a_record_are_put_in_range(void)
     settings_set_sleep_level(2);
     settings_flush();
     // a record whose CRC is right but whose values are not: written by hand through the same format (byte 3 is the old profile field)
-    uint8_t record[9] = {'O', 'S', 1, 7, 9, 5, 0, 0, 0};
+    uint8_t record[14] = {'O', 'S', 2, 7, 9, 5, 1, 2, 3, 4, 0, 0, 0, 0};
     uint16_t crc = 0xFFFF;
-    for (unsigned i = 0; i < 6; i++) {
+    for (unsigned i = 0; i < 11; i++) {
         crc ^= (uint16_t)(record[i] << 8);
         for (unsigned b = 0; b < 8; b++) {
             crc = (crc & 0x8000) ? (uint16_t)((crc << 1) ^ 0x1021) : (uint16_t)(crc << 1);
         }
     }
-    record[6] = (uint8_t)crc;
-    record[7] = (uint8_t)(crc >> 8);
+    record[11] = (uint8_t)crc;
+    record[12] = (uint8_t)(crc >> 8);
     memset(&flash[SETTINGS_ADDR], 0xFF, SETTINGS_SECTOR);
     memcpy(&flash[SETTINGS_ADDR], record, sizeof record);
 
@@ -201,6 +206,34 @@ static void test_written_after_the_quiet_time_with_no_key_down(void)
     CHECK(programs == 0);
     settings_task(1100 + SETTINGS_QUIET_MS + 5, false);
     CHECK(programs == 1 && !settings_dirty());
+}
+
+// The lighting is saved here, with no erase, and put back after the keymap is loaded
+static void test_the_lighting_is_saved_with_the_settings(void)
+{
+    blank();
+    settings_load();
+    settings_apply_led(); // nothing saved: the values the board has stay
+    settings_hook_led_set(0, 3);
+    settings_hook_led_set(1, 120);
+    settings_hook_led_set(2, 5);
+    settings_hook_led_set(3, 0x80A0);
+
+    settings_task(1000, false); // seen
+    CHECK(settings_dirty());
+    settings_task(1000 + SETTINGS_QUIET_MS, false);
+    CHECK(!settings_dirty() && programs == 1 && erases == 0 && violations == 0);
+
+    for (uint8_t i = 0; i < 4; i++) { // a restart: the board's own values come first, then the saved ones are put back over them
+        settings_hook_led_set(i, 0);
+    }
+
+    settings_load();
+    settings_apply_led();
+    CHECK(settings_hook_led_get(0) == 3 && settings_hook_led_get(1) == 120 && settings_hook_led_get(2) == 5 && settings_hook_led_get(3) == 0x80A0);
+
+    settings_task(5000, false); // and putting them back is not a change
+    CHECK(!settings_dirty());
 }
 
 static void test_the_clock_wrap(void)
@@ -226,6 +259,7 @@ int main(void)
     test_records_are_appended_and_the_sector_is_erased_only_when_full();
     test_values_from_a_record_are_put_in_range();
     test_written_after_the_quiet_time_with_no_key_down();
+    test_the_lighting_is_saved_with_the_settings();
     test_the_clock_wrap();
     return tests_result();
 }
