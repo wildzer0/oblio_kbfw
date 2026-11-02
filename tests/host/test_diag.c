@@ -90,6 +90,11 @@ static void test_radio_reply(void)
     CHECK(data[2] == 0); // nothing has been logged in this test
 }
 
+// core/blog.c keeps its records in the board's flash: there is no flash in this test, so the log stays empty
+void blog_hook_read(uint16_t addr, uint8_t *out, uint8_t len) { (void)addr; for (uint8_t i = 0; i < len; i++) out[i] = 0xFF; }
+void blog_hook_program(uint16_t addr, const uint8_t *src, uint8_t len) { (void)addr; (void)src; (void)len; }
+void blog_hook_erase(uint16_t addr) { (void)addr; }
+
 // core/blog.c asks the radio for its last answer on battery: there is no radio in this test, and no log either
 const uint8_t *radio_status_on_battery(void) { return 0; }
 bool radio_hook_on_battery(void) { return false; }

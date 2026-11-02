@@ -87,10 +87,11 @@ The USB device enumerates as `258a:dead`, product name "Oblio B68", with a keybo
 - **Sleep:** in wireless modes only, after 1/5/10/30 min or never (default 10), or on demand; power-down with INT4 wake-up. Never sleeps on USB.
 - **Diagnostics** (`core/diag.c`, VIA command `0xF1`, `tools/diag.py`): counters readable **without** the Vial unlock (they are for when the keys
   do not work).
-- **Battery log** (`core/blog.c`): the keyboard writes the radio's battery and flag bytes down itself while it runs on its battery, because the
-  diagnostics need a cable and the cable charges the battery (a reading with the cable is the sentinel `0xFF`). Up to 48 records of four bytes -
-  the minutes it has been awake, the battery byte, the flags byte - one whenever the answer changes and at least every five minutes; it lives in
-  RAM, so turning the keyboard off starts a new one. Read it with `diag.py --blog` (diag kind 4, six records per packet).
+- **Battery log** (`core/blog.c`): the keyboard writes the radio's battery and flag bytes down itself, because the diagnostics need a cable and
+  with the cable the battery charges (the byte is the sentinel `0xFF`). **128 records of four bytes in flash, in a sector of its own at 0xD800** -
+  the minutes it has been awake, the battery byte, the flags byte - one whenever the answer changes and at least every five minutes, *cable or
+  not* (with the cable the record is marked). Flash and not RAM because plugging the cable resets the board: a log in RAM dies exactly when it is
+  read. Read it with `diag.py --blog` (diag kind 4, six records per packet).
 - **Safety:** watchdog (kicked from the main loop and from `delay_us`, not from the scan wait), recovery chord at the start of `main`, flash writes confined to
   0xDC00–0xF000.
 

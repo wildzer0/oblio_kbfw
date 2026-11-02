@@ -79,6 +79,9 @@ const uint8_t *radio_status(void);
 
 uint8_t radio_battery_level(void); // 0..7, or RADIO_BATTERY_NONE
 
+// The whole status answer as last received, whatever the state of the cable (0 until one has come). The battery log writes this down as it is.
+const uint8_t *radio_status(void);
+
 // The whole status answer as it was last seen *on battery* (no cable): the only way to look at it, since the diagnostics themselves need the
 // cable, and with the cable the radio says something else (its battery byte reads 0xFF). Zeros until one has come.
 const uint8_t *radio_status_on_battery(void);

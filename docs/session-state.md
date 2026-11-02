@@ -14,8 +14,8 @@ key overrides, tab Lighting), NKRO, Caps Word, Leader, mouse dall'encoder, switc
 
 | | |
 | --- | --- |
-| Flash | **53290 / 56320** (3,0 KB liberi) |
-| XDATA | **3971 / 4096** (125 B liberi) |
+| Flash | **53595 / 55296** (1,7 KB liberi; il limite è sceso a 0xD800) |
+| XDATA | **3779 / 4096** (317 B liberi) |
 | Deposito keymap | **1709 / 2048** (339 B liberi) |
 | Test host | **28 / 28** |
 | Simulatore (ucsim) | **24 / 24** |
@@ -32,6 +32,7 @@ key overrides, tab Lighting), NKRO, Caps Word, Leader, mouse dall'encoder, switc
 | `8088c75` | **Tinta + saturazione** in una parola da 16 bit: colore completo, **0 byte di memoria**, +333 B di flash |
 | `38ed7a8` | **Batteria**: `0xFF` col cavo è una sentinella (non 100%), e lo stato letto **a batteria** ora si legge con `diag.py --radio` |
 | `45732e0` | **Logger di batteria a bordo** (`core/blog.c`, 192 B di XDATA): il registro si scrive da solo mentre la tastiera è a batteria e si legge con `diag.py --blog`; `diag.py --daemon N file.csv` per lasciare un demone sul cavo |
+| — | **Registro della batteria in flash** (settore a 0xD800, 128 record, scritto **sempre** e marcato "cavo dentro" quando lo è): sopravvive al reset che il cavo provoca, che è la ragione per cui prima non si leggeva mai |
 | — | **Debounce a tempo** (5 ms come QMK, +32 B) e **scansione più corta** (`SETTLE_US` 10→5: 8305 → 5105 istruzioni per scansione, -39% di ISR). Il rapporto slot/scansioni resta 4: portarlo a 8 rompe il test dei tasti nel simulatore |
 | — | **Bug del cavo**: `configured` non tornava mai a 0 quando il cavo usciva, quindi il registro non scriveva (niente per tutta una notte). Ora conta gli start-of-frame: niente SOF per 250 ms = cavo fuori |
 
@@ -58,16 +59,11 @@ key overrides, tab Lighting), NKRO, Caps Word, Leader, mouse dall'encoder, switc
 
 > Cambiando predefiniti e definizione Vial, **la keymap salvata riparte dai default** e il PC può reinstallare il dispositivo: è normale.
 
-## Da verificare prima di riprovare una notte
+## Il registro della batteria (in flash)
 
-Il registro vive in **RAM**: se attaccare il cavo **resetta** la scheda, il registro muore proprio quando lo si vuole leggere (e lo stesso vale per
-i contatori, che ripartono). Prova da un minuto, dopo aver flashato questa build:
-
-1. staccare il cavo, premere qualche tasto, aspettare ~30 s (qualche record);
-2. riattaccare e lanciare subito `py .\diag.py --blog`:
-   - **ci sono record** → il cavo non resetta, il registro funziona e una notte intera si raccoglie;
-   - **vuoto** → il cavo resetta la scheda: il registro va spostato in flash (c'è un settore libero a **0xED00**, fra le impostazioni e il
-     marcatore del bootloader) prima di riprovare.
+Vive in **flash** (settore a 0xD800, 128 record) e scrive **sempre**, marcando "cavo dentro": sopravvive al reset che il cavo provoca. Prova:
+staccare il cavo, premere qualche tasto, aspettare ~30 s, riattaccare, `py .\diag.py --blog`. I record con la marca del cavo mostrano `0xFF` (in
+carica); quelli senza mostrano il livello vero.
 
 ## Domande aperte
 

@@ -130,8 +130,8 @@ void main(void)
         os_switch_task(now_ms);
         store_task(now_ms, any_key_down);
         settings_task(now_ms, any_key_down);
-        // what the radio says about the battery, written down while there is no cable to read it
-        blog_task(now_ms, radio_hook_on_battery(), radio_status_on_battery());
+        // what the radio says about the battery, written down in flash: the cable is what reads it, and the cable is what changes it
+        blog_task(now_ms, radio_hook_on_battery(), radio_status());
         usb_task(now_ms);
 #if STAGE_LED
         led_task();

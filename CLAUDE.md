@@ -5,7 +5,7 @@ Leggi questo file all'inizio di ogni sessione; per riprendere il lavoro da dove 
 
 ## Cos'è
 Firmware nuovo, solo per la Yunzii B68 (SH68F90A + radio BK3632), scritto da zero: stile QMK-Vial ma snello e veloce.
-Vincoli: codice fino a 0xDC00 (56.320 B; dal 2026-11-01, prima era 0xAC00 perché 16 KB erano dei profili), la keymap in flash da 0xDC00, impostazioni a 0xEC00, 4 KB di XDATA e 223 B di stack interno.
+Vincoli: codice fino a **0xD800** (55.296 B; dal 2026-11-02, perché il settore a 0xD800 è del registro della batteria), il **registro batteria a 0xD800**, la keymap in flash da 0xDC00, impostazioni a 0xEC00, 4 KB di XDATA e 223 B di stack interno.
 Repo: https://github.com/wildzer0/oblio_kbfw (privato), cartella `~/dev/oblio_kbfw`, branch `main`. Licenza GPL-2.0-or-later.
 
 ## Origine

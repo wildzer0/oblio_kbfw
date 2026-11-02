@@ -12,6 +12,25 @@
 
 Il controllo di recupero Esc+1+2 va all'inizio del `main`, prima di USB e radio.
 
+## 2026-11-02 (notte, 3) — il registro della batteria va in flash, e scrive sempre
+
+- **I numeri dell'utente** dicevano questo: `reset cause 0x00` (power-on) e `radio: frames received 1945` — cioè la scheda era accesa da **pochi
+  minuti**, non da una notte. Quindi **attaccare il cavo resetta la scheda**, e un registro in RAM muore proprio quando lo si vuole leggere.
+- **In flash, in un settore suo**: `core/blog.[ch]` ora scrive in **0xD800** (un settore di 512 B, **128 record da 4 byte**), append-only, cancellato
+  solo quando è pieno. Il limite del codice scende da 0xDC00 a **0xD800** (`make size` lo impone), `FLASH_WRITE_MIN` con lui; la keymap resta a
+  0xDC00.
+- **Scrive sempre**: prima registrava solo senza cavo (e con `usb_device_configured()` mai azzerato non registrava mai). Ora registra **ogni
+  risposta** del radio, marcando `BLOG_FLAG_CABLE` quando il cavo è dentro: una notte attaccata dà una riga piatta di `0xFF` con la marca, che è
+  comunque un'informazione; a batteria dà i livelli veri. Il primo record dopo un reset c'è sempre.
+- **Il settore si scrive raramente** (un record per cambio, altrimenti ogni 5 minuti) e si cancella una volta ogni 128 record: usura trascurabile.
+  La cancellazione (32 ms) ferma timer e backlight come per la keymap.
+- **Test riscritto** `test_blog` con una flash finta: niente senza risposta, ogni risposta scritta e marcata, cambio immediato, soglia dei 5
+  minuti, **sopravvivenza a un reset** (la ragione per cui è in flash), settore che riparte quando è pieno.
+- **Memoria**: XDATA **3971 → 3779** (l'anello in RAM da 192 B è sparito), flash 53595/**55296** (il budget è più stretto di 1 KB perché un settore
+  ora è del registro).
+
+`make test` 28/28, `make sim` 24/24, `make stages` ok, vettori ok.
+
 ## 2026-11-02 (notte, 2) — il debounce diventa un tempo (come QMK), e la scansione costa un terzo in meno
 
 - **Cosa fa QMK** (verificato sul suo codice e sui suoi documenti): la matrice si scansiona **nel main loop**, senza un ritmo fisso, con

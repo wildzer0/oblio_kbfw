@@ -170,7 +170,8 @@ def blog(keyboard):
             minutes = reply[at] | (reply[at + 1] << 8)
             battery = reply[at + 2]
             flags = reply[at + 3]
-            print("  {:5d} min   battery {:#04x} (level {})   flags {:#04x}".format(minutes, battery, battery & 0x07, flags))
+            cable = "  (cable in: charging, the byte is the sentinel)" if flags & 0x40 else ""
+            print("  {:5d} min   battery {:#04x} (level {})   flags {:#04x}{}".format(minutes, battery, battery & 0x07, flags, cable))
             index += 1
 
 

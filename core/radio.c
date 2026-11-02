@@ -228,11 +228,6 @@ bool radio_idle(void)
     return !transmitting && !mode_pending && key_count == 0 && consumer_count == 0 && !ack_event && !ack_info && names_step == 0;
 }
 
-const uint8_t *radio_status(void)
-{
-    return status;
-}
-
 uint8_t radio_battery_level(void)
 {
     if (!status_valid) {
@@ -244,6 +239,11 @@ uint8_t radio_battery_level(void)
     const uint8_t raw = status[RADIO_STATUS_BATTERY_AT];
 
     return (raw == 0xFFu) ? RADIO_BATTERY_NONE : (uint8_t)(raw & 0x07u);
+}
+
+const uint8_t *radio_status(void)
+{
+    return status_valid ? (const uint8_t *)status : (const uint8_t *)0;
 }
 
 const uint8_t *radio_status_on_battery(void)

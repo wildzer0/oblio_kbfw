@@ -1,10 +1,8 @@
 #include "blog.h"
-#include "radio.h" // RADIO_STATUS_BATTERY_AT and RADIO_STATUS_FLAGS_AT: where the answer keeps what it has to say
+#include "radio.h"
 
-static uint8_t data[BLOG_RECORDS][4]; // minutes (2), battery byte, flags byte
-
-static uint8_t at;   // where the next record goes
-static uint8_t count;
+static uint8_t count; // records in the log
+static uint8_t next;  // where the next one goes (the same as count while appending)
 
 static uint8_t  last_battery; // what the last record says, so an unchanged answer is not written twice
 static uint8_t  last_flags;
@@ -17,26 +15,37 @@ static uint16_t last_ms;
 static uint8_t  seconds;
 static uint16_t minutes;
 
-static uint8_t wrap(uint8_t index) // the records are a ring: 48 of them, and no division to pay for
+static uint16_t record_addr(uint8_t index)
 {
-    while (index >= BLOG_RECORDS) {
-        index = (uint8_t)(index - BLOG_RECORDS);
-    }
-
-    return index;
+    return (uint16_t)(BLOG_ADDR + (uint16_t)index * BLOG_RECORD_BYTES);
 }
 
 void blog_init(void)
 {
-    at     = 0;
-    count  = 0;
-    ms_frac = 0;
-    last_ms = 0;
-    seconds = 0;
-    minutes = 0;
-    last_minutes = 0;
+    count        = 0;
+    next         = 0;
+    ms_frac      = 0;
+    last_ms      = 0;
+    seconds      = 0;
+    minutes      = 0;
     last_battery = 0;
     last_flags   = 0;
+    last_minutes = (uint16_t)(0u - BLOG_PERIOD_MIN); // so the first answer after a reset always gets a record: minutes - last >= period
+
+    uint8_t record[BLOG_RECORD_BYTES];
+
+    for (uint8_t i = 0; i < BLOG_RECORDS; i++) {
+        blog_hook_read(record_addr(i), record, BLOG_RECORD_BYTES);
+
+        const uint16_t stamped = (uint16_t)(record[0] | ((uint16_t)record[1] << 8));
+
+        if (stamped == BLOG_EMPTY) {
+            break; // the sector was erased here: the rest is empty
+        }
+
+        count++;
+        next++;
+    }
 }
 
 uint8_t blog_count(void)
@@ -50,27 +59,29 @@ bool blog_get(uint8_t index, uint8_t out[4])
         return false;
     }
 
-    const uint8_t i = wrap((uint8_t)(at + BLOG_RECORDS - count + index));
-
-    for (uint8_t b = 0; b < 4; b++) {
-        out[b] = data[i][b];
-    }
-
+    blog_hook_read(record_addr(index), out, BLOG_RECORD_BYTES);
     return true;
 }
 
 static void add(uint8_t battery, uint8_t flags)
 {
-    data[at][0] = (uint8_t)(minutes & 0xFFu);
-    data[at][1] = (uint8_t)(minutes >> 8);
-    data[at][2] = battery;
-    data[at][3] = flags;
-
-    at = wrap((uint8_t)(at + 1u));
-
-    if (count < BLOG_RECORDS) {
-        count++;
+    if (next >= BLOG_RECORDS) { // full: the sector starts over
+        blog_hook_erase(BLOG_ADDR);
+        count = 0;
+        next  = 0;
     }
+
+    uint8_t record[BLOG_RECORD_BYTES];
+
+    record[0] = (uint8_t)(minutes & 0xFFu);
+    record[1] = (uint8_t)(minutes >> 8);
+    record[2] = battery;
+    record[3] = flags;
+
+    blog_hook_program(record_addr(next), record, BLOG_RECORD_BYTES);
+
+    next++;
+    count = next;
 
     last_battery = battery;
     last_flags   = flags;
@@ -95,12 +106,13 @@ void blog_task(uint16_t now_ms, bool on_battery, const uint8_t *status)
         }
     }
 
-    if (!on_battery || status == 0) {
-        return; // the cable is in (the answer would be the sentinel) or there is no answer at all
+    if (status == 0) {
+        return; // the radio has not answered yet
     }
 
     const uint8_t battery = status[RADIO_STATUS_BATTERY_AT];
-    const uint8_t flags   = status[RADIO_STATUS_FLAGS_AT];
+    const uint8_t flags   = on_battery ? status[RADIO_STATUS_FLAGS_AT]
+                                       : (uint8_t)(status[RADIO_STATUS_FLAGS_AT] | BLOG_FLAG_CABLE);
 
     if (count == 0 || battery != last_battery || flags != last_flags
         || (uint16_t)(minutes - last_minutes) >= BLOG_PERIOD_MIN) {

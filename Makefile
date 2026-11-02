@@ -10,7 +10,7 @@ B     ?= build
 HOST_TESTS := $(patsubst %.c,%,$(wildcard tests/host/test_*.c))
 
 # Memory map: application code up to 0xDC00 (the keymap store starts there), 4 KB of XDATA.
-CODE_LIMIT := 0xDC00
+CODE_LIMIT := 0xD800 # the battery log keeps the sector at 0xD800 (core/blog.h); the keymap store follows at 0xDC00
 XRAM_SIZE  := 4096
 
 SDCC      ?= sdcc
