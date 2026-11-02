@@ -57,6 +57,12 @@ Il controllo di recupero Esc+1+2 va all'inizio del `main`, prima di USB e radio.
   30 ms (la coda della radio è di 4); la tastiera non va in sleep mentre scrive. Costa ~520 B di flash (54415/55296). È uno strumento di debug: da
   togliere insieme al registro in flash quando la scala della batteria è confermata.
 
+## 2026-11-02 (notte, 17) — guida per sviluppatori; Fn+PgUp/PgDn era lo switch su Mac
+
+- `docs/guida-sviluppatore.md`: come funziona una tastiera (matrice, debounce, keycode, report HID, USB, wireless, PWM, Vial), la mappa mentale del firmware, un percorso di lettura del codice con i tempi,
+  esercizi, strumenti, risorse esterne e il caso del backlight che si spegne al salvataggio (perché QMK non lo fa, cosa abbiamo fatto, cosa resta).
+- Fn+PgUp/PgDn con Home/End "non funzionava": lo switch era su Mac (layer 5/4); l'edit era sul layer 1. Aggiunto `test_a_key_edited_on_the_fn_layer_is_what_fn_sends`.
+
 ## 2026-11-02 (notte, 16) — documentazione di architettura e riferimento delle API
 
 - **`docs/design.md`** (italiano): vincoli, principi, mappa di memoria, avvio e main loop, tempo e interrupt, pipeline dei tasti, moduli uno per uno, persistenza, USB e protocolli, radio, backlight, energia

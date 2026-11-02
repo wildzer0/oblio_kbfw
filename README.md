@@ -54,6 +54,7 @@ Details on recovery, including the hardware programming header, are in [docs/rec
 
 ## Documentation
 
+- [Developer guide: where to start](docs/guida-sviluppatore.md) (Italian)
 - [Architecture and design](docs/design.md) (modules, data flow, timing, persistence) and the [API reference](docs/api.md)
 - [How the firmware is put together](docs/architecture.md) (short version)
 - [First run on the keyboard](docs/first-boot.md)
