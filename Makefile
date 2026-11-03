@@ -2,21 +2,30 @@
 # `make fw` builds the firmware with SDCC, `make size` checks the flash/XDATA budget.
 B := build
 
+# Build options (core/options.h has the defaults). `make BATTERY_LOG=0 fw` leaves the battery log out: ~1 KB less code and the flash sector at
+# 0xDA00 back for the application (the code limit goes from 0xDA00 to 0xDC00). The objects are rebuilt when an option changes.
+BATTERY_LOG ?= 1
+
 HOST_TESTS := $(patsubst %.c,%,$(wildcard tests/host/test_*.c))
 
-# Memory map: application code up to 0xDC00 (the keymap store starts there), 4 KB of XDATA.
-CODE_LIMIT := 0xDC00
+# Memory map: application code up to 0xDA00 with the battery log (its sector follows) or 0xDC00 without it (the keymap store starts there), 4 KB of XDATA.
+CODE_LIMIT := $(if $(filter 0,$(BATTERY_LOG)),0xDC00,0xDA00)
 XRAM_SIZE  := 4096
 
 SDCC      ?= sdcc
 SDCCFLAGS := --std-c23 --Werror -mmcs51 --model-large --stack-auto \
              --xram-loc 0x0000 --xram-size $(XRAM_SIZE) --code-size $(CODE_LIMIT) \
-             --opt-code-speed --out-fmt-ihx -DWATCHDOG_ENABLE=1
+             --opt-code-speed --out-fmt-ihx -DWATCHDOG_ENABLE=1 -DBATTERY_LOG=$(BATTERY_LOG)
 # every object depends on every header: coarse, but a changed header can never leave a stale object behind
-HEADERS := $(wildcard core/*.h hal/*.h board/*.h)
+HEADERS := $(wildcard core/*.h hal/*.h board/*.h) $(B)/.options
 
 FW_SRC := $(wildcard core/*.c hal/*.c board/*.c)
 FW_REL := $(patsubst %.c,$(B)/%.rel,$(FW_SRC)) $(B)/vial_data.rel
+
+# The options the objects were built with: when they change, everything is rebuilt
+$(B)/.options: FORCE
+	@mkdir -p $(B)
+	@echo "BATTERY_LOG=$(BATTERY_LOG)" | cmp -s - $@ || echo "BATTERY_LOG=$(BATTERY_LOG)" > $@
 
 api:
 	python3 tools/gen_api.py
@@ -24,7 +33,8 @@ api:
 check-api:
 	python3 tools/gen_api.py --check
 
-.PHONY: api check-api test fw size clean check check-vial check-interrupts sim
+.PHONY: api check-api test fw size clean check check-vial check-interrupts sim FORCE
+FORCE:
 .DELETE_ON_ERROR: # a failed build must not leave a half-made file that make takes for up to date
 
 test: $(HOST_TESTS) check-vial
@@ -49,8 +59,6 @@ LINK_usb_reports := core/report.c
 LINK_mouse := core/report.c
 LINK_store := core/keymap.c
 
-.PHONY: FORCE
-FORCE:
 
 tests/host/test_%: tests/host/test_%.c core/%.c FORCE
 	$(CC) -std=c11 -Wall -Wextra -Werror -Icore -Itests/host -o $@ $< core/$*.c $(LINK_$*)

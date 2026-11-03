@@ -41,6 +41,13 @@ static uint8_t percent_of(uint16_t raw)
     return 100;
 }
 
+uint16_t battery_reading(void)
+{
+    const uint16_t raw = radio_battery_raw();
+
+    return (raw >= BATTERY_RAW_FLOOR) ? raw : 0; // the cable's saturated reading is a reading too: the log marks it
+}
+
 uint8_t battery_percent(void)
 {
     const uint16_t raw = radio_battery_raw();

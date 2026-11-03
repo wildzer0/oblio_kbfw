@@ -65,7 +65,8 @@ e da pochi `core` che hanno un driver proprio nel chip (USB, tick).
 
 | Indirizzi | Contenuto |
 | --- | --- |
-| `0x0000–0xDBFF` | applicazione (limite imposto da `make size`: 56320 B) |
+| `0x0000–0xD9FF` | applicazione (limite imposto da `make size`: 55808 B con il registro batteria; 56320 B, fino a `0xDBFF`, con `BATTERY_LOG=0`) |
+| `0xDA00–0xDBFF` | **registro della batteria** (un settore, 128 record da 4 B): solo se `BATTERY_LOG=1` (predefinito), altrimenti codice |
 | `0xDC00–0xEBFF` | **deposito della keymap**: due copie (A/B) da 4 settori da 512 B; in fondo a ogni copia un **log** di 69 record da 5 B |
 | `0xEC00–0xEDFF` | **log delle impostazioni** (sleep, slot Bluetooth, luci): 36 record da 14 B, append-only |
 | `0xEE00–0xEFFF` | marcatore del bootloader stock: **mai toccato** |
@@ -174,6 +175,7 @@ confinate nell'area scrivibile), `pwm` (18 canali, tre banchi da 6), `power` (po
 | `led`, `led_effect` | framebuffer, effetti per tasto, sequenza delle 16 colonne, gauge della batteria sulla riga dei numeri |
 | `store`, `settings` | persistenza (§9) |
 | `sleep` | quando dormire (timeout in secondi, livelli 1/5/10/30 min/mai) |
+| `blog` | **registro della batteria** (opzionale, `BATTERY_LOG`): lettura ADC, minuti di veglia e flag (cavo, risveglio) in un settore di flash; vedi `core/blog.h` |
 
 **`board/`** — `main` (§5), `matrix_hw` (scansione delle colonne), `led_hw` (PWM + strobe: un sottoquadro = colonna spenta, larghezze caricate, colonna accesa), `led_app` (colla dei LED),
 `radio_hw` (seriale, SEL/ATT), `link_app` (selettore P0.4/P0.3), `os_switch` (P0.5, Win/Mac), `usb_app` (colla USB, ISP, remote wakeup), `sleep_hw` (sequenza di power‑down),
@@ -194,6 +196,11 @@ pochi byte programmati; se la lista è troppo lunga (reset, macro grandi, molte 
 Al caricamento si applica il payload e poi i record **nell'ordine**, uno sopra l'altro. Un record tagliato da un'interruzione (controllo sbagliato, mai 0xFF) viene saltato e il log prosegue dopo di lui;
 un'interruzione a metà di un gruppo di record lascia ogni parola o vecchia o nuova, mai corrotta. Il risultato: **un salvataggio da Vial non spegne i LED** e la flash viene cancellata ~70 volte meno.
 Il numero di sequenza dell'intestazione è anche il **contatore persistente dei salvataggi completi** (`store_saves()`, in `diag.py`): ogni salvataggio completo cancella i 4 settori di una copia, quindi ogni settore ha subito circa metà di quel numero.
+
+**Registro della batteria** (`core/blog.c`, opzionale). Un settore a `0xDA00` con 128 record da 4 byte (minuti di veglia dall'accensione, lettura, flag con la marcatura `0xA` nel nibble alto). Scrive quando la lettura si muove di 8 conteggi,
+quando il cavo entra o esce, alla prima lettura dopo un'accensione o un **risveglio dallo sleep**, e comunque ogni 5 minuti. Durante lo sleep il chip non ha orologio e non campiona: un record WAKE dice che prima di lui c'è un buco,
+e la scarica di una notte si legge confrontando la sua lettura con l'ultimo record prima dello sleep. Si legge con `py tools\diag.py --blog`. Lo spegne `make BATTERY_LOG=0 fw` (direttiva `BATTERY_LOG`, default in `core/options.h`):
+~1,4 KB di codice in meno e il settore torna all'applicazione (limite di codice da `0xDA00` a `0xDC00`). Un settore con altro dentro (resti di un firmware precedente) viene cancellato al primo uso.
 
 **Impostazioni** (`core/settings.c`). Record da 14 B (magic, versione 2, sleep, slot Bluetooth, **effetto, luminosità, velocità, colore**, CRC) in **un solo settore usato come log**: ogni salvataggio
 **appende** al primo slot vuoto e vince l'ultimo record valido. Si cancella solo quando il settore è pieno (ogni 36 salvataggi). Così un salvataggio frequente (i tasti luce) **non cancella nulla** e
@@ -223,7 +230,7 @@ combo, key override), `0xFF` non gestito. Il Vial protegge con **sblocco** i com
 **HUD** (`core/hud.c`): protocollo 2 (matrici oltre 8 colonne), solo risposte: `GET_INFO`, `GET_STATE`, `GET_KEYMAP`, `GET_MATRIX`. Descritto in [hud-protocol-v2.md](hud-protocol-v2.md).
 
 **Diagnostica** (`core/diag.c`, `tools/diag.py`): kind 0 = contatori (causa reset, stack, slot LED/scansioni in ritardo, passata più lenta, overflow coda USB, back‑off, erase più lungo, frame radio, ritardo di avvio del timer),
-kind 1 = i 6 byte di stato della radio. Il pacchetto da 32 byte regge al massimo 14 contatori.
+kind 1 = i 6 byte di stato della radio, kind 4 = il registro della batteria (solo con `BATTERY_LOG=1`). Il pacchetto da 32 byte regge al massimo 14 contatori.
 
 **ISP** (`board/isp.c`): il comando (feature report 5, o Vial sbloccato) salta a `0xFF00` con `A=0x5A, B=0xA5`, come fa lo stock.
 

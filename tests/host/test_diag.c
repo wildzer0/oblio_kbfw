@@ -13,6 +13,21 @@ void diag_hook_refresh(void)
 
 const uint8_t *diag_hook_radio_status(void) { return status; }
 
+#if BATTERY_LOG
+static uint8_t log_records[3][4] = {{1, 0, 0x10, 0x08}, {2, 0, 0x20, 0x01}, {7, 0, 0x30, 0x02}};
+
+uint8_t diag_hook_blog_count(void) { return 3; }
+
+bool diag_hook_blog_get(uint8_t index, uint8_t out[4])
+{
+    if (index >= 3) {
+        return false;
+    }
+    memcpy(out, log_records[index], 4);
+    return true;
+}
+#endif
+
 static void test_counters(void)
 {
     diag_init();
@@ -75,6 +90,25 @@ static void test_radio_reply(void)
     CHECK(data[8] == 0); // and nothing after them
 }
 
+#if BATTERY_LOG
+// kind 4: the battery log, from the record asked for
+static void test_battery_log_reply(void)
+{
+    uint8_t data[32] = {0xF1, 4, 0};
+
+    diag_receive(data, 32);
+    CHECK(data[0] == 0xF1 && data[1] == 4 && data[2] == 3); // the count
+    CHECK(data[3] == 1 && data[5] == 0x10 && data[6] == 0x08); // the first record
+    CHECK(data[11] == 7 && data[13] == 0x30);                   // the third
+    CHECK(data[15] == 0);                                       // and nothing after
+
+    uint8_t from_second[32] = {0xF1, 4, 1};
+
+    diag_receive(from_second, 32);
+    CHECK(from_second[2] == 3 && from_second[3] == 2 && from_second[7] == 7); // from the second record on
+}
+#endif
+
 static void test_unknown_kind_is_unhandled(void)
 {
     uint8_t data[32] = {0xF1, 9};
@@ -88,6 +122,9 @@ int main(void)
     test_counters();
     test_counters_reply();
     test_radio_reply();
+#if BATTERY_LOG
+    test_battery_log_reply();
+#endif
     test_unknown_kind_is_unhandled();
     return tests_result();
 }

@@ -57,6 +57,16 @@ Il controllo di recupero Esc+1+2 va all'inizio del `main`, prima di USB e radio.
   30 ms (la coda della radio è di 4); la tastiera non va in sleep mentre scrive. Costa ~520 B di flash (54415/55296). È uno strumento di debug: da
   togliere insieme al registro in flash quando la scala della batteria è confermata.
 
+## 2026-11-03 — il registro della batteria torna, opzionale (`BATTERY_LOG`)
+
+- Richiesta dell'utente: la tastiera è rimasta scollegata una notte e un giorno e il gauge segnava ancora 90 % (verosimile: dormendo consuma pochissimo, ma non c'era modo di vederlo). Il registro in flash è reintegrato,
+  **sotto la direttiva `BATTERY_LOG`** (default 1 in `core/options.h`; `make BATTERY_LOG=0 fw` lo toglie; il Makefile ricostruisce tutto se l'opzione cambia, e la CI compila anche la variante senza).
+- Diverso dalla prima versione: il settore sta a **0xDA00** (non 0xD800: il codice arriva a 0xDA00 invece di 0xDC00 solo con il registro acceso); i record portano la marcatura `0xA` (un settore con resti del firmware stock/vecchi
+  viene cancellato al primo uso invece di essere elencato); ogni record ha i flag **CAVO** e **WAKE** (prima lettura dopo accensione o risveglio dallo sleep: prima di lui c'è un buco, perché senza orologio durante lo sleep i minuti
+  contano solo la veglia); le letture non assestate (<600) non si scrivono; legge con `diag.py --blog` (kind 4, sola lettura, nessuno sblocco). `blog_task` riceve la lettura (`battery_reading()`), non i byte di stato.
+- Flash 55326/55808 con il registro (+1,4 KB), 53890/56320 senza. 28 test host (`test_blog` nuovo, kind 4 in `test_diag`), `make sim` ok, vettori ok in entrambe le varianti.
+- Il test `test_led` non linkava per la modifica non committata dell'utente in `core/led.c` (`keyboard_caps_word()`): aggiunto lo stub nel test; `core/led.c` non è toccato né incluso nel commit.
+
 ## 2026-11-02 (notte, 22) — tolta la build a gradini
 
 - Eliminati `board/stage.h`, i blocchi `#if STAGE_LED/RADIO/SLEEP` di `main.c`, `led_hw.c` e `slots.c`, `OBLIO_STAGE` e i bersagli `make stage` / `make stages`, il passo e l'artifact dei gradini nella CI.

@@ -51,6 +51,9 @@ static bool caps;
 
 bool led_hook_caps_lock(void) { return caps; }
 
+// core/led.c asks the keyboard whether Caps Word is on (it lights the Caps key too): there is no keyboard in this test
+bool keyboard_caps_word(void) { return false; }
+
 // ---- helpers ----
 // A full repaint: ask for it and let led_task() paint the 8 LEDs of a pass until it is done
 static void render_all(void)

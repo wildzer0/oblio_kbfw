@@ -23,6 +23,8 @@ jobs:
         run: nix develop --command make size
       - name: Interrupt vectors and overlay
         run: nix develop --command make check-interrupts
+      - name: The same without the battery log (BATTERY_LOG=0)
+        run: nix develop --command make BATTERY_LOG=0 fw size
       - uses: actions/upload-artifact@v4
         with:
           name: oblio-hex

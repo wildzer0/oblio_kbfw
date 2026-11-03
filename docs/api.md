@@ -13,6 +13,7 @@
   - [`hal/usb.h`](#hal-usb-h) — The USB device controller of the SH68F90A: the chip side of core/usb_device (EP0), core/usb_reports (EP1 IN) a
   - [`hal/watchdog.h`](#hal-watchdog-h) — Writing RSTSTAT kicks the watchdog
 - **Core logic (`core/`)**
+  - [`core/blog.h`](#core-blog-h) — The battery log: the battery reading, written down in **flash** (a sector of its own at BLOG_ADDR) so that it 
   - [`core/combo.h`](#core-combo-h) — Combos: two or more keys pressed together give one other key (Vial's Combos tab edits them, core/keymap.c stor
   - [`core/diag.h`](#core-diag-h) — Counters for the first runs on the hardware, read over the raw HID interface (VIA command 0xF1, no unlock need
   - [`core/encoder.h`](#core-encoder-h) — Rotary encoders read as two lines in quadrature
@@ -28,6 +29,7 @@
   - [`core/macro.h`](#core-macro-h) — Vial macros: a macro key (M0, M1, ...) types a stored sequence
   - [`core/matrix.h`](#core-matrix-h) — Matrix debounce and key events
   - [`core/mouse.h`](#core-mouse-h) — Mouse keys (KC_MS_*): a pointing device that no other key of the keyboard needs
+  - [`core/options.h`](#core-options-h) — Build options
   - [`core/override.h`](#core-override-h) — Key overrides: a key does something else while the right modifiers are held (Vial's Key Overrides tab edits th
   - [`core/platform.h`](#core-platform-h) — The one place where the 8051 and the host differ for the pure logic: constant tables live in code space on the
   - [`core/radio.h`](#core-radio-h) — The link to the BK3632 radio of the B68 (docs/keyboards/yunzii-b68-radio.md): a serial line at 260870 baud car
@@ -121,7 +123,7 @@ The chip's program flash, read and written by the application itself (IAP, throu
 
 ```c
 #define FLASH_SECTOR_SIZE 512u
-#define FLASH_WRITE_MIN   0xDC00u  // the application ends here: the keymap store, the settings and the bootloader's marker follow
+#define FLASH_WRITE_MIN   APP_FLASH_END  // the application ends here (0xDA00 with the battery log, 0xDC00 without): the log, the keymap store, the settings and the bootloader's marker follow
 #define FLASH_WRITE_MAX   0xF000u  // the stock bootloader starts here
 ```
 
@@ -396,6 +398,85 @@ Writing RSTSTAT kicks the watchdog. Compiled in only with -DWATCHDOG_ENABLE, so 
 
 Hardware-independent C, tested on the host with gcc. It reaches the hardware only through `*_hook_*` functions that the board (or a test) provides.
 
+### `core/blog.h`
+
+The battery log: the battery reading, written down in **flash** (a sector of its own at BLOG_ADDR) so that it can be read later and survives the reset that comes when the cable is plugged in - which is exactly when the log is read. It can be left out of the build: BATTERY_LOG=0 (options.h).
+
+It exists because the diagnostics travel over the keyboard's own USB, and with the cable in the battery is charging and the reading saturates at 1023: the readings that matter can only be taken with the cable out, when nothing can read them.
+
+A record is four bytes: the minutes the keyboard has been awake since it was turned on, the battery reading (low byte), and a flags byte: bits 0-1 the high two bits of the reading (bits 2-3 below), BLOG_FLAG_CABLE (the cable was in: the reading is saturated and says nothing), BLOG_FLAG_WAKE (the first record since the keyboard was turned on or woke from sleep: the time before it is not in the minutes, because a sleeping chip has no clock). A record is written when the reading has moved by BLOG_STEP counts, when the cable goes in or out, on the first reading after a wake, and anyway every BLOG_PERIOD_MIN minutes. The sector holds 128 and is erased only when it is full, so a day of samples costs a handful of flash writes.
+
+What the log can and cannot say: while the keyboard sleeps nothing is sampled. A night of sleep shows as a wake record whose reading is the battery after the night; comparing it with the last record before the sleep is how the discharge in between is read.
+
+```c
+#    define BLOG_RECORD_BYTES 4u  // minutes (little endian), reading low byte, flags
+#    define BLOG_RECORDS      128u  // the whole sector, 512 bytes
+#    define BLOG_STEP         8u  // counts the reading has to move to be a change worth a record
+#    define BLOG_PERIOD_MIN   5u  // a record at least this often, even when nothing changed
+#    define BLOG_FLAG_CABLE   0x04u
+#    define BLOG_FLAG_WAKE    0x08u
+#    define BLOG_MARK         0xA0u  // the top nibble of the flags of every record: a sector with anything else in it (what was in the flash before) is not ours
+#    define BLOG_EMPTY        0xFFFFu  // the minutes of an erased record (45 days of uptime is not a case)
+```
+
+#### `blog_init`
+
+```c
+void blog_init(void);
+```
+
+#### `blog_note_wake`
+
+```c
+void blog_note_wake(void);
+```
+
+The keyboard has just woken from sleep (or started): the next record is marked as the first after a gap.
+
+#### `blog_task`
+
+```c
+void blog_task(uint16_t now_ms, bool on_battery, uint16_t reading);
+```
+
+From the main loop, with the millisecond clock, whether the keyboard is on its battery and the battery reading (0 if there is none yet, or it is not settled). Counts the minutes the keyboard is awake and writes the records.
+
+#### `blog_count`
+
+```c
+uint8_t blog_count(void);
+```
+
+how many records there are (0 to BLOG_RECORDS)
+
+#### `blog_get`
+
+```c
+bool blog_get(uint8_t index, uint8_t out[BLOG_RECORD_BYTES]);
+```
+
+Record `index` (0 = the oldest): minutes (little endian), reading low byte, flags. False if there is no such record.
+
+#### `blog_hook_read`
+
+```c
+void blog_hook_read(uint16_t addr, uint8_t *out, uint8_t len);
+```
+
+Provided by the board: the flash the records live in.
+
+#### `blog_hook_program`
+
+```c
+void blog_hook_program(uint16_t addr, const uint8_t *src, uint8_t len);
+```
+
+#### `blog_hook_erase`
+
+```c
+void blog_hook_erase(uint16_t addr);
+```
+
 ### `core/combo.h`
 
 Combos: two or more keys pressed together give one other key (Vial's Combos tab edits them, core/keymap.c stores them). The entries are keycodes, not positions: a combo fires when every one of its inputs is down within COMBO_TERM_MS of the first one.
@@ -512,7 +593,21 @@ uint16_t diag_get(diag_id_t id);
 void diag_receive(XDATA uint8_t *data, uint8_t length);
 ```
 
-VIA command 0xF1: the request is in `data` (32 bytes) and becomes the reply. [0xF1, kind, ...] kind 0: [0xF1, 0, DIAG_COUNT, counter 0 (lo, hi), counter 1, ...] kind 1: the radio: [0xF1, 1, its 6 status bytes] (the battery reading is in bytes 4-5) both are read-only, so they need no unlock anything else: [0xFF, ...] (unhandled)
+VIA command 0xF1: the request is in `data` (32 bytes) and becomes the reply. [0xF1, kind, ...] kind 0: [0xF1, 0, DIAG_COUNT, counter 0 (lo, hi), counter 1, ...] kind 1: the radio: [0xF1, 1, its 6 status bytes] (the battery reading is in bytes 4-5) kind 4 (with BATTERY_LOG): [0xF1, 4, first record] -> [0xF1, 4, count, records of four bytes, as many as fit]: the battery log (blog.h) all are read-only, so they need no unlock anything else: [0xFF, ...] (unhandled)
+
+#### `diag_hook_blog_count`
+
+```c
+uint8_t diag_hook_blog_count(void);
+```
+
+Provided by the board: the battery log (blog.h), for kind 4
+
+#### `diag_hook_blog_get`
+
+```c
+bool    diag_hook_blog_get(uint8_t index, uint8_t out[4]);
+```
 
 #### `diag_hook_radio_status`
 
@@ -2086,6 +2181,19 @@ void mouse_task(uint16_t now);
 
 Regularly from the main loop: the repeats while a direction or a wheel key is held.
 
+### `core/options.h`
+
+Build options. They come from the compiler's command line (`make BATTERY_LOG=0 fw`, which passes -DBATTERY_LOG=0); this file gives them their default for the host tests and for anyone who compiles without the Makefile.
+
+The battery log (core/blog.c): the keyboard writes down its battery reading in a flash sector of its own, so that the history can be read later with `tools/diag.py --blog`. It costs about 1 KB of code and the flash sector at BLOG_ADDR, which the application then cannot use: the code limit is 0xDA00 with the log and 0xDC00 without it.
+
+```c
+#    define BATTERY_LOG 1
+#    define APP_FLASH_END 0xDA00u  // the application stops here; the log sector follows, then the keymap store at 0xDC00
+#    define BLOG_ADDR     0xDA00u
+#    define APP_FLASH_END 0xDC00u
+```
+
 ### `core/override.h`
 
 Key overrides: a key does something else while the right modifiers are held (Vial's Key Overrides tab edits them, core/keymap.c stores them). The entry is Vial's: a trigger keycode, a replacement, the layers it is active on (0xFFFF = all), the modifiers it needs, the ones that must not be down, the ones to take away while it acts, and the option bits (bit 7 = enabled).
@@ -3572,6 +3680,14 @@ uint8_t battery_percent(void);
 ```
 
 The battery level in percent, or LED_BATTERY_UNKNOWN (led.h) when there is no reading.
+
+#### `battery_reading`
+
+```c
+uint16_t battery_reading(void);
+```
+
+The raw reading of the cell when it means something (settled, from the radio), else 0. The battery log writes this down.
 
 #### `battery_task`
 

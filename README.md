@@ -26,6 +26,7 @@ nix develop                  # shell with the toolchain, the flashing tool and t
 make test                    # unit tests of the platform-independent logic, run on the host
 make fw size                 # the firmware (build/oblio.hex) and its flash / XDATA budget
 make check                   # the Vial definition and the interrupt vectors of the linked firmware
+make BATTERY_LOG=0 fw        # a build without the battery log (core/options.h has the build options)
 make sim                     # the real firmware in a simulator of the chip: boot, USB, raw HID, recovery
 ```
 

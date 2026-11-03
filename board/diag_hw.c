@@ -1,3 +1,4 @@
+#include "blog.h"
 #include "diag.h"
 #include "diag_hw.h"
 #include "led_hw.h"
@@ -44,3 +45,15 @@ const uint8_t *diag_hook_radio_status(void)
 {
     return radio_status();
 }
+
+#if BATTERY_LOG
+uint8_t diag_hook_blog_count(void)
+{
+    return blog_count();
+}
+
+bool diag_hook_blog_get(uint8_t index, uint8_t out[4])
+{
+    return blog_get(index, out);
+}
+#endif

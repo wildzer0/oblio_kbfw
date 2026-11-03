@@ -5,7 +5,7 @@ Leggi questo file all'inizio di ogni sessione; per riprendere il lavoro da dove 
 
 ## Cos'è
 Firmware nuovo, solo per la Yunzii B68 (SH68F90A + radio BK3632), scritto da zero: stile QMK-Vial ma snello e veloce.
-Vincoli: codice fino a **0xDC00** (56.320 B), la keymap in flash da 0xDC00, impostazioni a 0xEC00, 4 KB di XDATA e 223 B di stack interno.
+Vincoli: codice fino a **0xDA00** (55.808 B; 56.320 B senza registro batteria), la keymap in flash da 0xDC00, impostazioni a 0xEC00, 4 KB di XDATA e 223 B di stack interno.
 Repo: https://github.com/wildzer0/oblio_kbfw (privato), cartella `~/dev/oblio_kbfw`, branch `main`. Licenza GPL-2.0-or-later.
 
 ## Origine
@@ -47,5 +47,5 @@ nix develop --command make fw size         # build/oblio.hex e budget flash/XDAT
 nix develop --command make check-interrupts check-api sim
 sinowisp write --platform sh68f90 --vendor_id 0x258a --product_id 0xdead --format ihex --isp_iface_num 0 -f build/oblio.hex
 ```
-Mappa flash: applicazione fino a 0xDC00; keymap (2 copie × 4 settori, con log) 0xDC00–0xEBFF; impostazioni 0xEC00; marcatore del bootloader 0xEE00 (mai toccare); bootloader stock 0xF000.
+Mappa flash: applicazione fino a 0xDA00 (0xDC00 con `make BATTERY_LOG=0`), registro batteria 0xDA00 (opzionale); keymap (2 copie × 4 settori, con log) 0xDC00–0xEBFF; impostazioni 0xEC00; marcatore del bootloader 0xEE00 (mai toccare); bootloader stock 0xF000.
 Recupero: Esc+1+2 mentre si inserisce l'USB. Il vecchio repo `~/dev/smk` (branch `port/yunzii-b68`) resta la fonte per hardware e radio; il dump stock è in `~/dev/smk/backups/dump/` (`tools/dis51.py` lo disassembla).

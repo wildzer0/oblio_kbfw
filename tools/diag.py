@@ -3,10 +3,11 @@
 
 Linux: /dev/hidraw, no dependencies. Windows and macOS: `pip install hidapi` (the module is called `hid`).
 
-usage: diag.py [--radio] [--watch SECONDS] [--daemon SECONDS [FILE]]
+usage: diag.py [--radio] [--blog] [--watch SECONDS] [--daemon SECONDS [FILE]]
 
   (no option)  print the counters once
   --radio      also print the radio's last status bytes, with the battery reading they carry
+  --blog       print the battery log the keyboard keeps in flash (a build with BATTERY_LOG=1, the default): the readings it took, with the cable out too
   --watch N    repeat every N seconds, printing only what changed
   --daemon N   append the counters to a CSV every N seconds
 
@@ -137,6 +138,40 @@ def battery_percent(raw):
             return p0 + (raw - r0) * (p1 - p0) // (r1 - r0)
     return 100
 
+def blog(keyboard):
+    """The battery log: records of (minutes awake, reading, flags). The minutes count the time the keyboard was awake since it was turned on: while it
+    sleeps there is no clock and nothing is sampled, so a record marked WAKE has an unknown gap before it - the battery after a night is the reading of
+    the first WAKE record after it, compared with the last record before it."""
+    first = keyboard.ask(0xF1, 4, 0)
+    if first[0] != 0xF1:
+        print("battery log        : this build has no battery log (built with BATTERY_LOG=0)")
+        return
+
+    total = first[2]
+    if total == 0:
+        print("battery log        : empty (it fills up while the keyboard is awake and the radio answers)")
+        return
+
+    print("battery log        : {} records   (minutes awake since power-up | reading | ~percent | marks)".format(total))
+    index = 0
+    while index < total:
+        reply = keyboard.ask(0xF1, 4, index)
+        for at in range(3, len(reply) - 3, 4):
+            if index >= total:
+                break
+            minutes = reply[at] | (reply[at + 1] << 8)
+            flags = reply[at + 3]
+            raw = reply[at + 2] | ((flags & 3) << 8)
+            marks = []
+            if flags & 0x08:
+                marks.append("WAKE (or power-up): a gap before it")
+            if flags & 0x04:
+                marks.append("CABLE: the reading is saturated")
+            percent = "   -" if flags & 0x04 else "{:3d}%".format(battery_percent(raw))
+            print("  {:5d} min   {:4d}   {}   {}".format(minutes, raw, percent, "; ".join(marks)))
+            index += 1
+
+
 def daemon(keyboard, seconds, path):
     """The counters (and the radio, if asked) appended to a file every `seconds`, with the time: leave it running and read it afterwards."""
     import datetime
@@ -180,6 +215,8 @@ def main():
     values = counters(keyboard)
     print("counters:")
     show(values)
+    if "--blog" in args:
+        blog(keyboard)
     if len(values) > 11:
         # each whole save erases the four sectors of one of the two slots, so a keymap sector has been erased about half as many times
         print("  keymap flash wear: about {} erase cycles per sector (flash of this kind is typically good for 10 000 to 100 000)".format(values[11] // 2))

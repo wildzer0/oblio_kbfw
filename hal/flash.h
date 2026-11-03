@@ -4,11 +4,12 @@
 // Only the area from FLASH_WRITE_MIN to FLASH_WRITE_MAX can be changed: the application below it and the bootloader above it are never
 // touched, whatever address a caller passes.
 
+#include "options.h"
 #include <stdbool.h>
 #include <stdint.h>
 
 #define FLASH_SECTOR_SIZE 512u
-#define FLASH_WRITE_MIN   0xDC00u // the application ends here: the keymap store, the settings and the bootloader's marker follow
+#define FLASH_WRITE_MIN   APP_FLASH_END // the application ends here (0xDA00 with the battery log, 0xDC00 without): the log, the keymap store, the settings and the bootloader's marker follow
 #define FLASH_WRITE_MAX   0xF000u // the stock bootloader starts here
 
 void flash_read(uint16_t addr, uint8_t *dst, uint8_t len);

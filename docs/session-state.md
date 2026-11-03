@@ -13,7 +13,7 @@ overrides, tab Lighting con colore pieno), NKRO, Caps Word, Leader, mouse dall'e
 
 | | |
 | --- | --- |
-| Flash | **53842 / 56320** (2,4 KB liberi) |
+| Flash | **55326 / 55808** con il registro batteria (0,5 KB liberi); 53890 / 56320 con `BATTERY_LOG=0` |
 | XDATA | **3782 / 4096** (314 B liberi) |
 | Deposito keymap | **1709 / 2048** (339 B liberi) |
 | Test host | **27 / 27** (`make test`, include il controllo della definizione Vial) |

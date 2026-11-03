@@ -2,6 +2,7 @@
 // that debounces the keys, runs the key logic and looks after USB, profiles, settings and the backlight.
 
 #include "battery.h"
+#include "blog.h"
 #include "clock.h"
 #include "diag.h"
 #include "diag_hw.h"
@@ -64,6 +65,9 @@ static void init(void)
 
     matrix_init();
     keyboard_init();
+#if BATTERY_LOG
+    blog_init();
+#endif
     watchdog_kick();
     settings_load();
     store_init();     // the keymap from flash, or the defaults
@@ -129,6 +133,9 @@ void main(void)
         led_app_task(now_ms);
         link_task(now_ms);
         battery_task(now_ms);
+#if BATTERY_LOG
+        blog_task(now_ms, radio_hook_on_battery(), battery_reading());
+#endif
         sleep_hw_task(now_ms);
     }
 }

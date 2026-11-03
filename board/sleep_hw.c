@@ -1,3 +1,4 @@
+#include "blog.h"
 #include "sleep_hw.h"
 #include "gpio.h"
 #include "led.h"
@@ -108,6 +109,9 @@ static void sleep_and_wake(void)
 
     usb_hw_init();
     tick_resume();
+#if BATTERY_LOG
+    blog_note_wake(); // the chip has no clock while it sleeps: the next record says there is a gap before it
+#endif
 }
 
 void sleep_hw_task(uint16_t now)

@@ -64,6 +64,25 @@ void diag_receive(XDATA uint8_t *data, uint8_t length)
             memcpy(&data[2], status, 6);
         }
 
+#if BATTERY_LOG
+    } else if (kind == 4) { // the battery log, from the record asked for, as many as fit
+        const uint8_t index = data[2];
+        const uint8_t total = diag_hook_blog_count();
+
+        memset(&data[2], 0, (size_t)(length - 2));
+        data[2] = total;
+
+        uint8_t out = 3;
+
+        for (uint8_t i = index; i < total && (uint16_t)(out + 4u) <= length; i++) {
+            uint8_t record[4];
+
+            if (diag_hook_blog_get(i, record)) {
+                memcpy(&data[out], record, 4);
+                out = (uint8_t)(out + 4u);
+            }
+        }
+#endif
     } else {
         data[0] = 0xFF;
     }

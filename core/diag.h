@@ -6,6 +6,7 @@
 //
 // Each counter has one writer (an interrupt or the main loop), so none needs a lock; a 16-bit value is read twice until it agrees.
 
+#include "options.h"
 #include "platform.h"
 #include <stdbool.h>
 #include <stdint.h>
@@ -40,9 +41,16 @@ uint16_t diag_get(diag_id_t id);
 // VIA command 0xF1: the request is in `data` (32 bytes) and becomes the reply. [0xF1, kind, ...]
 //   kind 0: [0xF1, 0, DIAG_COUNT, counter 0 (lo, hi), counter 1, ...]
 //   kind 1: the radio: [0xF1, 1, its 6 status bytes] (the battery reading is in bytes 4-5)
-//   both are read-only, so they need no unlock
+//   kind 4 (with BATTERY_LOG): [0xF1, 4, first record] -> [0xF1, 4, count, records of four bytes, as many as fit]: the battery log (blog.h)
+//   all are read-only, so they need no unlock
 //   anything else: [0xFF, ...] (unhandled)
 void diag_receive(XDATA uint8_t *data, uint8_t length);
+
+#if BATTERY_LOG
+// Provided by the board: the battery log (blog.h), for kind 4
+uint8_t diag_hook_blog_count(void);
+bool    diag_hook_blog_get(uint8_t index, uint8_t out[4]);
+#endif
 
 // Provided by the board: the radio's last status bytes (6), for kind 1 (null until the first answer)
 const uint8_t *diag_hook_radio_status(void);
