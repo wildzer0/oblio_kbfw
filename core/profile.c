@@ -33,11 +33,11 @@ void profile_reset(void)
 
 void profile_step(uint8_t id, uint16_t counts)
 {
-    if (id >= PROFILE_STEPS) {
+    if (id == 0 || id > PROFILE_STEPS) { // the numbers start at 1: the table starts at 0, so there is no spare entry (10 bytes of the 4 KB)
         return;
     }
 
-    step_stat_t *s = &stat[id];
+    step_stat_t *s = &stat[id - 1u];
 
     if (s->count != 0xFFFFu) { // a window this long is read before it saturates; if not, the mean is still the mean of what fell in
         s->count++;
@@ -71,10 +71,10 @@ void profile_isr(profile_isr_t which, uint16_t counts)
     isr_sum[which] += counts;
 }
 
-uint16_t profile_step_count(uint8_t id) { return id < PROFILE_STEPS ? stat[id].count : 0; }
-uint16_t profile_step_min(uint8_t id) { return (id < PROFILE_STEPS && stat[id].count) ? stat[id].min : 0; }
-uint16_t profile_step_max(uint8_t id) { return id < PROFILE_STEPS ? stat[id].max : 0; }
-uint32_t profile_step_sum(uint8_t id) { return id < PROFILE_STEPS ? stat[id].sum : 0; }
+uint16_t profile_step_count(uint8_t id) { return (id >= 1 && id <= PROFILE_STEPS) ? stat[id - 1u].count : 0; }
+uint16_t profile_step_min(uint8_t id) { return (id >= 1 && id <= PROFILE_STEPS && stat[id - 1u].count) ? stat[id - 1u].min : 0; }
+uint16_t profile_step_max(uint8_t id) { return (id >= 1 && id <= PROFILE_STEPS) ? stat[id - 1u].max : 0; }
+uint32_t profile_step_sum(uint8_t id) { return (id >= 1 && id <= PROFILE_STEPS) ? stat[id - 1u].sum : 0; }
 uint16_t profile_band(uint8_t band) { return band < PROFILE_BANDS ? bands[band] : 0; }
 uint32_t profile_isr_sum(profile_isr_t which) { return which < PROFILE_ISR_COUNT ? isr_sum[which] : 0; }
 

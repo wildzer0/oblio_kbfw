@@ -1,6 +1,7 @@
 #include "led.h"
 #include "keymap.h"
 #include "led_effect.h"
+#include "keyboard.h"
 #include "options.h"
 #if LOOP_PROFILE
 #    include "profile.h"
@@ -134,28 +135,86 @@ static uint8_t cur_brightness;
 static uint8_t cur_color; // the hue
 static uint8_t cur_sat;   // its saturation
 
+static XDATA uint8_t rgb[3]; // static, in external RAM: the effect functions take XDATA pointers, which are faster than the generic ones a local array needs
+
+// Some effects give every key the same colour (the solid colour, the breathing, the pulse): that colour is worked out once for the whole repaint
+// and copied to each LED, instead of 80 times.
+static bool            uniform;
+static XDATA uint8_t   base[3];
+
+// The waves repeat their colours: a repaint goes row by row, so the colours of the first row are the colours of all the others (horizontal wave),
+// the colour of the first key of a row is that of the whole row (vertical wave), and the keys of one ring of the radial effect have one colour.
+// Kept while the repaint goes on; `color_known` says which of the 16 entries of `color` have been worked out (rings: one bit each).
+static XDATA uint8_t   color[LED_COLS][3];
+static uint16_t        color_known;
+
+// The phase the repaint in progress is painted with: it is taken at its start (the phase may step while the repaint goes on; that asks for another repaint)
+static uint8_t         cur_phase;
+
 static void read_settings(void)
 {
     cur_effect     = effect();
     cur_brightness = brightness();
     cur_color      = hue();
     cur_sat        = saturation();
+
+    cur_phase   = phase;
+    color_known = 0;
+
+    uniform = (cur_effect == FX_SOLID || cur_effect == FX_BREATHE || cur_effect == FX_PULSE);
+
+    if (cur_effect == FX_SOLID) { // the colour of the profile: a hue and a saturation, at the brightness of the profile
+        led_color_hsv(cur_color, cur_sat, cur_brightness, base);
+    } else if (uniform) { // the position of the key does not matter to these two
+        led_effect_rgb((led_effect_t)cur_effect, 0, 0, cur_phase, cur_brightness, base);
+    }
 }
 
-static XDATA uint8_t rgb[3]; // static, in external RAM: the effect functions take XDATA pointers, which are faster than the generic ones a local array needs
+// The colour already worked out for this key, into the one being painted
+static void take(XDATA const uint8_t *from)
+{
+    rgb[0] = from[0];
+    rgb[1] = from[1];
+    rgb[2] = from[2];
+}
 
 static void paint_one(void)
 {
-    rgb[0] = rgb[1] = rgb[2] = 0;
+    if (uniform) {
+        take(base);
+    } else if (cur_effect == FX_HORIZONTAL || cur_effect == FX_VERTICAL) {
+        XDATA uint8_t *known;
 
-    if (cur_effect == FX_SOLID) { // the colour of the profile: a hue and a saturation, at the brightness of the profile
-        led_color_hsv(cur_color, cur_sat, cur_brightness, rgb);
-    } else if (!led_effect_rgb((led_effect_t)cur_effect, paint_row, paint_col, phase, cur_brightness, rgb)) {
+        if (cur_effect == FX_HORIZONTAL) { // by column: worked out on the first row, the same on the others
+            known = color[paint_col];
+
+            if (paint_row == 0) {
+                led_effect_rgb(FX_HORIZONTAL, 0, paint_col, cur_phase, cur_brightness, known);
+            }
+        } else { // by row: worked out on the first key of the row
+            known = base; // (vertical wave and the uniform effects are never both on)
+
+            if (paint_col == 0) {
+                led_effect_rgb(FX_VERTICAL, paint_row, 0, cur_phase, cur_brightness, known);
+            }
+        }
+
+        take(known);
+    } else if (cur_effect == FX_RADIAL) { // by ring: worked out by the first key met of the ring
+        const uint8_t ring = led_effect_ring(paint_row, paint_col);
+
+        if (!((color_known >> ring) & 1u)) {
+            color_known |= (uint16_t)(1u << ring);
+            led_effect_rgb(FX_RADIAL, paint_row, paint_col, cur_phase, cur_brightness, color[ring]);
+        }
+
+        take(color[ring]);
+    } else if (!led_effect_rgb((led_effect_t)cur_effect, paint_row, paint_col, cur_phase, cur_brightness, rgb)) {
         rgb[0] = rgb[1] = rgb[2] = 0; // the effect is off
     }
 
     // Caps lock: the Caps key (row 2, column 0) is solid white while it is on
-    if (paint_row == 2 && paint_col == 0 && led_hook_caps_lock()) {
+    if (paint_row == 2 && paint_col == 0 && (led_hook_caps_lock() || keyboard_caps_word())) {
         rgb[0] = rgb[1] = rgb[2] = 255;
     }
 
@@ -178,17 +237,28 @@ static void paint_one(void)
         }
     }
 
-    for (uint8_t c = 0; c < 3; c++) {
-        const uint8_t i   = (uint8_t)(paint_row * 3 + c);
-        const uint8_t old = level[paint_col][i];
+    // The three channels of the LED: one pointer to each table, walked, instead of the two-dimensional index worked out for every access
+    XDATA uint8_t  *lv = &level[paint_col][paint_row * 3];
+    XDATA uint16_t *du = &duty2[paint_col][paint_row * 3];
+    uint8_t         duty_base = (uint8_t)(paint_row * 3 + LED_DUTY1_BASE);
+    uint8_t         changed_lit = lit[paint_col];
 
-        if ((old == 0) != (rgb[c] == 0)) {
-            lit[paint_col] = (uint8_t)(lit[paint_col] + (rgb[c] ? 1 : -1));
+    for (uint8_t c = 0; c < 3; c++, lv++, du++, duty_base++) {
+        const uint8_t v = rgb[c];
+
+        if (*lv == v) {
+            continue; // the same level as before: the duty value is the same too
         }
 
-        level[paint_col][i] = rgb[c];
-        duty2[paint_col][i] = (uint16_t)(LED_DUTY1_BASE + i + LED_WIDTH(rgb[c]));
+        if ((*lv == 0) != (v == 0)) {
+            changed_lit = (uint8_t)(changed_lit + (v ? 1 : -1));
+        }
+
+        *lv = v;
+        *du = (uint16_t)(duty_base + LED_WIDTH(v));
     }
+
+    lit[paint_col] = changed_lit;
 
     if (++paint_col >= LED_COLS) {
         paint_col = 0;
@@ -250,7 +320,7 @@ void led_task(void)
     // Caps lock changes outside the animation: repaint when it does
     bool caps = false;
 
-    PROBE(17, caps = led_hook_caps_lock());
+    PROBE(17, caps = led_hook_caps_lock() || keyboard_caps_word()); // Caps Word lights the same key: its start and end repaint too
 
     if (caps != last_caps) {
         last_caps = caps;

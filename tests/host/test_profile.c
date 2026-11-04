@@ -61,9 +61,13 @@ static void test_interrupt_time_adds_up_apart_from_the_steps(void)
 static void test_a_bad_step_number_is_ignored(void)
 {
     profile_reset();
-    profile_step(PROFILE_STEPS, 10);
+    profile_step(PROFILE_STEPS + 1, 10);
+    profile_step(0, 10);
     profile_step(255, 10);
-    CHECK(profile_step_count(PROFILE_STEPS) == 0);
+    CHECK(profile_step_count(PROFILE_STEPS + 1) == 0 && profile_step_count(0) == 0 && profile_step_count(255) == 0);
+
+    profile_step(PROFILE_STEPS, 10); // the last step is valid
+    CHECK(profile_step_count(PROFILE_STEPS) == 1);
 }
 
 int main(void)

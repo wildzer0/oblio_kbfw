@@ -1859,6 +1859,14 @@ uint8_t led_effect_index(led_effect_t fx, uint8_t row, uint8_t col, uint8_t phas
 
 Position of key (row, col) on the colour wheel for an effect, 0-255.
 
+#### `led_effect_ring`
+
+```c
+uint8_t led_effect_ring(uint8_t row, uint8_t col);
+```
+
+Which ring of the radial effect the key is on, 1-15: keys of one ring have one colour at any phase (the rings are the distinct distances of the table)
+
 #### `led_color_wheel`
 
 ```c
@@ -2218,7 +2226,7 @@ The profile build (make LOOP_PROFILE=1 fw): how long each step of the main loop 
 The times are wall-clock times: a step includes the interrupts that ran during it. The share of each interrupt is measured apart, so the two can be told from each other. The measuring itself costs a little in every pass, which is why this is a build of its own.
 
 ```c
-#    define PROFILE_STEPS      20u  // step numbers 1 .. 15 are the steps of the main loop, 16 .. 19 are parts of led_task (see tools/diag.py); 0 is spare
+#    define PROFILE_STEPS      19u  // step numbers 1 .. 15 are the steps of the main loop, 16 .. 19 are parts of led_task (see tools/diag.py); 0 is not a step
 #    define PROFILE_BANDS      8u  // pass length bands, in counts: < 400, 800, 1600, 3200, 6400, 12800, 25600, and longer (200 us .. 12.8 ms)
 ```
 

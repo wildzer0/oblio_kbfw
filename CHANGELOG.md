@@ -57,6 +57,14 @@ Il controllo di recupero Esc+1+2 va all'inizio del `main`, prima di USB e radio.
   30 ms (la coda della radio è di 4); la tastiera non va in sleep mentre scrive. Costa ~520 B di flash (54415/55296). È uno strumento di debug: da
   togliere insieme al registro in flash quando la scala della batteria è confermata.
 
+## 2026-11-07 — i LED non rifanno lo stesso lavoro 80 volte; Caps Word accende il Caps
+- **`core/led.c`:** il colore degli effetti uniformi (tinta unita, respiro, pulsazione) è calcolato una volta per ridisegno; le onde orizzontale (per colonna), verticale (per riga) e il radiale (per anello, nuovo `led_effect_ring`) riusano i colori già calcolati; le scritture nel framebuffer vanno per puntatore e saltano i canali invariati; la fase è fotografata a inizio ridisegno (`cur_phase`).
+- **`core/led_effect.c`:** `led_color_wheel` senza la divisione per 43.
+- **Caps Word** (modifica dell'utente in `led_task`/`paint_one`): il tasto Caps si accende anche con Caps Word, e `led_task` si accorge del suo cambio (prima solo del Caps Lock: il cambio non ridisegnava).
+- **Profilo:** la tabella dei passi parte da 1 (19 voci, non 20: 10 B di XDATA in meno); `PROFILE_STEPS` è l'ultimo passo valido.
+- **Test:** `test_led` controlla Caps Word, gli effetti uniformi (stesso colore su ogni tasto, `duty2` coerente col livello) e che le onde con cache diano gli stessi colori dell'effetto calcolato tasto per tasto.
+- Numeri: flash 54.136/55.808 (52.692/56.320 senza log), XDATA 3.884/4.096; profilo (`LOOP_PROFILE=1 BATTERY_LOG=0`) 56.297/56.320 e XDATA 4.096/4.096 (al limite).
+
 ## 2026-11-06 (sera) — scansione, debounce, sleep, impostazioni, encoder: meno lavoro, stessi risultati
 - **Scansione** (`matrix_hw_scan`): ogni colonna tocca solo la sua porta (P6, P5 o P4) invece di tre letture-modifica-scrittura: da 5105 a 4638 istruzioni per scansione (simulatore), -9 % sull'ISR più pesante.
 - **`matrix_feed`**: percorso rapido per la colonna ferma (campione uguale a candidato e a stabile, debounce già contato); puntatori `XDATA` tipizzati invece dei generici (~30 istruzioni a accesso).

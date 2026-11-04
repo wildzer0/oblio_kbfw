@@ -22,6 +22,11 @@ static uint8_t axis_x(uint8_t col)
     return (uint8_t)(col << 4);
 }
 
+uint8_t led_effect_ring(uint8_t row, uint8_t col)
+{
+    return (uint8_t)(radial[row][col] >> 4); // the distances are multiples of 17: 17 -> 1, 34 -> 2 ... 255 -> 15, all different
+}
+
 uint8_t led_effect_index(led_effect_t fx, uint8_t row, uint8_t col, uint8_t phase)
 {
     switch (fx) {
@@ -66,8 +71,17 @@ void led_color_hsv(uint8_t hue, uint8_t saturation, uint8_t value, XDATA uint8_t
 // arrived as purple.
 void led_color_wheel(uint8_t index, XDATA uint8_t *out)
 {
-    const uint8_t side = (uint8_t)(index / 43u);               // 0..5, which side of the wheel
-    const uint8_t rest = (uint8_t)((index - side * 43u) * 6u); // 0..255, how far along it
+    // Which side of the wheel (0..5, sides of 43 steps) and how far along it (0..255). Compares and subtracts: a division by 43 is a call to the
+    // compiler's, a hundred instructions and more, and the wheel is asked for once or more by every key of every repaint.
+    uint8_t side = 0;
+    uint8_t step = index;
+
+    while (step >= 43u) {
+        step = (uint8_t)(step - 43u);
+        side++;
+    }
+
+    const uint8_t rest = (uint8_t)((uint8_t)(step << 2) + (uint8_t)(step << 1)); // step * 6
 
     switch (side) {
         case 0:  out[0] = 255; out[1] = rest; out[2] = 0; break;                    // red -> yellow

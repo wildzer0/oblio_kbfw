@@ -52,7 +52,7 @@ tests/   host/ (gcc) e sim/ (ucsim)               docs/   questo documento e il 
 
 | Strato | Regola | Come si prova |
 | --- | --- | --- |
-| `core/` | niente registri, niente tempo letto da sé; parla solo con gli hook | `make test` (27 programmi, gcc `-Wall -Wextra -Werror`) |
+| `core/` | niente registri, niente tempo letto da sé; parla solo con gli hook | `make test` (28 programmi, gcc `-Wall -Wextra -Werror`) |
 | `hal/` | solo i registri usati, header minimi dal datasheet e dal dump | il simulatore e l'hardware |
 | `board/` | pin, matrice, PWM dei LED, seriale della radio, sleep, keycode della scheda, e la **colla** che implementa gli hook del core | `check_vial.py`, il simulatore, l'hardware |
 
@@ -118,10 +118,33 @@ Il millisecondo è la **somma del tempo realmente trascorso** tra interrupt, in 
 **Cosa disturba i LED** (lezioni pagate):
 - Un interrupt (USB) che trattiene il Timer 2 sposta l'inizio di uno slot: la colonna resta accesa più o meno a lungo. Per questo l'USB **non copia** i pacchetti raw HID nell'ISR e la diagnostica ha
   il contatore «timer interrupt: longest start delay».
-- Il **back‑off**: se il main non gira per 3 scansioni di fila (CPU affamata), il backlight si fa da parte per 12 slot, così i tasti continuano a funzionare.
+- Il **back‑off**: se il main non gira per 8 scansioni di fila (CPU affamata), il backlight si fa da parte per 12 slot, così i tasti continuano a funzionare. (Con 3 scattava anche in uso normale, in radio: lampeggio dei LED mentre si scriveva.)
 - Le **cancellazioni di flash** fermano la CPU per ~32 ms: il timer e il PWM vengono messi in pausa solo attorno a quelle (§9).
 
-I conteggi di istruzioni sono esatti nel simulatore (sottoquadro 433, scansione ~5100) ma **non le durate**: il suo Timer 2 è virtuale.
+I conteggi di istruzioni sono esatti nel simulatore (sottoquadro 433, scansione 4638) ma **non le durate**: il suo Timer 2 è virtuale.
+
+### 6.1 Dove va il tempo, e come lo si risparmia
+
+Misurato con la build di profilo (`LOOP_PROFILE=1`, §14): l'interrupt del timer prende ~39 % della CPU (la scansione, ~560 µs ogni 2 ms, e i 4 sottoquadri da 433 istruzioni), il resto è il main loop, di cui il ridisegno dei LED
+(`led_task`) era quasi metà. Le regole che ne sono uscite, tutte a **comportamento invariato** (i test host e il simulatore lo verificano):
+
+| Dove | Cosa | Perché costa meno |
+| --- | --- | --- |
+| `board/matrix_hw.c` | `matrix_hw_scan`: ogni colonna tocca solo la propria porta (P6, P5 o P4) | prima ogni colonna faceva tre letture‑modifica‑scrittura, due delle quali con maschera nulla: 5105 → 4638 istruzioni per scansione |
+| `core/matrix.c` | `matrix_feed`: una colonna ferma (campione = candidato = stabile, debounce già contato) esce subito | quasi tutte le 16 colonne, quasi sempre, sono ferme; il debounce completo serve solo a chi cambia (750 → ~190 µs) |
+| `hal/tick`, `board/slots`, `board/main`, `core/matrix` | il buffer `raw[16]` è in **XDATA tipizzato** (`XDATA uint8_t *`) e non un puntatore generico | un accesso generico passa da `__gptrget/__gptrput`, ~30 istruzioni; uno tipizzato 3–4 |
+| `board/sleep_hw.c` | `sleep_hw_task(now, any_key_down)` riusa il valore già calcolato dal main loop | non interroga più la matrice una seconda volta per giro |
+| `core/settings.c` | il controllo «i valori delle luci sono cambiati?» ogni 8 ms, non a ogni giro | otto chiamate di hook a giro; il tempo di quiete che segue è di mezzo secondo, pochi ms in più non contano |
+| `core/encoder.c` | se lo stato dei pin non è cambiato, `encoder_poll` non fa nulla | quasi tutti i giri |
+| `core/led.c` | colori **uniformi** (tinta unita, respiro, pulsazione) calcolati una volta per ridisegno e copiati; onde per colonna (orizzontale) e per riga (verticale) calcolate sulla prima riga/primo tasto; effetto radiale calcolato una volta per anello (12 anelli, `led_effect_ring`) | un LED costava il calcolo completo di un colore (ruota + 3 scale); ora, per la maggior parte dei tasti, una copia di 3 byte |
+| `core/led.c` | le scritture nel framebuffer usano puntatori che avanzano, e saltano i canali il cui livello non è cambiato | l'indice a due dimensioni veniva ricalcolato a ogni accesso |
+| `core/led_effect.c` | `led_color_wheel` senza divisione per 43 (confronti e sottrazioni) | la divisione è una chiamata al compilatore, un centinaio di istruzioni, a ogni colore |
+| `core/led.c` | la fase dell'animazione è fotografata all'inizio del ridisegno (`cur_phase`) | un ridisegno non mescola più due fasi se questa avanza a metà |
+
+Regole di pollice per chi continua: (1) in modello *large* ogni `static` è in XDATA e ogni accesso costa; (2) un puntatore generico è 10 volte più caro di uno tipizzato; (3) la moltiplicazione e la divisione a 16 bit sono chiamate al compilatore;
+(4) se un valore non cambia da un giro all'altro, non rifare il lavoro; (5) misura prima (`make sim`, `tools/diag.py --profile`).
+
+Il budget è stretto: la build di profilo (che ha la propria statistica in XDATA) usa **4096/4096 B** di XDATA e 56 297/56 320 B di flash (con `BATTERY_LOG=0`); un'aggiunta qui va compensata.
 
 ## 7. La pipeline dei tasti
 
@@ -254,7 +277,12 @@ Tre slot Bluetooth (Fn+B/N/M: tocco = scegli, 3 s = accoppia); lo slot è un'imp
 
 `core/led.c` tiene un **framebuffer** di livelli a 8 bit per canale e la sequenza delle 16 colonne; `led_task` ridisegna **pochi LED per giro** (un repaint non trattiene mai i tasti). `led_effect.c` calcola i colori
 (tinta unita con tinta+saturazione in una parola da 16 bit, gradienti, respiro, ciclo). In interrupt si fa solo: `led_next_column()` → carica le 15 larghezze PWM da una tabella `duty2` pre‑calcolata → accende la colonna.
-Il tasto Caps si accende fisso quando l'host ha il Caps Lock (via USB dal report LED, in wireless dal byte 1 dello stato). La riga dei numeri mostra il **gauge** (Fn+Backspace), lampeggi di modo/slot/pairing e i passi dello sleep.
+**Come si ridisegna.** `led_task` ridisegna 8 LED per giro (`RENDER_CHUNK`). All'inizio di un ridisegno `read_settings` legge una volta effetto, luminosità, tinta, saturazione e **fase** (`cur_phase`: fotografata, un passo
+della fase a metà ridisegno ne chiede un altro). Poi `paint_one` prende il colore del tasto: per gli effetti **uniformi** (tinta unita, respiro, pulsazione) il colore è calcolato una volta in `base`; per l'onda
+**orizzontale** il colore di una colonna è calcolato sulla riga 0 e riusato sulle altre (`color[col]`); per la **verticale** sul primo tasto di ogni riga (`base`, che non serve ad altro in quel caso); per il **radiale** una volta
+per anello (`color[anello]`, `color_known` dice quali sono pronti; `led_effect_ring` dà l'anello 1–15 di un tasto: le distanze della tabella sono multipli di 17, quindi `distanza >> 4` è unico); diagonale e altri
+calcolano ogni tasto. Il framebuffer (`level`, `duty2`, `lit`) è scritto con puntatori che avanzano e **solo se il livello è cambiato**.
+Il tasto Caps si accende fisso quando l'host ha il Caps Lock (via USB dal report LED, in wireless dal byte 1 dello stato) **o quando Caps Word è attivo** (`keyboard_caps_word()`; `led_task` guarda entrambi per accorgersi del cambio e ridisegnare). La riga dei numeri mostra il **gauge** (Fn+Backspace), lampeggi di modo/slot/pairing e i passi dello sleep.
 Il PWM suona una colonna alla volta: il «pieno» dei LED è la frazione di tempo, non una corrente continua.
 
 ## 13. Energia e batteria
@@ -270,7 +298,7 @@ Il PWM suona una colonna alla volta: il «pieno» dei LED è la frazione di temp
 
 | Comando | Cosa fa |
 | --- | --- |
-| `make test` | 27 programmi host + controllo della definizione Vial |
+| `make test` | 28 programmi host + controllo della definizione Vial |
 | `make fw size` | `build/oblio.hex` e budget (flash 56320 B, XDATA 4096 B) |
 | `make check-interrupts` | esattamente 4 vettori, nessun overlay statico |
 | `make sim` | l'hex vero nel simulatore `ucsim-sh68f90` (24 test: avvio, slot, stack, recupero, descrittori, VIA/Vial, report, ISP); ~45 s |

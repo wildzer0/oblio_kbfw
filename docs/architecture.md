@@ -43,7 +43,7 @@ plays the sequence of `core/sched.c`: four LED slots, then a scan slot, over and
 the SMK port: the interrupt restarts the timer for the slot that begins (400 µs for an LED slot; for a scan, a safe maximum of 1000 µs), and when a scan has
 finished it forces the overflow so that the next LED slot starts at once. An LED slot is therefore always a full 400 µs, however long the scan before it took
 (a fixed grid of slots cut the LED slot after a long scan short, and one backlight column in five lit for a fraction of its time: a visible flicker on USB).
-The scan takes about 610 µs on the keyboard, so a backlight frame is about 9.6 ms and a key is sampled about every 2.2 ms.
+The scan (`matrix_hw_scan`, 4638 instructions in the simulator; each column touches only its own port) takes about 560–610 µs on the keyboard, so a backlight frame is about 9.6 ms and a key is sampled about every 2.2 ms.
 
 The millisecond clock is the sum of the time that really passed between interrupts, in timer counts (2000 per ms): the nominal slot length (LED) or the
 measured scan, plus the interrupt latency read from the counter. The interrupt only copies pre-computed values and writes registers; effects, debounce and

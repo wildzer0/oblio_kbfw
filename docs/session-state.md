@@ -13,14 +13,21 @@ overrides, tab Lighting con colore pieno), NKRO, Caps Word, Leader, mouse dall'e
 
 | | |
 | --- | --- |
-| Flash | **55326 / 55808** con il registro batteria (0,5 KB liberi); 53890 / 56320 con `BATTERY_LOG=0` |
-| XDATA | **3782 / 4096** (314 B liberi) |
+| Flash | **54136 / 55808** con il registro batteria; 52692 / 56320 con `BATTERY_LOG=0` |
+| XDATA | **3884 / 4096** (212 B liberi); la build di profilo è al limite: 4096/4096 e 56297/56320 B di flash |
 | Deposito keymap | **1709 / 2048** (339 B liberi) |
-| Test host | **27 / 27** (`make test`, include il controllo della definizione Vial) |
-| Simulatore ucsim | **24 / 24** (`make sim`) |
+| Test host | **28 / 28** (`make test`, include il controllo della definizione Vial) |
+| Simulatore ucsim | **23 / 23** (`make sim`) |
 | Vettori interrupt | 4, nessun overlay statico (`make check-interrupts`) |
 
 **Mappa flash**: codice fino a **0xDC00**, keymap con due copie **0xDC00–0xEBFF**, impostazioni **0xEC00** (log append-only), **0xEE00 = marcatore del bootloader, mai toccare**, bootloader stock a 0xF000. `hal/flash.c` rifiuta le scritture fuori da 0xDC00–0xF000; `make size` impone il limite di codice.
+
+## Ottimizzazioni del 2026-11-06/07 — da confrontare sull'hardware
+
+Prima ondata (già misurata dall'utente con la build di profilo): passate 183–231 → **343 al secondo**, `matrix_feed` 750 → 189 µs, chunk di pittura 3285 → 1722 µs, ISR del timer 40,9 → 39,0 %.
+Seconda ondata (commit successivo, **non ancora misurata**): cache dei colori nei LED (uniformi, onde, anelli del radiale), ruota senza divisione, scritture del framebuffer per puntatore, Caps Word nel Caps.
+Il simulatore non dà un conteggio utile per i LED (nella sua finestra il ridisegno quasi non scatta): la misura è `diag.py --profile-reset`, scrivere ~30 s, `--profile` e confrontare «led: paint chunk», `led_task` e le passate al secondo con i numeri sopra.
+Dettagli e motivazioni: [design.md §6.1](design.md).
 
 ## Batteria — chiusa il 2026-11-02 (scala provvisoria)
 

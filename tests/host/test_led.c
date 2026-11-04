@@ -52,7 +52,9 @@ static bool caps;
 bool led_hook_caps_lock(void) { return caps; }
 
 // core/led.c asks the keyboard whether Caps Word is on (it lights the Caps key too): there is no keyboard in this test
-bool keyboard_caps_word(void) { return false; }
+static bool caps_word;
+
+bool keyboard_caps_word(void) { return caps_word; }
 
 // ---- helpers ----
 // A full repaint: ask for it and let led_task() paint the 8 LEDs of a pass until it is done
@@ -69,7 +71,8 @@ static void reset(uint16_t effect)
 {
     cfg_defaults[CFG_LED_EFFECT] = effect;
     keymap_init();
-    caps = false;
+    caps      = false;
+    caps_word = false;
     led_init();
     render_all();
 }
@@ -527,6 +530,83 @@ static void test_a_repaint_is_done_in_pieces(void)
     CHECK(is(0, 5, 64, 64, 64));
 }
 
+static void test_caps_word_lights_the_caps_key_and_repaints_when_it_ends(void)
+{
+    reset(FX_OFF);
+    caps_word = true;
+    led_task(); // the change is seen by led_task: nothing else asked for a repaint
+    settle();
+    CHECK(is(2, 0, 255, 255, 255));
+    caps_word = false;
+    led_task();
+    settle();
+    CHECK(is(2, 0, 0, 0, 0));
+}
+
+// The effects that give every key one colour (solid, breathe, pulse) work the colour out once per repaint: every key must still get it,
+// and the duty value the interrupt writes must follow the level (width = level * 3.5, on the channel's base)
+static void test_the_uniform_effects_paint_every_key_alike_and_the_duty_follows(void)
+{
+    const led_effect_t uniform[] = {FX_SOLID, FX_BREATHE, FX_PULSE};
+
+    for (unsigned u = 0; u < 3; u++) {
+        reset(uniform[u]);
+        frames(3 * LED_ANIM_FRAMES);
+        settle();
+
+        uint8_t first[3];
+
+        key_rgb(0, 0, first);
+
+        for (uint8_t row = 0; row < LED_ROWS; row++) {
+            for (uint8_t col = 0; col < LED_COLS; col++) {
+                if (row == 2 && col == 0) {
+                    continue; // the Caps key
+                }
+
+                uint8_t rgb[3];
+
+                key_rgb(row, col, rgb);
+                CHECK(memcmp(first, rgb, 3) == 0);
+
+                for (uint8_t c = 0; c < 3; c++) {
+                    const uint8_t n = (uint8_t)(row * 3 + c);
+
+                    CHECK(led_duty2(col)[n] == (uint16_t)(LED_DUTY1_BASE + n + LED_WIDTH(rgb[c])));
+                }
+            }
+        }
+    }
+}
+
+// The waves reuse the colours they have worked out (a column on every row, a row on every key): each key must still have the colour the effect
+// gives it by itself, at the phase of the repaint, also after the phase has stepped
+static void test_the_waves_that_reuse_colours_match_the_plain_effect(void)
+{
+    const led_effect_t waves[] = {FX_HORIZONTAL, FX_VERTICAL, FX_DIAGONAL, FX_RADIAL};
+
+    for (unsigned w = 0; w < 4; w++) {
+        reset(waves[w]);
+        frames(5 * LED_ANIM_FRAMES);
+        settle();
+
+        const uint8_t phase = (uint8_t)(5 * keymap_cfg_get(CFG_LED_SPEED)); // five steps of the phase, from zero
+
+        for (uint8_t row = 0; row < LED_ROWS; row++) {
+            for (uint8_t col = 0; col < LED_COLS; col++) {
+                if (row == 2 && col == 0) {
+                    continue; // the Caps key
+                }
+
+                uint8_t want[3];
+
+                CHECK(led_effect_rgb(waves[w], row, col, phase, (uint8_t)keymap_cfg_get(CFG_LED_BRIGHT), want));
+                CHECK(is(row, col, want[0], want[1], want[2]));
+            }
+        }
+    }
+}
+
 int main(void)
 {
     test_the_wheel_and_the_effects();
@@ -548,5 +628,8 @@ int main(void)
     test_the_keys_of_the_lighting();
     test_settings_out_of_range_are_tamed();
     test_a_repaint_is_done_in_pieces();
+    test_caps_word_lights_the_caps_key_and_repaints_when_it_ends();
+    test_the_uniform_effects_paint_every_key_alike_and_the_duty_follows();
+    test_the_waves_that_reuse_colours_match_the_plain_effect();
     return tests_result();
 }

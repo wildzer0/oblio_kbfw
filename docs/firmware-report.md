@@ -146,7 +146,7 @@ durations. It has a guard on instructions per interrupt (backlight subframe < 12
 
 | Area | State |
 | --- | --- |
-| Host logic (27 test programs), Vial definition, vectors, simulator (24 tests), CI | **verified**, green |
+| Host logic (28 test programs), Vial definition, vectors, simulator (24 tests), CI | **verified**, green |
 | Keyboard on USB: typing | **verified by the user**: responsive, no visible latency |
 | Keyboard on USB: backlight | **verified by the user**: stable after the timing fix (it flickered before) |
 | 2.4G and Bluetooth | user reported "everything works normally" without the cable, on a build before the final timing change; **re-check on the current hex** |

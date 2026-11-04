@@ -23,6 +23,9 @@ typedef enum {
 // Position of key (row, col) on the colour wheel for an effect, 0-255.
 uint8_t led_effect_index(led_effect_t fx, uint8_t row, uint8_t col, uint8_t phase);
 
+// Which ring of the radial effect the key is on, 1-15: keys of one ring have one colour at any phase (the rings are the distinct distances of the table)
+uint8_t led_effect_ring(uint8_t row, uint8_t col);
+
 // The colour wheel at full saturation and value: red -> yellow -> green -> cyan -> blue -> magenta, `index` 0-255
 void led_color_wheel(uint8_t index, XDATA uint8_t *out);
 
