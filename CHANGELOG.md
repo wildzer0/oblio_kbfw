@@ -57,6 +57,14 @@ Il controllo di recupero Esc+1+2 va all'inizio del `main`, prima di USB e radio.
   30 ms (la coda della radio è di 4); la tastiera non va in sleep mentre scrive. Costa ~520 B di flash (54415/55296). È uno strumento di debug: da
   togliere insieme al registro in flash quando la scala della batteria è confermata.
 
+## 2026-11-06 (sera) — scansione, debounce, sleep, impostazioni, encoder: meno lavoro, stessi risultati
+- **Scansione** (`matrix_hw_scan`): ogni colonna tocca solo la sua porta (P6, P5 o P4) invece di tre letture-modifica-scrittura: da 5105 a 4638 istruzioni per scansione (simulatore), -9 % sull'ISR più pesante.
+- **`matrix_feed`**: percorso rapido per la colonna ferma (campione uguale a candidato e a stabile, debounce già contato); puntatori `XDATA` tipizzati invece dei generici (~30 istruzioni a accesso).
+- **`sleep_hw_task`** riusa `any_key_down` del ciclo principale (prima interrogava la matrice di nuovo).
+- **`settings_task`**: il confronto dei valori delle luci ogni 8 ms, non a ogni passata (8 chiamate degli hook a passata).
+- **`encoder_poll`**: se lo stato dei pin non è cambiato, niente da fare.
+- Il comportamento non cambia: 28 test host, 23 nel simulatore, flash 53.548/55.808, XDATA 3.829/4.096.
+
 ## 2026-11-06 — il ridisegno dei LED costava 1730 istruzioni a LED: ora ~1000
 
 - Le sonde dentro `led_task` (utente, radio, 36 s): **il blocco da 8 LED costa 2959 µs al minimo e 3285 µs di media (43,9 % del tempo)**; il resto di `led_task` e di ogni altro passo è trascurabile.

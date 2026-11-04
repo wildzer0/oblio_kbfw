@@ -7,13 +7,14 @@
 // The handler is declared here because SDCC builds the vector table from the module that defines main(): main.c must include
 // this header.
 
+#include "platform.h"
 #include <stdbool.h>
 #include <stdint.h>
 
 void tick_isr(void) __interrupt(0); // INT_TIMER2
 
 // Provided by the board: the work of the two kinds of slots. They run inside the interrupt and are timed from the start of their own interrupt (core/sched.h).
-void tick_hook_scan(uint8_t raw[16]); // scan the key matrix: raw[col] has bit `row` set for a pressed key
+void tick_hook_scan(XDATA uint8_t *raw); // scan the key matrix: raw[col] has bit `row` set for a pressed key
 void tick_hook_led(bool give_up);     // play one subframe of the backlight; `give_up`: the timer is running late, switch the backlight off instead
 
 void tick_init(void);
@@ -26,7 +27,7 @@ void tick_resume(void);
 bool tick_take(void);
 
 // True once for every scan of the matrix not yet taken; its result is copied to `raw`.
-bool tick_scan_take(uint8_t raw[16]);
+bool tick_scan_take(XDATA uint8_t *raw);
 
 // The timer's count right now (the erase in a flash write is the only user: it is the clock that keeps running when the interrupt is off).
 uint16_t tick_count_now(void);

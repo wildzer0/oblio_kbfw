@@ -254,7 +254,7 @@ INT_TIMER2
 #### `tick_hook_scan`
 
 ```c
-void tick_hook_scan(uint8_t raw[16]);
+void tick_hook_scan(XDATA uint8_t *raw);
 ```
 
 Provided by the board: the work of the two kinds of slots. They run inside the interrupt and are timed from the start of their own interrupt (core/sched.h).
@@ -300,7 +300,7 @@ True once for every millisecond that has passed and has not been taken.
 #### `tick_scan_take`
 
 ```c
-bool tick_scan_take(uint8_t raw[16]);
+bool tick_scan_take(XDATA uint8_t *raw);
 ```
 
 True once for every scan of the matrix not yet taken; its result is copied to `raw`.
@@ -2071,7 +2071,7 @@ void matrix_init(void);
 #### `matrix_feed`
 
 ```c
-void matrix_feed(const uint8_t raw[MATRIX_COLS], uint16_t now);
+void matrix_feed(XDATA const uint8_t *raw, uint16_t now);
 ```
 
 raw[col] has bit `row` set for a pressed key; bits above the last row are ignored. A fresh scan of the whole matrix, with the time it was taken: `now` is what the debounce is measured against.
@@ -3861,7 +3861,7 @@ Puts the pins in the state the stock firmware leaves them in at idle (see matrix
 #### `matrix_hw_scan`
 
 ```c
-void matrix_hw_scan(uint8_t raw[MATRIX_COLS]);
+void matrix_hw_scan(XDATA uint8_t *raw);
 ```
 
 Scans the 16 columns once. raw[col] has bit `row` set for a pressed key. A column whose two readings disagree is reported as empty.
@@ -3959,10 +3959,10 @@ Recovery chord: hold Esc + 1 + 2 (cells c0r0, c1r0, c2r0) while plugging in the 
 #### `sleep_hw_task`
 
 ```c
-void sleep_hw_task(uint16_t now);
+void sleep_hw_task(uint16_t now, bool any_key_down);
 ```
 
-Puts the keyboard to sleep when core/sleep.h says so: only on battery (a wireless mode, no cable seen by the PC). From the main loop, with the time in ms.
+Puts the keyboard to sleep when core/sleep.h says so: only on battery (a wireless mode, no cable seen by the PC). From the main loop, with the time in ms. `any_key_down`: the main loop has asked the matrix already
 
 #### `sleep_hw_apply_level`
 

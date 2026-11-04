@@ -105,7 +105,7 @@ static void init(void)
 
 void main(void)
 {
-    uint8_t        raw[MATRIX_COLS];
+    static XDATA uint8_t raw[MATRIX_COLS]; // in external RAM: the functions that take it use the 2-byte pointers
     matrix_event_t event;
 
     uint16_t last_pass = 0;
@@ -167,6 +167,6 @@ void main(void)
 #if BATTERY_LOG
         STEP(14, blog_task(now_ms, radio_hook_on_battery(), battery_reading()));
 #endif
-        STEP(15, sleep_hw_task(now_ms));
+        STEP(15, sleep_hw_task(now_ms, any_key_down));
     }
 }

@@ -24,7 +24,7 @@
 static volatile uint8_t ticks;
 static uint8_t          taken;
 
-static uint8_t          scan_raw[16];
+static XDATA uint8_t    scan_raw[16];
 static volatile bool    scan_ready;
 static uint8_t          back_off; // LED slots still to be given up after the main loop was starved
 static volatile uint8_t alive;    // passes of the main loop
@@ -208,7 +208,7 @@ bool tick_take(void)
     return true;
 }
 
-bool tick_scan_take(uint8_t raw[16])
+bool tick_scan_take(XDATA uint8_t *raw)
 {
     if (!scan_ready) {
         return false;

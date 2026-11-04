@@ -58,6 +58,10 @@ void encoder_poll(void)
         const uint8_t state = (uint8_t)(encoder_hook_state(i) & 3u);
 
         if (primed) {
+            if (state == last[i]) {
+                continue; // the knob has not moved: nothing to do (and most passes are this)
+            }
+
             sample(i, state);
         } else {
             last[i] = state; // the first reading is where the knob is, not a move

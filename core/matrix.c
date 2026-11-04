@@ -39,10 +39,14 @@ static bool queue_push(uint8_t col, uint8_t row, bool pressed)
     return true;
 }
 
-void matrix_feed(const uint8_t raw[MATRIX_COLS], uint16_t now)
+void matrix_feed(XDATA const uint8_t *raw, uint16_t now)
 {
     for (uint8_t col = 0; col < MATRIX_COLS; col++) {
         const uint8_t sample = raw[col] & MATRIX_ROW_MASK;
+
+        if (sample == candidate[col] && samples[col] >= MATRIX_DEBOUNCE_SAMPLES && sample == stable[col]) {
+            continue; // the common case, a column that is not changing: nothing to count, nothing to report
+        }
 
         if (sample != candidate[col]) { // a new value: the window starts over
             candidate[col]  = sample;

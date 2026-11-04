@@ -5,6 +5,7 @@
 // The board scans every column and hands the raw samples to matrix_feed(); a key change is accepted once that column has read the same value
 // for MATRIX_DEBOUNCE_MS milliseconds, then queued as an event.
 
+#include "platform.h"
 #include <stdbool.h>
 #include <stdint.h>
 
@@ -32,7 +33,7 @@ void matrix_init(void);
 
 // raw[col] has bit `row` set for a pressed key; bits above the last row are ignored.
 // A fresh scan of the whole matrix, with the time it was taken: `now` is what the debounce is measured against.
-void matrix_feed(const uint8_t raw[MATRIX_COLS], uint16_t now);
+void matrix_feed(XDATA const uint8_t *raw, uint16_t now);
 
 // Takes the oldest event. False when there is none.
 bool matrix_event_pop(matrix_event_t *event);

@@ -8,6 +8,8 @@
 #define SIZE    14u // magic 2, version 1, one byte unused, sleep, slot, lighting effect, brightness, speed, colour (2), CRC 2, one byte unused
 #define CRC_AT  11u // the CRC follows the 11 bytes it covers
 
+#define WATCH_MS     8u // how often the lighting values are compared with the saved ones
+
 #define SLEEP_LEVELS 5 // see sleep.h: 1, 5, 10, 30 minutes, never
 
 settings_t settings;
@@ -185,13 +187,20 @@ void settings_flush(void)
 
 void settings_task(uint16_t now, bool any_key_down)
 {
-    static bool timing;
+    static bool     timing;
+    static uint16_t watched_at;
 
-    for (uint8_t i = 0; i < 4; i++) { // the lighting keys and the Vial lighting tab change the cfg: that is a setting to save
-        if (settings_hook_led_get(i) != led_seen[i]) {
-            led_seen[i] = settings_hook_led_get(i);
-            changed();
-            break;
+    // The lighting keys and the Vial lighting tab change the cfg: that is a setting to save. Looked at every WATCH_MS, not every pass of the main loop
+    // (eight calls of the hooks, a sixth of what a pass costs): the quiet time that follows is half a second, so a few milliseconds more do not matter.
+    if ((uint16_t)(now - watched_at) >= WATCH_MS) {
+        watched_at = now;
+
+        for (uint8_t i = 0; i < 4; i++) {
+            if (settings_hook_led_get(i) != led_seen[i]) {
+                led_seen[i] = settings_hook_led_get(i);
+                changed();
+                break;
+            }
         }
     }
 

@@ -90,27 +90,40 @@ void matrix_hw_col_on(uint8_t col)
     GPIO_LOW(6, col_p6[col]);
 }
 
-void matrix_hw_scan(uint8_t raw[MATRIX_COLS])
+// One column: low, let the rows settle, read them twice, high again. The port of the column and its bit are known from the column number, so the other two
+// ports are not touched (reading a RMW of a port with a zero mask changed nothing and cost a dozen instructions).
+#define SCAN_COLUMN(port, mask)               \
+    do {                                      \
+        GPIO_LOW(port, mask);                 \
+        delay_us_nokick(SETTLE_US);           \
+        first = read_rows();                  \
+        delay_us_nokick(SETTLE_US);           \
+        second = read_rows();                 \
+        GPIO_HIGH(port, mask);                \
+        raw[col] = (first == second) ? (uint8_t)(~first & MATRIX_ROW_MASK) : 0u; \
+    } while (0)
+
+void matrix_hw_scan(XDATA uint8_t *raw)
 {
-    for (uint8_t col = 0; col < MATRIX_COLS; col++) {
-        const uint8_t m4 = col_p4[col];
-        const uint8_t m5 = col_p5[col];
-        const uint8_t m6 = col_p6[col];
+    uint8_t first;
+    uint8_t second;
+    uint8_t col;
 
-        GPIO_LOW(4, m4);
-        GPIO_LOW(5, m5);
-        GPIO_LOW(6, m6);
+    for (col = 0; col < 8; col++) { // C0-C7 are P6.0-7
+        const uint8_t bit = col_p6[col];
 
-        delay_us_nokick(SETTLE_US);
-        const uint8_t first = read_rows();
-        delay_us_nokick(SETTLE_US);
-        const uint8_t second = read_rows();
+        SCAN_COLUMN(6, bit);
+    }
 
-        GPIO_HIGH(4, m4);
-        GPIO_HIGH(5, m5);
-        GPIO_HIGH(6, m6);
+    for (; col < 12; col++) { // C8-C11 are P5.0-2 and P5.7
+        const uint8_t bit = col_p5[col];
 
-        raw[col] = (first == second) ? (uint8_t)(~first & MATRIX_ROW_MASK) : 0u;
+        SCAN_COLUMN(5, bit);
+    }
 
+    for (; col < MATRIX_COLS; col++) { // C12-C15 are P4.0, P4.2, P4.3, P4.5
+        const uint8_t bit = col_p4[col];
+
+        SCAN_COLUMN(4, bit);
     }
 }
