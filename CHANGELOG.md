@@ -57,6 +57,14 @@ Il controllo di recupero Esc+1+2 va all'inizio del `main`, prima di USB e radio.
   30 ms (la coda della radio è di 4); la tastiera non va in sleep mentre scrive. Costa ~520 B di flash (54415/55296). È uno strumento di debug: da
   togliere insieme al registro in flash quando la scala della batteria è confermata.
 
+## 2026-11-04 (notte) — il back-off scatta meno: 3 → 8 scansioni
+
+- Misura con `LOOP_PROFILE` (scrivendo in radio): **led_task 9 ms**, giro più lento 12 ms, back-off 7. In simulatore un ridisegno di 8 LED costa ~1000 istruzioni (~0,3 ms): i 9 ms sono quindi tempo di orologio
+  allungato da raffiche di interrupt (radio/USB/timer) più che lavoro di `led_task`; la causa precisa della raffica non è stata isolata.
+- Quel che si vede e che si corregge: il rilevatore di «ciclo principale affamato» scattava dopo 3 scansioni (~6,6 ms) e metteva da parte il backlight per 12 slot (~5 ms): un lampo. Un giro di 9–12 ms non
+  mette in pericolo i tasti (li scansiona l'interrupt; ritarda solo il debounce). Soglia a **8 scansioni (~18 ms)**: la vera affamatura (il ciclo che non gira più) è ancora colta, ben dentro il watchdog.
+- **Da verificare**: scrivendo in radio il contatore «backlight back-offs» non deve più salire, e il lampo sparire. Resta da capire cosa allunga i giri del ciclo (picchi di 9–12 ms: anche latenza dei tasti).
+
 ## 2026-11-04 (sera) — profilo del ciclo principale (`LOOP_PROFILE`)
 
 - Flicker mentre si scrive in modalità radio. I contatori dell'utente: i **back-off** salgono di 1–5 al secondo insieme ai frame radio (30 s di scrittura: da 2 a 33). Il back-off (`hal/tick.c`) mette da parte il

@@ -7,8 +7,13 @@
 // LED slots given up while the main loop is starved, and how many scans in a row without a pass of the main loop count as starving it (a pass
 // takes about a millisecond even with the interrupt at work). The give-up is as short as it can be while still leaving the loop a few passes:
 // it darkens the backlight, so 32 slots (13 ms) was a visible blink for no gain over 12 (5 ms).
+//
+// How long the main loop may go without a pass before this counts as starvation: 8 scans, about 18 ms. At 3 scans (~6.6 ms) it fired while typing in the
+// radio mode, 1-5 times a second (the back-off counter in diag.py rose with the radio frames; a LOOP_PROFILE build blamed a pass of 9 ms): a pass that
+// long is no danger to the keys - they are scanned by this interrupt, and only their debounce waits - and the blink of the backlight was what it cost.
+// Real starvation (the loop not coming round at all, as in the first run of the backlight) is still caught, 18 ms in, well inside the watchdog.
 #define BACK_OFF_SLOTS 12u
-#define STARVED_SCANS  3u
+#define STARVED_SCANS  8u
 
 #define RELOAD(us) ((uint16_t)(65536u - SCHED_COUNTS_PER_US * (us)))
 
