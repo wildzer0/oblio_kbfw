@@ -57,6 +57,13 @@ Il controllo di recupero Esc+1+2 va all'inizio del `main`, prima di USB e radio.
   30 ms (la coda della radio è di 4); la tastiera non va in sleep mentre scrive. Costa ~520 B di flash (54415/55296). È uno strumento di debug: da
   togliere insieme al registro in flash quando la scala della batteria è confermata.
 
+## 2026-11-05 (notte) — profilo con orologio corretto: `led_task` è il 45 % del tempo
+
+- Misura dell'utente (radio, 49 s, orologio corretto; le quote ora tornano: passi ~75 % + interrupt fuori dai passi): **203 giri/s (4,9 ms a giro)**, timer 40,8 % della CPU, USB 0,9 %, seriale 0,2 %.
+  `led_task`: **media 2196 µs, massimo 8,8 ms, 44,6 %** del tempo; `matrix_feed` 743 µs (min 480), 15 % (una volta per scansione); tutti gli altri passi 40–135 µs di media (radio inclusa: `link_task` 135 µs, max 2,6 ms).
+  I giri da 6,4–12,8 ms sono il 4 %. Il simulatore dava ~1000 istruzioni per ridisegnare 8 LED (~0,15 ms): sull'hardware è ~15× di più, non capito.
+- Sonde dentro `led_task` (passi 16–19: `frame_passed`, controllo del caps lock, `read_settings`, blocco di 8 LED) per vedere dove va il tempo (`PROBE` in `core/led.c`, solo nella build di profilo).
+
 ## 2026-11-05 (sera) — l'orologio del profilo sbagliava: corretto
 
 - Prima misura dell'utente (radio, 76 s): le quote dei passi sommavano al **190 %**, e ogni passo, anche da 12 µs, aveva massimo ~32,4 ms e media gonfiata di ~280 µs. Colpa dell'orologio (`profile_hook_now`): fermava l'interrupt del

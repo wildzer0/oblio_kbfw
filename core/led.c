@@ -1,6 +1,10 @@
 #include "led.h"
 #include "keymap.h"
 #include "led_effect.h"
+#include "options.h"
+#if LOOP_PROFILE
+#    include "profile.h"
+#endif
 #include <string.h>
 
 #define RENDER_CHUNK 8u // LEDs painted per pass of the main loop
@@ -219,18 +223,32 @@ static void frame_passed(void)
     }
 }
 
+// The parts of led_task, timed in the profile build (core/profile.h, steps 16-19); nothing in the others
+#if LOOP_PROFILE
+#    define PROBE(id, code)                                    \
+        do {                                                   \
+            const uint16_t probe_ = profile_hook_now();        \
+            code;                                              \
+            profile_step(id, (uint16_t)(profile_hook_now() - probe_)); \
+        } while (0)
+#else
+#    define PROBE(id, code) code
+#endif
+
 void led_task(void)
 {
     uint8_t seen;
 
     seen = frames; // one byte: read atomically
-    while (last_frames != seen) {
+    PROBE(16, while (last_frames != seen) {
         last_frames++;
         frame_passed();
-    }
+    });
 
     // Caps lock changes outside the animation: repaint when it does
-    const bool caps = led_hook_caps_lock();
+    bool caps = false;
+
+    PROBE(17, caps = led_hook_caps_lock());
 
     if (caps != last_caps) {
         last_caps = caps;
@@ -245,12 +263,12 @@ void led_task(void)
         dirty      = false; // cleared first: a step of the phase during the repaint asks for another
         paint_left = (uint8_t)(LED_ROWS * LED_COLS);
 
-        read_settings(); // once for the whole repaint, not once per LED
+        PROBE(18, read_settings()); // once for the whole repaint, not once per LED
     }
 
-    for (uint8_t i = 0; i < RENDER_CHUNK && paint_left; i++, paint_left--) {
+    PROBE(19, for (uint8_t i = 0; i < RENDER_CHUNK && paint_left; i++, paint_left--) {
         paint_one();
-    }
+    });
 }
 
 void led_refresh(void)

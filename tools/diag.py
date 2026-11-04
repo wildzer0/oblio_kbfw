@@ -39,7 +39,7 @@ RAW_SIZE = 32
 # The steps of the main loop that a LOOP_PROFILE build times (board/main.c)
 STEPS = {1: "matrix_feed", 2: "encoder_poll", 3: "keyboard_event", 4: "keyboard_task", 5: "os_switch_task", 6: "store_task", 7: "settings_task",
          8: "usb_wake_task", 9: "usb_task", 10: "led_task", 11: "led_app_task", 12: "link_task (radio)", 13: "battery_task", 14: "blog_task",
-         15: "sleep_hw_task"}
+         15: "sleep_hw_task", 16: "  led: frame_passed", 17: "  led: caps check", 18: "  led: read_settings", 19: "  led: paint chunk (8 LEDs)"}
 
 # The order of the counters in core/diag.h: keep this list in step with it (an old copy prints the wrong labels)
 NAMES = [
@@ -191,7 +191,7 @@ def profile(keyboard):
     print("profile            : window of {:.1f} s since the last reset (times in microseconds)".format(window_ms / 1000.0))
     print("  {:22} {:>8} {:>8} {:>9} {:>9} {:>7}".format("step", "runs", "min", "mean", "max", "share"))
 
-    for step in range(1, 16):
+    for step in range(1, 20):
         r = keyboard.ask(0xF1, 5, step)
         count = int.from_bytes(r[3:5], "little")
         low = int.from_bytes(r[5:7], "little")

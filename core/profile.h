@@ -14,7 +14,7 @@
 
 #    include <stdint.h>
 
-#    define PROFILE_STEPS      16u // step numbers 1 .. 15 are used (see tools/diag.py), 0 is spare
+#    define PROFILE_STEPS      20u // step numbers 1 .. 15 are the steps of the main loop, 16 .. 19 are parts of led_task (see tools/diag.py); 0 is spare
 #    define PROFILE_BANDS      8u  // pass length bands, in counts: < 400, 800, 1600, 3200, 6400, 12800, 25600, and longer (200 us .. 12.8 ms)
 
 typedef enum { PROFILE_ISR_TIMER, PROFILE_ISR_USB, PROFILE_ISR_UART, PROFILE_ISR_COUNT } profile_isr_t;
