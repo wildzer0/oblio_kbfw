@@ -24,7 +24,7 @@ void keyboard_hook_custom(uint16_t keycode, bool pressed)
 
     switch (keycode) {
 
-        case B68_BATTERY: led_show_battery(battery_percent()); break;
+        case B68_BATTERY: battery_show(); break;
         case B68_FX_PREV: led_effect_prev(); break;
         case B68_FX_NEXT: led_effect_next(); break;
         case B68_BRI_DN:  led_brightness_down(); break;

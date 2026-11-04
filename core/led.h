@@ -54,7 +54,7 @@ uint8_t led_next_column(void);
 // Whether any channel of the column is lit (a dark column is not strobed).
 bool    led_column_lit(uint8_t column);
 XDATA const uint16_t *led_duty2(uint8_t column); // the LED_CHANNELS DUTY2 values of the column, ready to write
-uint8_t led_level(uint8_t column, uint8_t channel);
+uint8_t led_level(uint8_t column, uint8_t channel); // host tests only (not in the firmware)
 
 // ---- for the main loop ----
 void led_task(void);
@@ -70,6 +70,9 @@ void led_flash_key(uint8_t kind, uint8_t index);
 #define LED_BATTERY_UNKNOWN 0xFFu
 #define LED_BATTERY_LOW     20u    // percent: at or below this the keys are red
 #define LED_BATTERY_FRAMES  366u   // ~3 s
+// On the cable the level cannot be read: LED_BATTERY_CHARGING lights the ten keys cyan, LED_BATTERY_CHARGED lights them all green.
+#define LED_BATTERY_CHARGING 0xFEu
+#define LED_BATTERY_CHARGED  0xFDu
 void led_show_battery(uint8_t percent);
 
 // Asks for a full repaint (the tests pump led_task() until it is done).

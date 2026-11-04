@@ -65,6 +65,8 @@ interrupt work by instructions (`make sim` has a guard) and by the durations the
 
 ## Memory
 
+**Cable and charger.** `board/battery.c: battery_cable()` says whether the keyboard is powered from outside (USB mode; a saturated battery reading; a host that has configured it; the charger lines read by `board/charger_hw.c` and debounced in `core/charger.c`). Sleep, the battery warning and the gauge all ask it, not the USB host state, which is "gone" whenever the PC suspends the port. The raw HID pipe (Vial, diagnostics) is armed from the device's own configuration state for the same reason.
+
 Application flash ends at 0xDA00 (0xDC00 when built with `BATTERY_LOG=0`); the battery log (optional, one sector, `core/blog.c`) sits at 0xDA00-0xDBFF. After it: the keymap store (two copies of four 512-byte sectors, each with a 69-record log of word edits in its free tail, so most saves erase nothing) up to 0xEBFF, the settings log at
 0xEC00 as a log of 36 small records (sleep, Bluetooth slot and the lighting; 14 bytes each) (a save appends to the first erased one, so a power cut during a save keeps the previous settings and the sector
 is erased once every 36 saves), the bootloader's marker sector at 0xEE00 **untouched**,

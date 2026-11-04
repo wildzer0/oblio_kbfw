@@ -1,7 +1,11 @@
 #include "battery.h"
+#include "charger.h"
+#include "charger_hw.h"
 #include "led.h"
+#include "link.h"
 #include "radio.h"
 #include "sleep.h"
+#include "usb_device.h"
 
 // The battery the way the radio reports it: its status answer carries the cell voltage as a 10-bit ADC reading (core/radio.h). The scale was
 // measured on the keyboard: 4.0378 V at rest read 981, which is about 243 counts to the volt, so 4.2 V (the charge voltage printed on the cell, a
@@ -41,6 +45,34 @@ static uint8_t percent_of(uint16_t raw)
     return 100;
 }
 
+bool battery_cable(void)
+{
+    if (!link_wireless()) {
+        return true; // the USB mode is the cable's
+    }
+
+    const uint16_t raw = radio_battery_raw();
+
+    if (raw >= BATTERY_RAW_CABLE) {
+        return true; // saturated: the supply is from outside, whether or not a PC is driving the bus (a charger alone, or a port the PC has suspended)
+    }
+
+    if (raw >= BATTERY_RAW_FLOOR) {
+        return false; // the voltage of a cell: it is on its battery
+    }
+
+    return usb_device_configured() || charger_cable(); // no reading yet
+}
+
+void battery_show(void)
+{
+    if (battery_cable()) {
+        led_show_battery(charger_charging() ? LED_BATTERY_CHARGING : LED_BATTERY_CHARGED);
+    } else {
+        led_show_battery(battery_percent());
+    }
+}
+
 uint16_t battery_reading(void)
 {
     const uint16_t raw = radio_battery_raw();
@@ -72,6 +104,9 @@ uint8_t battery_percent(void)
 void battery_task(uint16_t now_ms)
 {
     static uint16_t checked_at;
+
+    charger_hw_sample(now_ms); // the lines of the charger, debounced: every pass, they are two pin reads
+
     static uint8_t  warn_checks;
     static uint8_t  critical_checks;
 

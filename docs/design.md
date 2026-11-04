@@ -52,7 +52,7 @@ tests/   host/ (gcc) e sim/ (ucsim)               docs/   questo documento e il 
 
 | Strato | Regola | Come si prova |
 | --- | --- | --- |
-| `core/` | niente registri, niente tempo letto da sé; parla solo con gli hook | `make test` (28 programmi, gcc `-Wall -Wextra -Werror`) |
+| `core/` | niente registri, niente tempo letto da sé; parla solo con gli hook | `make test` (29 programmi, gcc `-Wall -Wextra -Werror`) |
 | `hal/` | solo i registri usati, header minimi dal datasheet e dal dump | il simulatore e l'hardware |
 | `board/` | pin, matrice, PWM dei LED, seriale della radio, sleep, keycode della scheda, e la **colla** che implementa gli hook del core | `check_vial.py`, il simulatore, l'hardware |
 
@@ -243,7 +243,7 @@ mettono in pausa **timer e PWM solo attorno alle cancellazioni** e fanno `watchd
 Interfaccia 1: **raw HID** (pagina 0xFF60) su **EP2** da 32 byte, senza ID. Windows memorizza i descrittori per VID:PID+bcdDevice: **si cambia `USB_BCD_DEVICE` ogni volta che cambiano**.
 
 **EP0** (`core/usb_device.c`): macchina a stati pura (SETUP → dati → stato) guidata dal driver; il chip porta SETUP, OUT e «IN preso». **Cavo staccato**: il chip non lo segnala, quindi `usb_device_bus_check` guarda
-il contatore degli start‑of‑frame ogni 250 ms (`usb_device_configured()` = configurato *e* host che pilota il bus).
+il contatore degli start‑of‑frame ogni 250 ms (`usb_device_configured()` = configurato *e* host che pilota il bus). Il **raw HID** (Vial, `diag.py`) invece si arma su `usb_device_enumerated()` (SET_CONFIGURATION visto) e non su `usb_device_configured()`: il reset del bus svuota l'endpoint, e col verdetto «nessun host» ancora vivo (fino a 250 ms dopo un cavo inserito o una porta risvegliata) il canale non veniva riarmato, la tastiera scriveva e Vial/diagnostica restavano muti finché non si staccava il cavo.
 
 **Raw HID** (`core/raw_hid.c`): una richiesta alla volta. L'ISR segna che un pacchetto è arrivato **senza copiarlo**; il main lo legge dal buffer dell'endpoint, lo elabora e risponde; l'EP2 OUT non è riarmato
 finché non si risponde, quindi non si perde e non si accoda nulla.
@@ -289,21 +289,27 @@ Il PWM suona una colonna alla volta: il «pieno» dei LED è la frazione di temp
 
 ## 13. Energia e batteria
 
-- **Sleep** (`core/sleep.c` + `board/sleep_hw.c`): solo in wireless e **solo senza cavo**; dopo 1/5/10/30 min o mai (Fn+O/P), o subito con Fn+Tab. Sequenza copiata dallo stock: frame `01 0C 08 07 00` e `01 0B 00` alla radio, seriale
+- **Sleep** (`core/sleep.c` + `board/sleep_hw.c`): solo in wireless e **solo senza cavo** (`battery_cable()`, sotto); dopo 1/5/10/30 min o mai (Fn+O/P), o subito con Fn+Tab. Sequenza copiata dallo stock: frame `01 0C 08 07 00` e `01 0B 00` alla radio, seriale
   spenta, PWM a 1, pin in stato di riposo, INT4 armato, `power_enter_powerdown`. Il tasto che sveglia non viene inviato.
 - **Batteria** (`board/battery.c`): lettura ADC dalla radio (**~243 conteggi/volt**, misurata: 4,0378 V ↔ 981), percentuale da una **curva di scarica Li‑Po** (800 = 3,30 V = 0 % … 1020 = 4,20 V = 100 %), non la retta dello stock.
   Col cavo la lettura satura (1023) e si ignora; all'accensione l'ADC legge 1–3 (non assestato) e si ignora. **Avviso** sotto 800 (gauge rosso subito e ogni 30 s); **sleep di protezione** sotto 752 per 10 s.
   La scala poggia su un solo punto misurato: **provvisoria** (conferma: lettura ~1015–1020 appena tolto il caricatore).
+- **Il cavo e la carica** (`board/battery.c`, `core/charger.c`, `board/charger_hw.c`). `battery_cable()` decide se la tastiera è alimentata da fuori, in quest'ordine: in USB sì; lettura satura (≥ 1021) sì, *anche se il PC ha sospeso la porta o se c'è solo un
+  caricatore*; lettura di una cella (600–1020) no; senza lettura (radio che non risponde ancora) sì se un host ha configurato la tastiera o se la linea del cavo è alta. Prima si usava `usb_device_configured()`, che a bus sospeso
+  dice «nessun cavo»: la tastiera si addormentava col cavo inserito (USB spento, sparita da Windows) e il gauge mostrava l'ultima percentuale presa a batteria. Le due linee che legge lo stock (`docs/keyboards/yunzii-b68-firmware-stock.md`):
+  **P4.4** (ingresso senza pull-up: alto = cavo, debounce 5) e **P7.7** (ingresso con pull-up: basso = in carica, debounce 20 per asserire e 200 per lasciare). `core/charger.c` fa solo il debounce (testato sull'host),
+  `board/charger_hw.c` legge i pin. Le polarità sono dedotte dal codice dello stock e **confermate in due stati sulla tastiera** (cavo: P4.4 alto; in carica: P7.7 basso, gauge azzurro); restano da misurare P4.4 a batteria e P7.7 a carica finita dai pin: `diag.py` mostra i pin grezzi e quelli filtrati (contatore `DIAG_CHARGER`), da leggere nei tre stati (batteria, cavo in carica, cavo carica finita).
+  **Gauge** (Fn+Backspace): a batteria il livello; col cavo non si può leggere, e mostra i dieci tasti in azzurro (in carica) o in verde (carica finita, linea P7.7 alta).
 - **Remote wakeup USB** (`board/usb_app.c`): con il bus sospeso e il wakeup abilitato dall'host, un tasto preme `USBCON.WKUP` per 10 ms (come lo stock a `0x9D73`); il tasto non esce. Da provare con un PC in sospensione.
 
 ## 14. Build, test, qualità
 
 | Comando | Cosa fa |
 | --- | --- |
-| `make test` | 28 programmi host + controllo della definizione Vial |
+| `make test` | 29 programmi host + controllo della definizione Vial |
 | `make fw size` | `build/oblio.hex` e budget (flash 56320 B, XDATA 4096 B) |
 | `make check-interrupts` | esattamente 4 vettori, nessun overlay statico |
-| `make sim` | l'hex vero nel simulatore `ucsim-sh68f90` (24 test: avvio, slot, stack, recupero, descrittori, VIA/Vial, report, ISP); ~45 s |
+| `make sim` | l'hex vero nel simulatore `ucsim-sh68f90` (23 test: avvio, slot, stack, recupero, descrittori, VIA/Vial, report, ISP); ~45 s |
 | `make api` / `make check-api` | rigenera / verifica `docs/api.md` dagli header |
 | `make BATTERY_LOG=0 fw` | build senza il registro della batteria (opzione in `core/options.h`) |
 | `make LOOP_PROFILE=1 BATTERY_LOG=0 fw` | **build di profilo**: misura ogni passo del ciclo principale (15 passi: corse, minimo, media, massimo, quota di tempo), la lunghezza dei giri per fasce e la CPU presa da ogni interrupt (timer, USB, seriale della radio). Si legge con `py tools\diag.py --profile`, si riparte con `--profile-reset`. Costa ~2 KB di flash e ~180 B di XDATA e rallenta un po' ogni giro: solo per misurare. Va con `BATTERY_LOG=0` (non ci starebbe) |

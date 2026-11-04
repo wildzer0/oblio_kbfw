@@ -168,11 +168,6 @@ void report_mouse_wheel(int8_t delta)
     mouse_wheel = (int8_t)(mouse_wheel + delta);
 }
 
-uint8_t report_mouse_buttons(void)
-{
-    return mouse_buttons;
-}
-
 void report_build_mouse(uint8_t out[REPORT_MOUSE_SIZE])
 {
     out[0] = mouse_buttons;

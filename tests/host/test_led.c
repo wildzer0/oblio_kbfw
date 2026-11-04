@@ -581,6 +581,34 @@ static void test_the_uniform_effects_paint_every_key_alike_and_the_duty_follows(
 
 // The waves reuse the colours they have worked out (a column on every row, a row on every key): each key must still have the colour the effect
 // gives it by itself, at the phase of the repaint, also after the phase has stepped
+static void test_the_charge_display_on_the_cable(void)
+{
+    reset(FX_OFF);
+    led_show_battery(LED_BATTERY_CHARGING); // charging: the ten number keys cyan
+    settle();
+
+    for (uint8_t col = 1; col <= 10; col++) {
+        CHECK(is(0, col, 0, 255, 255));
+    }
+
+    CHECK(is(0, 0, 0, 0, 0) && is(0, 11, 0, 0, 0)); // and no others
+
+    led_show_battery(LED_BATTERY_CHARGED); // done: all ten green
+    settle();
+
+    for (uint8_t col = 1; col <= 10; col++) {
+        CHECK(is(0, col, 0, 255, 0));
+    }
+
+    led_show_battery(50); // the level display after it is the level again, not a leftover of the charge
+    settle();
+    CHECK(is(0, 5, 0, 255, 0) && is(0, 6, 0, 0, 0));
+
+    frames(LED_BATTERY_FRAMES + 2); // and it ends by itself
+    settle();
+    CHECK(is(0, 3, 0, 0, 0));
+}
+
 static void test_the_waves_that_reuse_colours_match_the_plain_effect(void)
 {
     const led_effect_t waves[] = {FX_HORIZONTAL, FX_VERTICAL, FX_DIAGONAL, FX_RADIAL};
@@ -631,5 +659,6 @@ int main(void)
     test_caps_word_lights_the_caps_key_and_repaints_when_it_ends();
     test_the_uniform_effects_paint_every_key_alike_and_the_duty_follows();
     test_the_waves_that_reuse_colours_match_the_plain_effect();
+    test_the_charge_display_on_the_cable();
     return tests_result();
 }

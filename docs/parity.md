@@ -34,6 +34,7 @@ sull'hardware · **M** = manca · **?** = non so cosa faccia lo stock: da confro
 | --- | --- | --- |
 | Sleep (1/5/10/30 min, mai; Fn+Tab; Fn+O/P) | `core/sleep`, `board/sleep_hw` | P dorme e si sveglia; ripetere la prova dopo la correzione dei LED |
 | Gauge batteria (Fn+Backspace, 10 tasti) | lettura ADC, curva Li‑Po | S, scala **provvisoria** (un punto misurato) |
+| Cavo e carica (linee P4.4 e P7.7 dello stock): sleep mai col cavo, gauge «in carica / carica finita» | `battery_cable`, `core/charger.c`; **polarità da misurare** con `diag.py` | N (da provare) |
 | Avviso di batteria scarica | `battery_task`: sotto la lettura 800 (~3,3 V) il gauge rosso compare subito e ogni 30 s | S |
 | Sleep di protezione a batteria quasi vuota | sotto 752 (~3,09 V) per 10 s va in sleep; un tasto lo sveglia, e se è ancora scarica ridorme dopo 10 s | S |
 | Indicatore di carica col cavo | — | ? cosa mostra lo stock (LED di stato vicino a Caps?) |

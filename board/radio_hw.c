@@ -1,4 +1,5 @@
 #include "radio_hw.h"
+#include "battery.h"
 #include "options.h"
 #if LOOP_PROFILE
 #    include "profile.h"
@@ -148,5 +149,5 @@ void radio_hook_delay_ms(uint8_t ms)
 // A battery, and no cable seen by a host: the state in which the radio's status answer carries the battery level.
 bool radio_hook_on_battery(void)
 {
-    return link_wireless() && !usb_device_configured();
+    return link_wireless() && !battery_cable();
 }

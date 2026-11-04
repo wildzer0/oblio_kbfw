@@ -79,7 +79,7 @@ The USB device enumerates as `258a:dead`, product name "Oblio B68", with a keybo
   green/red for 3 s): the battery is a **10-bit ADC reading** in bytes 4-5 of the radio's status answer (`core/radio.h`), turned into a percentage
   by a Li-Po discharge curve (`board/battery.c`: reading 800 = 3.30 V = 0 % ... 1020 = 4.20 V = 100 %; the cell is 5000 mAh, 4.2 V charge). The scale
   (~243 counts to the volt) rests on one measurement, 4.0378 V at rest = reading 981 - **provisional**. With the cable the reading saturates
-  (1023), so the gauge ignores it and shows the last reading it took on battery; just after power-on the ADC reads 1-3, which is ignored too (the gauge
+  (1023), so the gauge cannot read the level and shows "charging" (ten cyan keys) or "charged" (ten green) from the charger lines P4.4 / P7.7 that the stock firmware reads (polarity read from its code, to be measured); just after power-on the ADC reads 1-3, which is ignored too (the gauge
   says "unknown", ten white keys blinking). **The host Caps Lock is shown on its key in the wireless modes too**, from byte 1 of the same answer.
 - **Wireless:** 2.4G and Bluetooth through the BK3632 (`core/radio.c`, `core/link.c`, `board/radio_hw.c`): frames, flow control, mode, slots, pairing.
   The mode selector is read with a 50 ms stability filter. Keys go to the radio queues when `link_wireless()`, otherwise to the USB queue.
@@ -146,7 +146,7 @@ durations. It has a guard on instructions per interrupt (backlight subframe < 12
 
 | Area | State |
 | --- | --- |
-| Host logic (28 test programs), Vial definition, vectors, simulator (24 tests), CI | **verified**, green |
+| Host logic (29 test programs), Vial definition, vectors, simulator (24 tests), CI | **verified**, green |
 | Keyboard on USB: typing | **verified by the user**: responsive, no visible latency |
 | Keyboard on USB: backlight | **verified by the user**: stable after the timing fix (it flickered before) |
 | 2.4G and Bluetooth | user reported "everything works normally" without the cable, on a build before the final timing change; **re-check on the current hex** |

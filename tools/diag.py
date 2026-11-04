@@ -39,7 +39,7 @@ RAW_SIZE = 32
 # The steps of the main loop that a LOOP_PROFILE build times (board/main.c)
 STEPS = {1: "matrix_feed", 2: "encoder_poll", 3: "keyboard_event", 4: "keyboard_task", 5: "os_switch_task", 6: "store_task", 7: "settings_task",
          8: "usb_wake_task", 9: "usb_task", 10: "led_task", 11: "led_app_task", 12: "link_task (radio)", 13: "battery_task", 14: "blog_task",
-         15: "sleep_hw_task", 16: "  led: frame_passed", 17: "  led: caps check", 18: "  led: read_settings", 19: "  led: paint chunk (8 LEDs)"}
+         15: "sleep_hw_task", 16: "  led: paint chunk (8 LEDs)"}
 
 # The order of the counters in core/diag.h: keep this list in step with it (an old copy prints the wrong labels)
 NAMES = [
@@ -56,6 +56,7 @@ NAMES = [
     ("USB: times the host was declared gone", "{}"),
     ("keymap: whole saves ever (header sequence)", "{}"),
     ("keymap: records in the log", "{}"),
+    ("charger lines (bit mask, decoded below)", "{:#04x}"),
 ]
 
 
@@ -123,6 +124,14 @@ def show(values, previous=None):
         print("  {:32} {}".format(name, fmt(value) if callable(fmt) else fmt.format(value)))
 
 
+def charger(bits):
+    """The lines of the charger (core/charger.h). The polarities come from the stock firmware, not from a measurement: read them in the three states
+    (on battery, cable and charging, cable and charged) and compare."""
+    print("charger            : P4.4 {} (cable line, high = cable)   P7.7 {} (charge line, low = charging)".format("high" if bits & 1 else "low", "high" if bits & 2 else "low"))
+    print("                     debounced: cable {}, charging {}   |   the keyboard concludes: {}   |   USB host configured: {}".format(
+        "yes" if bits & 4 else "no", "yes" if bits & 8 else "no", "cable in" if bits & 16 else "on battery", "yes" if bits & 32 else "no"))
+
+
 def radio(keyboard):
     reply = keyboard.ask(0xF1, 1)
     print("radio status bytes : " + " ".join("{:02x}".format(b) for b in reply[2:8]))
@@ -130,7 +139,10 @@ def radio(keyboard):
     # bytes 4 and 5 of the status: the battery as a 10-bit ADC reading (see core/radio.h)
     raw = reply[2 + 4] | (reply[2 + 5] << 8)
     note = "  (saturated: the cable)" if raw >= 1021 else "  (ADC not settled yet)" if raw < 600 else ""
-    print("battery            : reading {} -> ~{}%{}".format(raw, battery_percent(raw), note))
+    if raw >= 1021:
+        print("battery            : reading {}{}: the level cannot be read with the cable".format(raw, note))
+    else:
+        print("battery            : reading {} -> ~{}%{}".format(raw, battery_percent(raw), note))
 
 
 # The same curve as board/battery.c: a Li-Po discharge curve over the readings of 3.30 ... 4.20 V (243 counts to the volt, from one measured point)
@@ -268,6 +280,8 @@ def main():
         blog(keyboard)
     if "--profile" in args:
         profile(keyboard)
+    if len(values) > 13:
+        charger(values[13])
     if len(values) > 11:
         # each whole save erases the four sectors of one of the two slots, so a keymap sector has been erased about half as many times
         print("  keymap flash wear: about {} erase cycles per sector (flash of this kind is typically good for 10 000 to 100 000)".format(values[11] // 2))

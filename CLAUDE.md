@@ -26,7 +26,7 @@ copia-incolla; dove si adatta un file altrui si mantiene la sua licenza e si ele
 ## Stato al 2026-11-02 (chiusura)
 Il firmware è **completo e provato dall'utente sulla tastiera**: USB e radio (2.4G e Bluetooth), Vial (keymap, tap dance, combo, key override, Lighting), NKRO, Caps Word, Leader, mouse dall'encoder,
 switch Win/Mac (P0.5), batteria (lettura ADC a 10 bit dalla radio, curva Li-Po, avviso e sleep di protezione), remote wakeup USB, backlight stabile (USB e salvataggi), keymap salvata come immagine + log.
-Ultimi numeri: flash ~54,1/55,8 KB (log batteria incluso), XDATA ~3,9/4 KB, 28 test host, 23 test nel simulatore. Cronologia in [CHANGELOG.md](CHANGELOG.md), punti ancora aperti in [docs/session-state.md](docs/session-state.md)
+Ultimi numeri: flash ~54,7/55,8 KB (log batteria incluso), XDATA ~3,7/4 KB, 29 test host, 23 test nel simulatore. Cronologia in [CHANGELOG.md](CHANGELOG.md), punti ancora aperti in [docs/session-state.md](docs/session-state.md)
 (la scala della batteria poggia su un solo punto misurato; le build a gradini sono state tolte; le sequenze del Leader le decide l'utente in `board/leader.c`).
 Se compare un problema: `py tools\diag.py` (contatori, `--radio`) e `docs/session-state.md` → "Trappole già pagate".
 

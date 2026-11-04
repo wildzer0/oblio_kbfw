@@ -53,6 +53,11 @@ void profile_step(uint8_t id, uint16_t counts)
     }
 }
 
+void profile_end(uint8_t id, uint16_t started)
+{
+    profile_step(id, (uint16_t)(profile_hook_now() - started));
+}
+
 void profile_pass(uint16_t counts)
 {
     uint8_t band = 0;

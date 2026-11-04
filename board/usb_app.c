@@ -73,8 +73,12 @@ void usb_task(uint16_t now)
     if (usb_hw_take_event()) {
         usb_reports_flush(); // a bus reset or a new configuration: what was queued is stale
 
-        if (usb_device_configured()) {
-            raw_hid_reset(); // the raw HID pipe starts listening
+        // The raw HID pipe starts listening. Asked of the device's own state (SET_CONFIGURATION seen), NOT of usb_device_configured(): that one also
+        // says "false" while the bus check still holds its last verdict of "no host" - which it does for up to 250 ms after a cable is plugged in or a
+        // suspended port wakes, exactly when the host configures the keyboard. The bus reset empties the endpoint; with the pipe not armed again the
+        // keyboard went on typing while Vial and the diagnostics got no answer, until the cable was pulled out and in once more.
+        if (usb_device_enumerated()) {
+            raw_hid_reset();
         }
     }
 

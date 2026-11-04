@@ -1,4 +1,7 @@
+#include "battery.h"
 #include "blog.h"
+#include "charger.h"
+#include "charger_hw.h"
 #include "diag.h"
 #include "via.h"
 #include "diag_hw.h"
@@ -10,6 +13,7 @@
 #include "sh68f90.h"
 #include "store.h"
 #include "tick.h"
+#include "usb_device.h"
 #include "usb_reports.h"
 
 // The stack of the 8051 grows upward in the internal RAM, from 0x21 (see build/oblio.mem) to 0xFF. Painted with a known value at the
@@ -40,6 +44,8 @@ void diag_hook_refresh(void)
     diag_set(DIAG_USB_OVERFLOW, usb_reports_overflows());
     diag_set(DIAG_STORE_SAVES, store_saves());
     diag_set(DIAG_STORE_LOG, store_log_used());
+    diag_set(DIAG_CHARGER, (uint16_t)(charger_hw_pins() | (charger_cable() ? 4u : 0u) | (charger_charging() ? 8u : 0u) | (battery_cable() ? 16u : 0u) |
+                                      (usb_device_configured() ? 32u : 0u)));
 }
 
 const uint8_t *diag_hook_radio_status(void)

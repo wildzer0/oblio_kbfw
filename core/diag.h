@@ -26,6 +26,8 @@ typedef enum {
     DIAG_USB_GONE,         // times the keyboard declared the host gone (no start-of-frame in a look at the bus): with the cable in and the PC on this stays 0
     DIAG_STORE_SAVES,      // times the whole keymap has been written to flash, ever (the sequence number in the header of the slot in use: it survives power-off)
     DIAG_STORE_LOG,        // records in the log of the slot in use (the keymap edits written since the last whole save)
+    DIAG_CHARGER,          // bit 0: pin P4.4 is high, 1: pin P7.7 is high (the raw lines of the charger), 2: cable (debounced P4.4), 3: charging (debounced P7.7),
+                           // 4: what the keyboard concludes ("the cable is in"), 5: a USB host has configured it. See core/charger.h
     DIAG_COUNT
 } diag_id_t;
 

@@ -1,3 +1,4 @@
+#include "battery.h"
 #include "blog.h"
 #include "sleep_hw.h"
 #include "gpio.h"
@@ -116,9 +117,9 @@ static void sleep_and_wake(void)
 
 void sleep_hw_task(uint16_t now, bool any_key_down)
 {
-    // Only on battery: with the cable seen by the PC the keyboard is powered and stays awake. And never with a key down: an idle
+    // Only on battery: with the cable in (a PC driving the bus, a charger alone, or a port the PC has suspended) the keyboard is powered and stays awake. And never with a key down: an idle
     // count only restarts on a key *event*, so a key held still would otherwise put the keyboard to sleep under the finger.
-    const bool allowed = link_wireless() && !usb_device_configured() && !any_key_down;
+    const bool allowed = link_wireless() && !battery_cable() && !any_key_down;
 
     if (!sleep_due(now, allowed)) {
         return;

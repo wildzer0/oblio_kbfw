@@ -57,6 +57,17 @@ Il controllo di recupero Esc+1+2 va all'inizio del `main`, prima di USB e radio.
   30 ms (la coda della radio è di 4); la tastiera non va in sleep mentre scrive. Costa ~520 B di flash (54415/55296). È uno strumento di debug: da
   togliere insieme al registro in flash quando la scala della batteria è confermata.
 
+## 2026-11-04 — il cavo e la carica come nello stock; il canale raw HID si riarma sempre
+Segnalazione: dopo ore col cavo, il gauge dava ~10 % su USB e ~20 % in radio; poi `diag.py` e Vial non rispondevano più (la tastiera scriveva), «no Oblio keyboard found», a volte «did not answer»; si riprendeva staccando il cavo, ma non in modo deterministico.
+- **Dal dump stock** (`docs/keyboards/yunzii-b68-firmware-stock.md`, sezione «Cavo e carica»): lo stock legge **P4.4** (cavo, alto) e **P7.7** (in carica, basso) con antirimbalzo, mostra la carica col **tasto Esc rosso fisso** e ricostruisce la percentuale (la lettura satura col cavo). Il LED vicino al Caps non è un indicatore di carica: segue il backlight (osservazione dell'utente).
+- **Causa probabile del buio USB** (ipotesi coerente coi dati, non provata): Windows sospende la porta, `usb_device_bus_check` dichiara l'host «perso», `usb_device_configured()` diventa falso e la tastiera, in 2.4G, si addormenta dopo il tempo di inattività con l'USB spento. Ora `battery_cable()` (lettura satura, linee del caricatore) lo impedisce.
+- **Difetto trovato nel codice** (spiega «scrive ma Vial muto»): `usb_task` riarmava il canale raw HID solo `if (usb_device_configured())`; dopo un reset del bus l'endpoint è vuoto e, col verdetto «nessun host» ancora in piedi (fino a 250 ms dopo un cavo inserito o una porta risvegliata), il SET_CONFIGURATION passava senza riarmarlo. Ora si usa `usb_device_enumerated()` (stato del dispositivo). Il simulatore non lo riproduce (non azzera l'endpoint al reset del bus), quindi non c'è un test automatico: la conferma viene dalla tastiera (staccare/riattaccare il cavo, diagnostica e Vial sempre pronti).
+- **Nuovi moduli:** `core/charger.[ch]` (antirimbalzo, `tests/host/test_charger.c`), `board/charger_hw.[ch]` (legge i pin), `battery_cable()` e `battery_show()` in `board/battery.c`.
+- **Gauge:** a batteria il livello; col cavo dieci tasti azzurri (in carica) o verdi (carica finita). `led_show_battery` accetta `LED_BATTERY_CHARGING`/`LED_BATTERY_CHARGED`.
+- **Diagnostica:** nuovo contatore `DIAG_CHARGER` (pin grezzi, filtrati, conclusione) con le righe «charger» in `diag.py`; `--radio` non stampa più «~100 %» per una lettura satura.
+- **Spazio:** tolta la tabella `level` del framebuffer (240 B di XDATA; `led_level` esiste solo per i test host), tolte `report_mouse_buttons` e `tick_ms_now` (inutilizzate), `profile_end()` al posto di tre istruzioni in ogni passo, sonde del profilo ridotte a un solo punto (il tratto che dipinge, passo 16). La build di profilo ora sta in **56.316/56.320 B** di flash (4 B liberi).
+- Numeri: flash 54.676/55.808, XDATA 3.654/4.096 (53.232/56.320 senza log); 29 test host, 23 nel simulatore.
+
 ## 2026-11-07 (sera) — il flicker era della build di profilo
 Sulla tastiera il flicker delle colonne si vedeva con `oblio-profile.hex` e non con la release (`1f51c85`, provata dall'utente). Un commit di prova (`1c18c00`) aveva tolto la scrittura veloce del framebuffer sulla base di un confronto tra un profilo e due release: annullato. Il profilo non va usato per giudicare i LED.
 

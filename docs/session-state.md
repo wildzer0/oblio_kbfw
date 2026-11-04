@@ -13,14 +13,21 @@ overrides, tab Lighting con colore pieno), NKRO, Caps Word, Leader, mouse dall'e
 
 | | |
 | --- | --- |
-| Flash | **54136 / 55808** con il registro batteria; 52692 / 56320 con `BATTERY_LOG=0` |
-| XDATA | **3884 / 4096** (212 B liberi); la build di profilo è al limite: 4096/4096 e 56297/56320 B di flash |
+| Flash | **54676 / 55808** con il registro batteria; 53232 / 56320 con `BATTERY_LOG=0` |
+| XDATA | **3654 / 4096** (442 B liberi); la build di profilo: 56316/56320 B di flash (4 B liberi!) |
 | Deposito keymap | **1709 / 2048** (339 B liberi) |
-| Test host | **28 / 28** (`make test`, include il controllo della definizione Vial) |
+| Test host | **29 / 29** (`make test`, include il controllo della definizione Vial) |
 | Simulatore ucsim | **23 / 23** (`make sim`) |
 | Vettori interrupt | 4, nessun overlay statico (`make check-interrupts`) |
 
 **Mappa flash**: codice fino a **0xDC00**, keymap con due copie **0xDC00–0xEBFF**, impostazioni **0xEC00** (log append-only), **0xEE00 = marcatore del bootloader, mai toccare**, bootloader stock a 0xF000. `hal/flash.c` rifiuta le scritture fuori da 0xDC00–0xF000; `make size` impone il limite di codice.
+
+## Da provare sulla tastiera (2026-11-04)
+
+1. **Canale raw HID**: scollega/ricollega il cavo più volte e dopo ogni volta `py diag.py`; prova Vial. Prima falliva a intermittenza («did not answer», Vial muto, «no Oblio keyboard found»).
+2. **Linee del caricatore** (confermate col cavo: P4.4 alto; in carica P7.7 basso e gauge azzurro; la carica finita è stata vista come gauge verde): `py diag.py` mostra «charger: P4.4 …, P7.7 …». Leggile in tre stati: a batteria (staccato), cavo mentre carica, cavo a carica finita. Attesi (dallo stock): P4.4 alto col cavo; P7.7 basso in carica, alto a carica finita. Se sono invertiti, dimmelo: si cambia in `board/charger_hw.c` in una riga.
+3. **Gauge** (Fn+Backspace): col cavo dieci tasti azzurri (in carica) / verdi (finita); a batteria il livello.
+4. **Sleep col cavo**: in 2.4G con il cavo inserito e il PC acceso, la tastiera non deve sparire da Windows nemmeno dopo il tempo di inattività (default 10 min).
 
 ## Ottimizzazioni del 2026-11-06/07 — da confrontare sull'hardware
 
@@ -104,7 +111,7 @@ Tutto dentro `nix develop` (SDCC 4.5, gcc, python, `ucsim-sh68f90`): **senza `ni
 nix develop --command make test              # 28 test host + definizione Vial
 nix develop --command make fw size           # build/oblio.hex, flash e XDATA contro il budget
 nix develop --command make check-interrupts  # i quattro vettori, nessun overlay statico
-nix develop --command make sim               # ~60 s, il firmware vero nel simulatore (24 test)
+nix develop --command make sim               # ~60 s, il firmware vero nel simulatore (23 test)
 
 py tools\diag.py [--watch 1] [--radio] [--daemon N file.csv]     # Windows
 py tools\diag.py --daemon 60 oblio-log.csv                                # contatori in CSV, uno ogni 60 s

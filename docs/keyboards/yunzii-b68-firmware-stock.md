@@ -122,3 +122,22 @@ Domanda: perché con il firmware originale il backlight non «sfarfalla» quando
 3. Non esistono né un log né una pausa di quiete: Oblio è migliore per frequenza (log, un erase ogni 36 salvataggi) e per l'impatto sulla flash.
 4. Una differenza che **sì** ci riguardava: Oblio scrive la keymap (1,7 KB) in un colpo dal ciclo principale. Per tutto quel tempo il ciclo non gira e il rilevatore di «main affamato» (3 scansioni senza passaggi) metteva da parte il backlight, **allungando il buio oltre l'erase**. Corretto (`tick_alive()` in `store_hook_program`).
 
+
+
+## Cavo e carica nello stock (2026-11-04, riletto con `tools/dis51.py` su `r1.bin`)
+
+Domanda: come sa lo stock se c'è il cavo e se la batteria è in carica, e cosa mostra? Risposta dal dump (indirizzi nel dump, bit di flag di Keil in `20h–2Fh`):
+
+| Cosa | Dove | Com'è |
+| --- | --- | --- |
+| Sondaggio dei due pin | `0xA058`, chiamata dal ciclo principale a `0x9B4D` | **P4.4** (bit `B4h`): alto per ≥ 5 campioni di fila → flag `60h` = 1 («cavo»), basso per ≥ 5 → `60h` = 0 (e il valore mostrato `19h` torna a `0xFF`). **P7.7** (bit `FFh`): basso per ≥ 20 campioni → flag `5Bh` = 1 («in carica»), alto per ≥ 200 → `5Bh` = 0. Ogni cambio mette `4Ah` (evento) |
+| Direzione dei pin | `0xA627` (GPIO a riposo) | P4.4 è ingresso **senza pull-up** (`P4PCR = 0x6F`: l'hardware lo pilota); P7.7 è ingresso con pull-up (`P7PCR = 0xFF`; nello sleep va a uscita bassa, `0x7EAB`). Coerente con una linea «cavo/VBUS» e con l'uscita aperta di stato di un caricatore (come il CHRG dei TP4056) |
+| Uscita `P7.6` | `0xA09E`/`0xA0A2` | segue il cavo: **bassa col cavo, alta senza**; bassa nello sleep (`0x7EB0`). Funzione ignota (non è il LED vicino al Caps) |
+| Percentuale | `0x7CF0` (gauge), `0x1EBC–0x1F7B` (soglie) | `0151 = (lettura − 715) × 10 / 22` (0–100). Col cavo (`60h`) il valore mostrato `19h` *sale* verso 100 di 1 punto alla volta (ritmo da una tabella a `0xB16A`: 20 giri per punto vicino alla meta, meno lontano) e **si ferma a 99 finché P7.7 dice «in carica»** (`5Bh`), poi 100. Senza cavo scende lentamente, con salto se la differenza è ≥ 20/30. Cioè: **lo stock non legge la carica col cavo (la lettura satura), la ricostruisce**. Isteresi: il blocco di batteria scarica (`5Ch`) si toglie dopo 100 letture sopra 912 |
+| Cosa mostra sulla tastiera | `0x1E85`, `0x1F3C` | **tasto Esc** (canali del tasto 0,0 nella tabella dei duty `0x05A2…`): **rosso fisso** col cavo in carica (`60h` e `5Bh`); **lampeggiante** a batteria sotto la lettura 800 (`0x0320`, contatore `0397`). A carica finita niente. Nessun altro LED di stato |
+| Cosa manda al PC | `0x41EF`, `0x44E8`, `0x55FE`, `0x6687` (pacchetti per il software del produttore) | la percentuale (`0C2B`) e un byte di flag: `0x10` col cavo, `1` quando la carica è finita |
+| Sleep | `0x1EBC` e dintorni | sotto la lettura `0x02F0` (752) per 200 giri: `5Ch`, `39h`, poi lo sleep (come l'avviso di Oblio). Con il cavo non si addormenta |
+
+**Il LED di stato vicino al Caps.** Nessun pin tra `P7.4–6` e `P4.1` lo pilota (usati solo per lo sleep e per `P7.6`, che segue il cavo). Osservazione dell'utente su Oblio: il LED si accende e **segue lo stato dei LED dei tasti** (cioè fa parte del backlight, non è un indicatore indipendente di carica). Quindi non serve per mostrare la carica: lo stock la mostra con il tasto Esc.
+
+**Stato (2026-11-04):** misurato dall'utente con `diag.py` sul cavo: **P4.4 alto con il cavo** e **P7.7 basso mentre carica** (il gauge è azzurro; verde a carica finita, vista in precedenza). Non ancora misurati: P4.4 a batteria (atteso basso) e P7.7 a carica finita direttamente dai pin. Prima era solo lettura del codice. Oblio le legge (`board/charger_hw.c`) e le espone in `diag.py` per confermarle in tre stati: a batteria, cavo in carica, cavo a carica finita.

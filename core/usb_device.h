@@ -45,6 +45,8 @@ void usb_device_bus_check(uint16_t now);
 
 // True while a host is there and has configured the keyboard: the cable is in *and* somebody is driving the bus.
 bool    usb_device_configured(void);
+// True once the host has sent SET_CONFIGURATION, whatever the bus check thinks of the host: the endpoints are the device's own business
+bool    usb_device_enumerated(void);
 bool    usb_device_remote_wakeup(void);
 uint8_t usb_device_protocol(uint8_t interface); // 0 boot, 1 report
 bool    usb_device_ep_halted(uint8_t endpoint);

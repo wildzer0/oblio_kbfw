@@ -2,6 +2,7 @@
 // that debounces the keys, runs the key logic and looks after USB, profiles, settings and the backlight.
 
 #include "battery.h"
+#include "charger.h"
 #include "blog.h"
 #include "profile.h"
 #include "clock.h"
@@ -97,7 +98,7 @@ static void init(void)
         do {                                                        \
             const uint16_t started_ = profile_hook_now();           \
             call;                                                   \
-            profile_step(id, (uint16_t)(profile_hook_now() - started_)); \
+            profile_end(id, started_);                      \
         } while (0)
 #else
 #    define STEP(id, call) call

@@ -14,7 +14,7 @@
 
 #    include <stdint.h>
 
-#    define PROFILE_STEPS      19u // step numbers 1 .. 15 are the steps of the main loop, 16 .. 19 are parts of led_task (see tools/diag.py); 0 is not a step
+#    define PROFILE_STEPS      16u // step numbers 1 .. 15 are the steps of the main loop, 16 is the painting inside led_task (see tools/diag.py); 0 is not a step
 #    define PROFILE_BANDS      8u  // pass length bands, in counts: < 400, 800, 1600, 3200, 6400, 12800, 25600, and longer (200 us .. 12.8 ms)
 
 typedef enum { PROFILE_ISR_TIMER, PROFILE_ISR_USB, PROFILE_ISR_UART, PROFILE_ISR_COUNT } profile_isr_t;
@@ -23,6 +23,10 @@ void profile_reset(void);
 
 // A step of `id` took `counts`.
 void profile_step(uint8_t id, uint16_t counts);
+
+// The same, given the time at which it began (profile_hook_now()): reads the clock itself. One call in the code of every timed step instead of a
+// clock read, a subtraction and a call (the 19 steps of the main loop and of led_task are most of what the instrumentation costs in flash).
+void profile_end(uint8_t id, uint16_t started);
 
 // A whole pass of the main loop took `counts`.
 void profile_pass(uint16_t counts);

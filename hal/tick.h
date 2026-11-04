@@ -32,9 +32,6 @@ bool tick_scan_take(XDATA uint8_t *raw);
 // The timer's count right now (the erase in a flash write is the only user: it is the clock that keeps running when the interrupt is off).
 uint16_t tick_count_now(void);
 
-// The milliseconds the timer interrupt has counted, modulo 256: a clock for measuring a step of the main loop (the LOOP_PROFILE build).
-uint8_t tick_ms_now(void);
-
 // The main loop calls this once per pass. The timer interrupt watches it: if the main loop has not come round for a few scans, the interrupt work
 // does not fit its slots and is starving it, and the backlight steps aside (see tick.c) so that the keys, USB and the watchdog get the CPU.
 void tick_alive(void);

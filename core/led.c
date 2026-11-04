@@ -10,7 +10,6 @@
 
 #define RENDER_CHUNK 8u // LEDs painted per pass of the main loop
 
-static uint8_t level[LED_COLS][LED_CHANNELS]; // [column][row * 3 + colour]
 static uint8_t lit[LED_COLS];                 // channels of the column that are not dark
 static uint16_t duty2[LED_COLS][LED_CHANNELS]; // the same levels as the DUTY2 values the interrupt writes: no arithmetic there
 
@@ -34,11 +33,11 @@ static bool     radio_blink;
 static uint16_t battery_frames; // frames left of the battery display
 static uint8_t  battery_keys;   // keys lit, 1-10; 0 = no reading
 static bool     battery_low;
+static uint8_t  battery_charge; // 0: the level, 1: the cell is charging (ten cyan keys), 2: the charge is done (ten green keys)
 static bool     last_caps;
 
 void led_init(void)
 {
-    memset(level, 0, sizeof level);
     memset(lit, 0, sizeof lit);
 
     for (uint8_t col = 0; col < LED_COLS; col++) {
@@ -83,10 +82,22 @@ XDATA const uint16_t *led_duty2(uint8_t column)
     return duty2[column];
 }
 
+// The level of a channel, worked back from its duty value (the frame buffer keeps only the duty values: a second table of the levels was 240 bytes of
+// the 4 KB of XDATA and the interrupt never reads it). LED_WIDTH() grows with every level, so there is one answer. Only the host tests ask for it, so
+// the firmware does not carry it (__SDCC is defined by the chip's compiler only).
+#ifndef __SDCC
 uint8_t led_level(uint8_t column, uint8_t channel)
 {
-    return level[column][channel];
+    const uint16_t width = (uint16_t)(duty2[column][channel] - (uint16_t)(LED_DUTY1_BASE + channel));
+    uint8_t        level = 0;
+
+    while (level < 255u && LED_WIDTH(level) < width) {
+        level++;
+    }
+
+    return level;
 }
+#endif
 
 // ---- the settings of the profile in use, checked as they are read: the profile can change at any time ----
 static uint8_t effect(void)
@@ -170,6 +181,12 @@ static void read_settings(void)
     }
 }
 
+// The Caps key is lit by the host's Caps Lock and by Caps Word
+static bool caps_on(void)
+{
+    return led_hook_caps_lock() || keyboard_caps_word();
+}
+
 // The colour already worked out for this key, into the one being painted
 static void take(XDATA const uint8_t *from)
 {
@@ -214,7 +231,7 @@ static void paint_one(void)
     }
 
     // Caps lock: the Caps key (row 2, column 0) is solid white while it is on
-    if (paint_row == 2 && paint_col == 0 && (led_hook_caps_lock() || keyboard_caps_word())) {
+    if (paint_row == 2 && paint_col == 0 && caps_on()) {
         rgb[0] = rgb[1] = rgb[2] = 255;
     }
 
@@ -226,7 +243,11 @@ static void paint_one(void)
 
     // The battery display is on top of everything else on the number keys
     if (battery_frames && paint_row == 0 && paint_col >= 1 && paint_col <= 10) {
-        if (battery_keys == 0) { // no reading: all ten blink in white
+        if (battery_charge) { // the cable: no level to show
+            rgb[0] = 0;
+            rgb[1] = 255;
+            rgb[2] = (battery_charge == 1) ? 255 : 0;
+        } else if (battery_keys == 0) { // no reading: all ten blink in white
             if ((battery_frames / LED_RADIO_BLINK_HALF) & 1u) {
                 rgb[0] = rgb[1] = rgb[2] = 255;
             }
@@ -238,24 +259,23 @@ static void paint_one(void)
     }
 
     // The three channels of the LED: one pointer to each table, walked, instead of the two-dimensional index worked out for every access
-    XDATA uint8_t  *lv = &level[paint_col][paint_row * 3];
     XDATA uint16_t *du = &duty2[paint_col][paint_row * 3];
     uint8_t         duty_base = (uint8_t)(paint_row * 3 + LED_DUTY1_BASE);
     uint8_t         changed_lit = lit[paint_col];
 
-    for (uint8_t c = 0; c < 3; c++, lv++, du++, duty_base++) {
-        const uint8_t v = rgb[c];
+    for (uint8_t c = 0; c < 3; c++, du++, duty_base++) {
+        const uint8_t  v    = rgb[c];
+        const uint16_t want = (uint16_t)(duty_base + LED_WIDTH(v));
 
-        if (*lv == v) {
-            continue; // the same level as before: the duty value is the same too
+        if (*du == want) {
+            continue; // the same width as before
         }
 
-        if ((*lv == 0) != (v == 0)) {
+        if ((*du == duty_base) != (v == 0)) { // it was dark (width 0) and is not, or the other way round
             changed_lit = (uint8_t)(changed_lit + (v ? 1 : -1));
         }
 
-        *lv = v;
-        *du = (uint16_t)(duty_base + LED_WIDTH(v));
+        *du = want;
     }
 
     lit[paint_col] = changed_lit;
@@ -295,13 +315,14 @@ static void frame_passed(void)
     }
 }
 
-// The parts of led_task, timed in the profile build (core/profile.h, steps 16-19); nothing in the others
+// The part of led_task that paints, timed in the profile build (core/profile.h, step 16); nothing in the others. (It had probes on the other parts
+// too, steps 16-18: they were 30-40 us each and the flash of the profile build is full.)
 #if LOOP_PROFILE
 #    define PROBE(id, code)                                    \
         do {                                                   \
             const uint16_t probe_ = profile_hook_now();        \
             code;                                              \
-            profile_step(id, (uint16_t)(profile_hook_now() - probe_)); \
+            profile_end(id, probe_);                       \
         } while (0)
 #else
 #    define PROBE(id, code) code
@@ -312,15 +333,15 @@ void led_task(void)
     uint8_t seen;
 
     seen = frames; // one byte: read atomically
-    PROBE(16, while (last_frames != seen) {
+    while (last_frames != seen) {
         last_frames++;
         frame_passed();
-    });
+    }
 
     // Caps lock changes outside the animation: repaint when it does
     bool caps = false;
 
-    PROBE(17, caps = led_hook_caps_lock() || keyboard_caps_word()); // Caps Word lights the same key: its start and end repaint too
+    caps = caps_on(); // Caps Word lights the same key: its start and end repaint too
 
     if (caps != last_caps) {
         last_caps = caps;
@@ -335,10 +356,10 @@ void led_task(void)
         dirty      = false; // cleared first: a step of the phase during the repaint asks for another
         paint_left = (uint8_t)(LED_ROWS * LED_COLS);
 
-        PROBE(18, read_settings()); // once for the whole repaint, not once per LED
+        read_settings(); // once for the whole repaint, not once per LED
     }
 
-    PROBE(19, for (uint8_t i = 0; i < RENDER_CHUNK && paint_left; i++, paint_left--) {
+    PROBE(16, for (uint8_t i = 0; i < RENDER_CHUNK && paint_left; i++, paint_left--) {
         paint_one();
     });
 }
@@ -350,7 +371,12 @@ void led_refresh(void)
 
 void led_show_battery(uint8_t percent)
 {
-    if (percent == LED_BATTERY_UNKNOWN || percent > 100) {
+    battery_charge = 0;
+
+    if (percent == LED_BATTERY_CHARGING || percent == LED_BATTERY_CHARGED) { // the cable: no level to show, all ten keys in one colour
+        battery_charge = (percent == LED_BATTERY_CHARGING) ? 1 : 2;
+        battery_keys   = 10; // (no reading would make them blink); the colour does not look at battery_low
+    } else if (percent == LED_BATTERY_UNKNOWN || percent > 100) {
         battery_keys = 0;
         battery_low  = false;
     } else {

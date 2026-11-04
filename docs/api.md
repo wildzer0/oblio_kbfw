@@ -14,6 +14,7 @@
   - [`hal/watchdog.h`](#hal-watchdog-h) — Writing RSTSTAT kicks the watchdog
 - **Core logic (`core/`)**
   - [`core/blog.h`](#core-blog-h) — The battery log: the battery reading, written down in **flash** (a sector of its own at BLOG_ADDR) so that it 
+  - [`core/charger.h`](#core-charger-h) — The two lines the stock firmware reads to know about the charger (found in the dump, routine at 0xA058, called
   - [`core/combo.h`](#core-combo-h) — Combos: two or more keys pressed together give one other key (Vial's Combos tab edits them, core/keymap.c stor
   - [`core/diag.h`](#core-diag-h) — Counters for the first runs on the hardware, read over the raw HID interface (VIA command 0xF1, no unlock need
   - [`core/encoder.h`](#core-encoder-h) — Rotary encoders read as two lines in quadrature
@@ -49,6 +50,7 @@
 - **Board (`board/`)**
   - [`board/b68_keys.h`](#board-b68-keys-h)
   - [`board/battery.h`](#board-battery-h)
+  - [`board/charger_hw.h`](#board-charger-hw-h)
   - [`board/diag_hw.h`](#board-diag-hw-h)
   - [`board/isp.h`](#board-isp-h)
   - [`board/led_app.h`](#board-led-app-h)
@@ -313,14 +315,6 @@ uint16_t tick_count_now(void);
 
 The timer's count right now (the erase in a flash write is the only user: it is the clock that keeps running when the interrupt is off).
 
-#### `tick_ms_now`
-
-```c
-uint8_t tick_ms_now(void);
-```
-
-The milliseconds the timer interrupt has counted, modulo 256: a clock for measuring a step of the main loop (the LOOP_PROFILE build).
-
 #### `tick_alive`
 
 ```c
@@ -485,6 +479,61 @@ void blog_hook_program(uint16_t addr, const uint8_t *src, uint8_t len);
 void blog_hook_erase(uint16_t addr);
 ```
 
+### `core/charger.h`
+
+The two lines the stock firmware reads to know about the charger (found in the dump, routine at 0xA058, called from the main loop at 0x9B4D): P4.4  an input with no pull-up of its own: HIGH when the cable is there (the supply from outside). Taken as present after 5 samples that agree. P7.7  an input with a pull-up: LOW while the cell is charging, HIGH when it is not (done, or no cable). The stock takes "charging" after 20 samples low and
+
+"not charging" only after 200 samples high, as a charger's status output flickers when it is nearly done.
+
+The polarities are read from what the stock does with them (the gauge creeps up while the cable is in and stops at 99 % while P7.7 is low; the report to the PC software carries 0x10 when the cable is in): they are NOT measured on the keyboard yet. tools/diag.py shows the raw pins to check them.
+
+This module only debounces. The caller reads the pins (board/charger_hw.c) and feeds the levels as "asserted" values: cable_asserted is true when P4.4 is high, charging_asserted is true when P7.7 is low.
+
+#### `CHARGER_CABLE_MS`
+
+```c
+#define CHARGER_CABLE_MS       5u
+```
+
+The debounce, in milliseconds (the stock counts samples; its sampling interval is not known, 1 ms is assumed)
+
+```c
+#define CHARGER_CHARGING_ON_MS 20u
+#define CHARGER_CHARGING_OFF_MS 200u
+```
+
+#### `charger_init`
+
+```c
+void charger_init(void);
+```
+
+host tests only: the chip starts with zeroed memory
+
+#### `charger_feed`
+
+```c
+void charger_feed(bool cable_asserted, bool charging_asserted, uint16_t now_ms);
+```
+
+From the main loop, as often as it comes round. The first call takes the levels as they are.
+
+#### `charger_cable`
+
+```c
+bool charger_cable(void);
+```
+
+the cable is in (debounced)
+
+#### `charger_charging`
+
+```c
+bool charger_charging(void);
+```
+
+the cell is being charged (debounced)
+
 ### `core/combo.h`
 
 Combos: two or more keys pressed together give one other key (Vial's Combos tab edits them, core/keymap.c stores them). The entries are keycodes, not positions: a combo fires when every one of its inputs is down within COMBO_TERM_MS of the first one.
@@ -551,6 +600,8 @@ typedef enum {
     DIAG_USB_GONE,         // times the keyboard declared the host gone (no start-of-frame in a look at the bus): with the cable in and the PC on this stays 0
     DIAG_STORE_SAVES,      // times the whole keymap has been written to flash, ever (the sequence number in the header of the slot in use: it survives power-off)
     DIAG_STORE_LOG,        // records in the log of the slot in use (the keymap edits written since the last whole save)
+    DIAG_CHARGER,          // bit 0: pin P4.4 is high, 1: pin P7.7 is high (the raw lines of the charger), 2: cable (debounced P4.4), 3: charging (debounced P7.7),
+                           // 4: what the keyboard concludes ("the cable is in"), 5: a USB host has configured it. See core/charger.h
     DIAG_COUNT
 } diag_id_t;
 ```
@@ -1735,6 +1786,8 @@ the LED_CHANNELS DUTY2 values of the column, ready to write
 uint8_t led_level(uint8_t column, uint8_t channel);
 ```
 
+host tests only (not in the firmware)
+
 #### `led_task`
 
 ```c
@@ -1762,6 +1815,18 @@ The battery level on the number keys 1 2 ... 9 0 (row 0, columns 1-10) for about
 ```c
 #define LED_BATTERY_LOW     20u  // percent: at or below this the keys are red
 #define LED_BATTERY_FRAMES  366u  // ~3 s
+```
+
+#### `LED_BATTERY_CHARGING`
+
+```c
+#define LED_BATTERY_CHARGING 0xFEu
+```
+
+On the cable the level cannot be read: LED_BATTERY_CHARGING lights the ten keys cyan, LED_BATTERY_CHARGED lights them all green.
+
+```c
+#define LED_BATTERY_CHARGED  0xFDu
 ```
 
 #### `led_show_battery`
@@ -2226,7 +2291,7 @@ The profile build (make LOOP_PROFILE=1 fw): how long each step of the main loop 
 The times are wall-clock times: a step includes the interrupts that ran during it. The share of each interrupt is measured apart, so the two can be told from each other. The measuring itself costs a little in every pass, which is why this is a build of its own.
 
 ```c
-#    define PROFILE_STEPS      19u  // step numbers 1 .. 15 are the steps of the main loop, 16 .. 19 are parts of led_task (see tools/diag.py); 0 is not a step
+#    define PROFILE_STEPS      16u  // step numbers 1 .. 15 are the steps of the main loop, 16 is the painting inside led_task (see tools/diag.py); 0 is not a step
 #    define PROFILE_BANDS      8u  // pass length bands, in counts: < 400, 800, 1600, 3200, 6400, 12800, 25600, and longer (200 us .. 12.8 ms)
 ```
 
@@ -2249,6 +2314,14 @@ void profile_step(uint8_t id, uint16_t counts);
 ```
 
 A step of `id` took `counts`.
+
+#### `profile_end`
+
+```c
+void profile_end(uint8_t id, uint16_t started);
+```
+
+The same, given the time at which it began (profile_hook_now()): reads the clock itself. One call in the code of every timed step instead of a clock read, a subtraction and a call (the 19 steps of the main loop and of led_task are most of what the instrumentation costs in flash).
 
 #### `profile_pass`
 
@@ -2759,12 +2832,6 @@ void    report_mouse_move(int8_t dx, int8_t dy);
 
 ```c
 void    report_mouse_wheel(int8_t delta);
-```
-
-#### `report_mouse_buttons`
-
-```c
-uint8_t report_mouse_buttons(void);
 ```
 
 #### `report_build_mouse`
@@ -3420,6 +3487,14 @@ bool    usb_device_configured(void);
 
 True while a host is there and has configured the keyboard: the cable is in *and* somebody is driving the bus.
 
+#### `usb_device_enumerated`
+
+```c
+bool    usb_device_enumerated(void);
+```
+
+True once the host has sent SET_CONFIGURATION, whatever the bus check thinks of the host: the endpoints are the device's own business
+
 #### `usb_device_remote_wakeup`
 
 ```c
@@ -3762,6 +3837,22 @@ uint16_t battery_reading(void);
 
 The raw reading of the cell when it means something (settled, from the radio), else 0. The battery log writes this down.
 
+#### `battery_cable`
+
+```c
+bool battery_cable(void);
+```
+
+Is the keyboard powered from outside (the cable is in)? The radio's reading says it when it saturates; a reading of a cell says it is not; with no reading (USB mode, the radio not answering yet) a host that has configured the keyboard or the charger's cable line do. See core/charger.h.
+
+#### `battery_show`
+
+```c
+void battery_show(void);
+```
+
+The gauge (Fn+Backspace): the level on battery; with the cable, whether the cell is charging or the charge is done (the level cannot be read then).
+
 #### `battery_task`
 
 ```c
@@ -3769,6 +3860,24 @@ void battery_task(uint16_t now_ms);
 ```
 
 From the main loop: warns when the battery is low and sleeps when it is critical (on battery only).
+
+### `board/charger_hw.h`
+
+#### `charger_hw_sample`
+
+```c
+void charger_hw_sample(uint16_t now_ms);
+```
+
+Reads the two charger lines (core/charger.h) and feeds the debounce. From the main loop.
+
+#### `charger_hw_pins`
+
+```c
+uint8_t charger_hw_pins(void);
+```
+
+The two lines as they are right now, for the diagnostics: bit 0 = P4.4 is high, bit 1 = P7.7 is high.
 
 ### `board/diag_hw.h`
 

@@ -127,6 +127,11 @@ bool usb_device_configured(void)
     return configured && !bus_gone;
 }
 
+bool usb_device_enumerated(void)
+{
+    return configured;
+}
+
 bool usb_device_remote_wakeup(void)
 {
     return remote_wakeup;

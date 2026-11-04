@@ -53,7 +53,6 @@ void report_build_nkro(uint8_t out[REPORT_NKRO_SIZE]);
 void    report_mouse_button(uint8_t mask, bool pressed);
 void    report_mouse_move(int8_t dx, int8_t dy);
 void    report_mouse_wheel(int8_t delta);
-uint8_t report_mouse_buttons(void);
 void    report_build_mouse(uint8_t out[REPORT_MOUSE_SIZE]);
 
 // Consumer and system usages: one at a time. 0 = nothing held.

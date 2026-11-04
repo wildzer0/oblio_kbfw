@@ -126,7 +126,7 @@ Dopo ciascuno: `nix develop --command make test`, poi `make fw size` per vedere 
 
 | Strumento | A cosa serve |
 | --- | --- |
-| `make test` | 28 programmi di test sul PC: veloci, sicuri, il primo posto dove provare un'idea |
+| `make test` | 29 programmi di test sul PC: veloci, sicuri, il primo posto dove provare un'idea |
 | `make sim` | l'hex vero nel simulatore del chip (`tests/sim/oblio_sim.py`): ordine degli eventi e **conteggio esatto di istruzioni**, non le durate |
 | `make fw size` | la flash e la XDATA usate rispetto al limite: ogni funzione ha un costo, controllalo sempre |
 | `make check-interrupts` | i 4 vettori e l'assenza di sovrapposizione statica |
