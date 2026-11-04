@@ -17,9 +17,9 @@
 #    define APP_FLASH_END 0xDC00u
 #endif
 
-// A build that times each step of the main loop and keeps the slowest (DIAG_LOOP_WORST: which step, how many milliseconds), for finding what makes a pass of the
-// loop long - a long pass starves the backlight (hal/tick.c) and it blinks. It costs a little time in every pass, so it is off by default: `make LOOP_PROFILE=1 fw`.
+// The profile build: it times each step of the main loop and each whole pass, and measures how much of the CPU each interrupt takes (core/profile.h), for
+// finding what makes a pass of the loop long - a long pass starves the backlight and it blinks. It costs a little time in every pass, so it is off by
+// default: `make LOOP_PROFILE=1 fw`, then `tools/diag.py --profile`.
 #ifndef LOOP_PROFILE
 #    define LOOP_PROFILE 0
 #endif
-

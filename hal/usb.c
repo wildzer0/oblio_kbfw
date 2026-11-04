@@ -1,4 +1,9 @@
 #include "usb.h"
+#include "options.h"
+#if LOOP_PROFILE
+#    include "profile.h"
+#    include "tick.h"
+#endif
 #include "usb_device.h"
 #include "usb_reports.h"
 #include "raw_hid.h"
@@ -207,13 +212,31 @@ static void bus_reset(void)
 // The ISR calls only raw_hid_out() of what the main loop shares, which hands over through a flag (the packet itself stays in the endpoint, which is
 // not armed again until it is answered). Otherwise it does not call anything the main loop calls: it works on the EP0 state and the hardware, and tells the main loop
 // through `event`, the ISP flag and the LED byte.
+#if LOOP_PROFILE
+// How long this interrupt ran, by the timer's own count; a reload of the timer inside it (a slot ended) makes the difference too large and it is not counted
+static void isr_done(uint16_t started)
+{
+    const uint16_t took = (uint16_t)(tick_count_now() - started);
+
+    if (took < 1600u) {
+        profile_isr(PROFILE_ISR_USB, took);
+    }
+}
+#endif
+
 void usb_isr(void) __interrupt(7)
 {
+#if LOOP_PROFILE
+    const uint16_t started = tick_count_now();
+#endif
     const uint8_t if1 = USBIF1;
 
     if (if1 & (USBIF1_USBRSTIF | USBIF1_PUPIF)) {
         USBIF1 &= (uint8_t) ~(USBIF1_USBRSTIF | USBIF1_PUPIF);
         bus_reset();
+#if LOOP_PROFILE
+        isr_done(started);
+#endif
         return;
     }
 
@@ -284,4 +307,7 @@ void usb_isr(void) __interrupt(7)
 
     // the completion of EP1 / EP2 IN needs no bookkeeping: IRDY reads back as busy / free
     USBIF2 &= (uint8_t) ~(USBIF2_IEP1IF | USBIF2_IEP2IF);
+#if LOOP_PROFILE
+    isr_done(started);
+#endif
 }

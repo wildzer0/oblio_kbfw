@@ -26,7 +26,6 @@ typedef enum {
     DIAG_USB_GONE,         // times the keyboard declared the host gone (no start-of-frame in a look at the bus): with the cable in and the PC on this stays 0
     DIAG_STORE_SAVES,      // times the whole keymap has been written to flash, ever (the sequence number in the header of the slot in use: it survives power-off)
     DIAG_STORE_LOG,        // records in the log of the slot in use (the keymap edits written since the last whole save)
-    DIAG_LOOP_WORST,       // LOOP_PROFILE build only: the slowest step of the main loop so far, as (step number << 8) | milliseconds
     DIAG_COUNT
 } diag_id_t;
 
@@ -43,9 +42,16 @@ uint16_t diag_get(diag_id_t id);
 //   kind 0: [0xF1, 0, DIAG_COUNT, counter 0 (lo, hi), counter 1, ...]
 //   kind 1: the radio: [0xF1, 1, its 6 status bytes] (the battery reading is in bytes 4-5)
 //   kind 4 (with BATTERY_LOG): [0xF1, 4, first record] -> [0xF1, 4, count, records of four bytes, as many as fit]: the battery log (blog.h)
-//   all are read-only, so they need no unlock
+//   kind 5..8 (LOOP_PROFILE build): the profile, see profile.h. 5: [0xF1, 5, step] -> step, count, min, max (16 bits each), sum (32); 6: the pass length
+//     bands (8 x 16 bits) and the time of the timer, USB and serial interrupts (32 bits each); 7: start again; 8: the milliseconds since the last start
+//   all are read-only, so they need no unlock (7 only restarts the measure)
 //   anything else: [0xFF, ...] (unhandled)
 void diag_receive(XDATA uint8_t *data, uint8_t length);
+
+#if LOOP_PROFILE
+// Provided by the board: the milliseconds since power-on (the profile's window is counted from the last reset of it)
+uint32_t diag_hook_uptime_ms(void);
+#endif
 
 #if BATTERY_LOG
 // Provided by the board: the battery log (blog.h), for kind 4

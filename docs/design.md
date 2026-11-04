@@ -275,6 +275,8 @@ Il PWM suona una colonna alla volta: il «pieno» dei LED è la frazione di temp
 | `make check-interrupts` | esattamente 4 vettori, nessun overlay statico |
 | `make sim` | l'hex vero nel simulatore `ucsim-sh68f90` (24 test: avvio, slot, stack, recupero, descrittori, VIA/Vial, report, ISP); ~45 s |
 | `make api` / `make check-api` | rigenera / verifica `docs/api.md` dagli header |
+| `make BATTERY_LOG=0 fw` | build senza il registro della batteria (opzione in `core/options.h`) |
+| `make LOOP_PROFILE=1 BATTERY_LOG=0 fw` | **build di profilo**: misura ogni passo del ciclo principale (15 passi: corse, minimo, media, massimo, quota di tempo), la lunghezza dei giri per fasce e la CPU presa da ogni interrupt (timer, USB, seriale della radio). Si legge con `py tools\diag.py --profile`, si riparte con `--profile-reset`. Costa ~2 KB di flash e ~180 B di XDATA e rallenta un po' ogni giro: solo per misurare. Va con `BATTERY_LOG=0` (non ci starebbe) |
 
 CI (GitHub Actions): test host, build, budget, vettori, simulazione; l'hex è un artifact e il tag `v*` pubblica una Release. Il simulatore mostra l'**ordine** degli eventi e i conteggi di istruzioni, non le durate.
 

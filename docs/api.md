@@ -31,6 +31,7 @@
   - [`core/options.h`](#core-options-h) — Build options
   - [`core/override.h`](#core-override-h) — Key overrides: a key does something else while the right modifiers are held (Vial's Key Overrides tab edits th
   - [`core/platform.h`](#core-platform-h) — The one place where the 8051 and the host differ for the pure logic: constant tables live in code space on the
+  - [`core/profile.h`](#core-profile-h) — The profile build (make LOOP_PROFILE=1 fw): how long each step of the main loop takes, how long a whole pass t
   - [`core/radio.h`](#core-radio-h) — The link to the BK3632 radio of the B68 (docs/keyboards/yunzii-b68-radio.md): a serial line at 260870 baud car
   - [`core/raw_hid.h`](#core-raw-hid-h) — The raw HID pipe VIA and Vial talk through: one 32-byte request on EP2 OUT, one 32-byte reply on EP2 IN
   - [`core/report.h`](#core-report-h) — What the host is told: the keyboard state as a report, and the current consumer and system usages
@@ -550,7 +551,6 @@ typedef enum {
     DIAG_USB_GONE,         // times the keyboard declared the host gone (no start-of-frame in a look at the bus): with the cable in and the PC on this stays 0
     DIAG_STORE_SAVES,      // times the whole keymap has been written to flash, ever (the sequence number in the header of the slot in use: it survives power-off)
     DIAG_STORE_LOG,        // records in the log of the slot in use (the keymap edits written since the last whole save)
-    DIAG_LOOP_WORST,       // LOOP_PROFILE build only: the slowest step of the main loop so far, as (step number << 8) | milliseconds
     DIAG_COUNT
 } diag_id_t;
 ```
@@ -601,7 +601,19 @@ uint16_t diag_get(diag_id_t id);
 void diag_receive(XDATA uint8_t *data, uint8_t length);
 ```
 
-VIA command 0xF1: the request is in `data` (32 bytes) and becomes the reply. [0xF1, kind, ...] kind 0: [0xF1, 0, DIAG_COUNT, counter 0 (lo, hi), counter 1, ...] kind 1: the radio: [0xF1, 1, its 6 status bytes] (the battery reading is in bytes 4-5) kind 4 (with BATTERY_LOG): [0xF1, 4, first record] -> [0xF1, 4, count, records of four bytes, as many as fit]: the battery log (blog.h) all are read-only, so they need no unlock anything else: [0xFF, ...] (unhandled)
+VIA command 0xF1: the request is in `data` (32 bytes) and becomes the reply. [0xF1, kind, ...] kind 0: [0xF1, 0, DIAG_COUNT, counter 0 (lo, hi), counter 1, ...] kind 1: the radio: [0xF1, 1, its 6 status bytes] (the battery reading is in bytes 4-5) kind 4 (with BATTERY_LOG): [0xF1, 4, first record] -> [0xF1, 4, count, records of four bytes, as many as fit]: the battery log (blog.h) kind 5..8 (LOOP_PROFILE build): the profile, see profile.h. 5: [0xF1, 5, step] -> step, count, min, max (16 bits each), sum (32); 6: the pass length
+
+bands (8 x 16 bits) and the time of the timer, USB and serial interrupts (32 bits each); 7: start again; 8: the milliseconds since the last start
+
+all are read-only, so they need no unlock (7 only restarts the measure) anything else: [0xFF, ...] (unhandled)
+
+#### `diag_hook_uptime_ms`
+
+```c
+uint32_t diag_hook_uptime_ms(void);
+```
+
+Provided by the board: the milliseconds since power-on (the profile's window is counted from the last reset of it)
 
 #### `diag_hook_blog_count`
 
@@ -2146,7 +2158,7 @@ The battery log (core/blog.c): the keyboard writes down its battery reading in a
 #    define APP_FLASH_END 0xDC00u
 ```
 
-A build that times each step of the main loop and keeps the slowest (DIAG_LOOP_WORST: which step, how many milliseconds), for finding what makes a pass of the loop long - a long pass starves the backlight (hal/tick.c) and it blinks. It costs a little time in every pass, so it is off by default: `make LOOP_PROFILE=1 fw`.
+The profile build: it times each step of the main loop and each whole pass, and measures how much of the CPU each interrupt takes (core/profile.h), for finding what makes a pass of the loop long - a long pass starves the backlight and it blinks. It costs a little time in every pass, so it is off by default: `make LOOP_PROFILE=1 fw`, then `tools/diag.py --profile`.
 
 ```c
 #    define LOOP_PROFILE 0
@@ -2198,6 +2210,99 @@ The one place where the 8051 and the host differ for the pure logic: constant ta
 #    define ROM
 #    define XDATA
 ```
+
+### `core/profile.h`
+
+The profile build (make LOOP_PROFILE=1 fw): how long each step of the main loop takes, how long a whole pass takes, and how much of the CPU each interrupt uses. Times are in counts of the timer, 2 to the microsecond (0.5 us). For each step: how many times it ran, the shortest, the longest and the sum (the mean is the sum over the count; the host does it). For the passes: how many fell in each band of length. Read with `tools/diag.py --profile`, started again with `--profile-reset`.
+
+The times are wall-clock times: a step includes the interrupts that ran during it. The share of each interrupt is measured apart, so the two can be told from each other. The measuring itself costs a little in every pass, which is why this is a build of its own.
+
+```c
+#    define PROFILE_STEPS      16u  // step numbers 1 .. 15 are used (see tools/diag.py), 0 is spare
+#    define PROFILE_BANDS      8u  // pass length bands, in counts: < 400, 800, 1600, 3200, 6400, 12800, 25600, and longer (200 us .. 12.8 ms)
+```
+
+#### `profile_isr_t`
+
+```c
+typedef enum { PROFILE_ISR_TIMER, PROFILE_ISR_USB, PROFILE_ISR_UART, PROFILE_ISR_COUNT } profile_isr_t;
+```
+
+#### `profile_reset`
+
+```c
+void profile_reset(void);
+```
+
+#### `profile_step`
+
+```c
+void profile_step(uint8_t id, uint16_t counts);
+```
+
+A step of `id` took `counts`.
+
+#### `profile_pass`
+
+```c
+void profile_pass(uint16_t counts);
+```
+
+A whole pass of the main loop took `counts`.
+
+#### `profile_isr`
+
+```c
+void profile_isr(profile_isr_t which, uint16_t counts);
+```
+
+An interrupt of this kind ran for `counts`.
+
+#### `profile_step_count`
+
+```c
+uint16_t profile_step_count(uint8_t id);
+```
+
+What has been measured.
+
+#### `profile_step_min`
+
+```c
+uint16_t profile_step_min(uint8_t id);
+```
+
+#### `profile_step_max`
+
+```c
+uint16_t profile_step_max(uint8_t id);
+```
+
+#### `profile_step_sum`
+
+```c
+uint32_t profile_step_sum(uint8_t id);
+```
+
+#### `profile_band`
+
+```c
+uint16_t profile_band(uint8_t band);
+```
+
+#### `profile_isr_sum`
+
+```c
+uint32_t profile_isr_sum(profile_isr_t which);
+```
+
+#### `profile_hook_now`
+
+```c
+uint16_t profile_hook_now(void);
+```
+
+Provided by the board: the clock of the measuring, a count that goes on at 2 a microsecond and wraps at 65536.
 
 ### `core/radio.h`
 

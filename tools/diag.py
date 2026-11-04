@@ -3,11 +3,13 @@
 
 Linux: /dev/hidraw, no dependencies. Windows and macOS: `pip install hidapi` (the module is called `hid`).
 
-usage: diag.py [--radio] [--blog] [--watch SECONDS] [--daemon SECONDS [FILE]]
+usage: diag.py [--radio] [--blog] [--profile] [--profile-reset] [--watch SECONDS] [--daemon SECONDS [FILE]]
 
   (no option)  print the counters once
   --radio      also print the radio's last status bytes, with the battery reading they carry
   --blog       print the battery log the keyboard keeps in flash (a build with BATTERY_LOG=1, the default): the readings it took, with the cable out too
+  --profile    (a LOOP_PROFILE build) how long each step of the main loop takes: runs, shortest, mean, longest and share of the time, the passes by length,
+               and the share of the CPU each interrupt takes. --profile-reset starts the measure again (do it, do what you want to measure, then read)
   --watch N    repeat every N seconds, printing only what changed
   --daemon N   append the counters to a CSV every N seconds
 
@@ -54,7 +56,6 @@ NAMES = [
     ("USB: times the host was declared gone", "{}"),
     ("keymap: whole saves ever (header sequence)", "{}"),
     ("keymap: records in the log", "{}"),
-    ("main loop: slowest step (LOOP_PROFILE build)", lambda v: "-" if v == 0 else "{} took {} ms".format(STEPS.get(v >> 8, "step {}".format(v >> 8)), v & 0xFF)),
 ]
 
 
@@ -178,6 +179,43 @@ def blog(keyboard):
             index += 1
 
 
+def profile(keyboard):
+    """The profile of a LOOP_PROFILE build (core/profile.h). Times are in counts of 0.5 us; a step is wall-clock time, so it includes the interrupts that ran during it."""
+    window = keyboard.ask(0xF1, 8)
+    if window[0] != 0xF1:
+        print("profile            : this build is not a LOOP_PROFILE build (make LOOP_PROFILE=1 fw)")
+        return
+
+    window_ms = int.from_bytes(window[2:6], "little")
+    window_counts = max(1, window_ms * 2000)
+    print("profile            : window of {:.1f} s since the last reset (times in microseconds)".format(window_ms / 1000.0))
+    print("  {:22} {:>8} {:>8} {:>9} {:>9} {:>7}".format("step", "runs", "min", "mean", "max", "share"))
+
+    for step in range(1, 16):
+        r = keyboard.ask(0xF1, 5, step)
+        count = int.from_bytes(r[3:5], "little")
+        low = int.from_bytes(r[5:7], "little")
+        high = int.from_bytes(r[7:9], "little")
+        total = int.from_bytes(r[9:13], "little")
+        if count == 0:
+            continue
+        print("  {:22} {:8d} {:8.1f} {:9.1f} {:9.1f} {:6.1f}%".format(STEPS.get(step, "step {}".format(step)), count, low / 2.0, total / 2.0 / count,
+                                                                       high / 2.0, 100.0 * total / window_counts))
+
+    r = keyboard.ask(0xF1, 6)
+    bands = [int.from_bytes(r[2 + 2 * i:4 + 2 * i], "little") for i in range(8)]
+    limits = ["< 0.2 ms", "< 0.4 ms", "< 0.8 ms", "< 1.6 ms", "< 3.2 ms", "< 6.4 ms", "< 12.8 ms", ">= 12.8 ms"]
+    passes = sum(bands)
+    print("  passes of the main loop: {} ({:.0f} a second)".format(passes, passes * 1000.0 / max(1, window_ms)))
+    for name, n in zip(limits, bands):
+        if n:
+            print("    {:10} {:8d}  {:5.1f}%".format(name, n, 100.0 * n / max(1, passes)))
+
+    isr = [int.from_bytes(r[18 + 4 * i:22 + 4 * i], "little") for i in range(3)]
+    print("  CPU taken by the interrupts: timer {:.1f}%   USB {:.1f}%   serial (radio) {:.1f}%   (the serial one runs inside the timer's too)".format(
+        *[100.0 * v / window_counts for v in isr]))
+
+
 def daemon(keyboard, seconds, path):
     """The counters (and the radio, if asked) appended to a file every `seconds`, with the time: leave it running and read it afterwards."""
     import datetime
@@ -218,11 +256,18 @@ def main():
         daemon(keyboard, daemon_seconds, out)
         return
 
+    if "--profile-reset" in args:
+        keyboard.ask(0xF1, 7)
+        print("profile            : started again")
+        return
+
     values = counters(keyboard)
     print("counters:")
     show(values)
     if "--blog" in args:
         blog(keyboard)
+    if "--profile" in args:
+        profile(keyboard)
     if len(values) > 11:
         # each whole save erases the four sectors of one of the two slots, so a keymap sector has been erased about half as many times
         print("  keymap flash wear: about {} erase cycles per sector (flash of this kind is typically good for 10 000 to 100 000)".format(values[11] // 2))

@@ -1,5 +1,6 @@
 #include "blog.h"
 #include "diag.h"
+#include "via.h"
 #include "diag_hw.h"
 #include "led_hw.h"
 #include "link.h"
@@ -55,5 +56,12 @@ uint8_t diag_hook_blog_count(void)
 bool diag_hook_blog_get(uint8_t index, uint8_t out[4])
 {
     return blog_get(index, out);
+}
+#endif
+
+#if LOOP_PROFILE
+uint32_t diag_hook_uptime_ms(void)
+{
+    return via_hook_now();
 }
 #endif

@@ -3,6 +3,7 @@
 
 #include "battery.h"
 #include "blog.h"
+#include "profile.h"
 #include "clock.h"
 #include "diag.h"
 #include "diag_hw.h"
@@ -91,22 +92,12 @@ static void init(void)
 }
 
 #if LOOP_PROFILE
-// Times a step of the loop in milliseconds of the timer's clock (which includes the interrupts that ran meanwhile) and keeps the slowest one
-static uint8_t worst_ms = 1; // under 2 ms is the clock's own resolution
-static void    step_done(uint8_t id, uint8_t started)
-{
-    const uint8_t took = (uint8_t)(tick_ms_now() - started);
-
-    if (took > worst_ms) {
-        worst_ms = took;
-        diag_set(DIAG_LOOP_WORST, (uint16_t)(((uint16_t)id << 8) | took));
-    }
-}
-#    define STEP(id, call)                    \
-        do {                                  \
-            const uint8_t started_ = tick_ms_now(); \
-            call;                             \
-            step_done(id, started_);          \
+// Times a step of the loop (core/profile.h): the clock is read before and after it
+#    define STEP(id, call)                                          \
+        do {                                                        \
+            const uint16_t started_ = profile_hook_now();           \
+            call;                                                   \
+            profile_step(id, (uint16_t)(profile_hook_now() - started_)); \
         } while (0)
 #else
 #    define STEP(id, call) call
@@ -119,11 +110,29 @@ void main(void)
 
     uint16_t last_pass = 0;
 
+#if LOOP_PROFILE
+    uint16_t pass_started;
+#endif
+
     init();
+
+#if LOOP_PROFILE
+    profile_reset();
+    pass_started = profile_hook_now(); // the timer runs now
+#endif
 
     for (;;) {
         watchdog_kick();
         tick_alive();
+
+#if LOOP_PROFILE
+        {
+            const uint16_t now_ = profile_hook_now();
+
+            profile_pass((uint16_t)(now_ - pass_started));
+            pass_started = now_;
+        }
+#endif
 
         while (tick_take()) { // a millisecond has passed
             now_ms++;

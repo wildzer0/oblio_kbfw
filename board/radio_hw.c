@@ -1,4 +1,9 @@
 #include "radio_hw.h"
+#include "options.h"
+#if LOOP_PROFILE
+#    include "profile.h"
+#    include "tick.h"
+#endif
 #include "gpio.h"
 #include "delay.h"
 #include "link.h"
@@ -26,6 +31,10 @@ static volatile bool    tx_busy;
 // Short: it runs for every byte, in both directions
 void radio_uart_isr(void) __interrupt(INT_EUART0)
 {
+#if LOOP_PROFILE
+    const uint16_t started = tick_count_now();
+#endif
+
     if (RI) {
         RI = 0;
 
@@ -51,6 +60,16 @@ void radio_uart_isr(void) __interrupt(INT_EUART0)
     SM0_FE    = 0; // the error flags (SSTAT): the stock clears them in its interrupt too
     SM1_RXOV  = 0;
     SM2_TXCOL = 0;
+
+#if LOOP_PROFILE
+    {
+        const uint16_t took = (uint16_t)(tick_count_now() - started);
+
+        if (took < 400u) { // a reload of the timer inside it makes the difference too large: not counted
+            profile_isr(PROFILE_ISR_UART, took);
+        }
+    }
+#endif
 }
 
 void radio_hw_init(void)

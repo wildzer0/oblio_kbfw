@@ -57,6 +57,19 @@ Il controllo di recupero Esc+1+2 va all'inizio del `main`, prima di USB e radio.
   30 ms (la coda della radio è di 4); la tastiera non va in sleep mentre scrive. Costa ~520 B di flash (54415/55296). È uno strumento di debug: da
   togliere insieme al registro in flash quando la scala della batteria è confermata.
 
+## 2026-11-05 — build di profilo completa (`LOOP_PROFILE`)
+
+- Richiesta dell'utente: vedere i tempi di ogni compito del ciclo principale (minimo, media, massimo; la deviazione standard non serve). Sostituisce il contatore del «passo più lento» con un profilo vero:
+  `core/profile.[ch]` (statistiche pure, con test host: `test_profile`), orologio a 0,5 µs in `hal/tick.c` (`profile_hook_now`: tempo all'inizio dello slot + conteggio del Timer 2, letti con l'interrupt del timer fermo per
+  pochi istruzioni), passi misurati con `STEP(n, ...)` in `board/main.c`, tempo degli interrupt (timer, USB, seriale radio) misurato dentro le loro ISR dal conteggio grezzo del timer.
+- Diagnostica `diag` kind 5 (passo: corse, min, max, somma), 6 (fasce di lunghezza dei giri + tempo degli interrupt), 7 (ricomincia), 8 (finestra in ms); `diag.py --profile` stampa tabella (corse, min, media, max, quota %),
+  fasce dei giri e % di CPU per interrupt; `--profile-reset` azzera. Ricordare: i tempi sono di orologio (un passo include gli interrupt che girano), la quota degli interrupt è a parte; la seriale gira anche dentro l'ISR del timer.
+- Si compila con `make LOOP_PROFILE=1 BATTERY_LOG=0 fw` (col registro non ci sta nel limite 0xDA00): flash 55426/56320, XDATA 3973/4096. Hex: `build/oblio-profile.hex`. Spento di default; il resto invariato.
+- **Misura nel simulatore** (istruzioni esatte, solo il codice; niente interrupt reali né radio; valore tipico = minimo): `encoder_poll` 345, `settings_task` 359, `sleep_hw_task` 203, `keyboard_task` 147, `battery_task` 90,
+  `usb_task` 78, `led_app_task` 74, `led_task` 63 (1018 con un ridisegno di 8 LED), `blog_task` 49, `link_task` 50, `os_switch_task` 42, `store_task` 44, `usb_wake_task` 25: un giro a vuoto costa ~1570 istruzioni, ~0,2 ms di CPU.
+  Il passo più grosso è `matrix_feed`, **~1900–3200 istruzioni una volta per scansione** (~0,3–0,4 ms). **Nessun passo è pesante da solo**: i picchi di 9–12 ms visti sull'hardware non vengono dal codice dei passi ma da
+  raffiche di interrupt o dalla radio, cose che la build di profilo misura. Candidati a un piccolo risparmio: `settings_task` (359 a giro, per il controllo delle luci a ogni giro) e `encoder_poll`.
+
 ## 2026-11-04 (notte) — il back-off scatta meno: 3 → 8 scansioni
 
 - Misura con `LOOP_PROFILE` (scrivendo in radio): **led_task 9 ms**, giro più lento 12 ms, back-off 7. In simulatore un ridisegno di 8 LED costa ~1000 istruzioni (~0,3 ms): i 9 ms sono quindi tempo di orologio

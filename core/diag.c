@@ -1,4 +1,7 @@
 #include "diag.h"
+#if LOOP_PROFILE
+#    include "profile.h"
+#endif
 #include <string.h>
 
 static uint16_t counter[DIAG_COUNT];
@@ -40,6 +43,52 @@ uint16_t diag_get(diag_id_t id)
     return a;
 }
 
+#if LOOP_PROFILE
+static uint32_t window_started; // uptime_ms at the last start of the profile
+
+static void put32(XDATA uint8_t *p, uint32_t v)
+{
+    p[0] = (uint8_t)(v & 0xFFu);
+    p[1] = (uint8_t)((v >> 8) & 0xFFu);
+    p[2] = (uint8_t)((v >> 16) & 0xFFu);
+    p[3] = (uint8_t)(v >> 24);
+}
+
+static void put16(XDATA uint8_t *p, uint16_t v)
+{
+    p[0] = (uint8_t)(v & 0xFFu);
+    p[1] = (uint8_t)(v >> 8);
+}
+
+static void diag_profile(XDATA uint8_t *data, uint8_t kind)
+{
+    const uint8_t step = data[2];
+
+    memset(&data[2], 0, 30);
+
+    if (kind == 5) {
+        data[2] = step;
+        put16(&data[3], profile_step_count(step));
+        put16(&data[5], profile_step_min(step));
+        put16(&data[7], profile_step_max(step));
+        put32(&data[9], profile_step_sum(step));
+    } else if (kind == 6) {
+        for (uint8_t i = 0; i < PROFILE_BANDS; i++) {
+            put16(&data[2 + 2 * i], profile_band(i));
+        }
+
+        put32(&data[18], profile_isr_sum(PROFILE_ISR_TIMER));
+        put32(&data[22], profile_isr_sum(PROFILE_ISR_USB));
+        put32(&data[26], profile_isr_sum(PROFILE_ISR_UART));
+    } else if (kind == 7) {
+        profile_reset();
+        window_started = diag_hook_uptime_ms();
+    } else {
+        put32(&data[2], diag_hook_uptime_ms() - window_started);
+    }
+}
+#endif
+
 void diag_receive(XDATA uint8_t *data, uint8_t length)
 {
     const uint8_t kind = data[1];
@@ -64,6 +113,10 @@ void diag_receive(XDATA uint8_t *data, uint8_t length)
             memcpy(&data[2], status, 6);
         }
 
+#if LOOP_PROFILE
+    } else if (kind >= 5 && kind <= 8) {
+        diag_profile(data, kind);
+#endif
 #if BATTERY_LOG
     } else if (kind == 4) { // the battery log, from the record asked for, as many as fit
         const uint8_t index = data[2];

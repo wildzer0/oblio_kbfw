@@ -68,6 +68,10 @@ tests/host/test_%: tests/host/test_%.c core/%.c FORCE
 tests/host/test_usb_device: tests/host/test_usb_device.c core/usb_desc.c core/diag.c FORCE
 	$(CC) -std=c11 -Wall -Wextra -Werror -Icore -Itests/host -o $@ $(filter %.c,$^)
 
+# core/profile.c exists only in the profile build: its test is built that way
+tests/host/test_profile: tests/host/test_profile.c core/profile.c FORCE
+	$(CC) -std=c11 -Wall -Wextra -Werror -DLOOP_PROFILE=1 -Icore -Itests/host -o $@ $(filter %.c,$^)
+
 # the default keymap is board data, but plain C: checked against the matrix measured on the board
 tests/host/test_default_keymap: tests/host/test_default_keymap.c board/keymap_default.c core/keymap.c FORCE
 	$(CC) -std=c11 -Wall -Wextra -Werror -Icore -Iboard -Itests/host -o $@ $(filter %.c,$^)

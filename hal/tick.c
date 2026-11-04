@@ -1,6 +1,10 @@
 #include "tick.h"
 #include "diag.h"
 #include "sched.h"
+#include "options.h"
+#if LOOP_PROFILE
+#    include "profile.h"
+#endif
 #include "sh68f90.h"
 
 // The timer counts at FREQ_SYS / 12 = 2 MHz, so a slot of N microseconds is 2 * N counts.
@@ -32,6 +36,11 @@ static uint8_t          starved; // scans in a row in which the main loop did no
 static uint16_t pending_reload; // what the timer is armed with at the next interrupt: the length of the slot that starts then
 static uint16_t prev_reload;    // the same for the slot that began at the previous interrupt: the count the timer reloaded to
 static uint16_t prev_len;       // how long that slot was, in counts, from its start to its end
+
+#if LOOP_PROFILE
+static volatile uint16_t prof_base;   // counts since power-on (mod 65536) at the start of the slot that is playing
+static volatile uint16_t prof_reload; // what the timer was loaded with at the start of that slot
+#endif
 
 static uint16_t timer_count(void)
 {
@@ -100,6 +109,11 @@ void tick_isr(void) __interrupt(INT_TIMER2)
     const slot_t slot = sched_step((uint16_t)(prev_len + (uint16_t)(entered - prev_reload)), &milliseconds);
 
     ticks += milliseconds;
+
+#if LOOP_PROFILE
+    prof_base   = (uint16_t)(prof_base + (uint16_t)(prev_len + (uint16_t)(entered - prev_reload)));
+    prof_reload = reload;
+#endif
     pending_reload = RELOAD(sched_slot_us(sched_upcoming()));
 
     if (slot == SLOT_SCAN) {
@@ -138,6 +152,10 @@ void tick_isr(void) __interrupt(INT_TIMER2)
     }
 
     prev_reload = reload;
+
+#if LOOP_PROFILE
+    profile_isr(PROFILE_ISR_TIMER, used); // the serial interrupt that ran inside is in it too
+#endif
 
     if (slot == SLOT_SCAN) {
         prev_len = used;
@@ -201,3 +219,21 @@ bool tick_scan_take(uint8_t raw[16])
     ET2 = 1;
     return true;
 }
+
+#if LOOP_PROFILE
+// The clock of the profile: 2 counts to the microsecond, wrapping at 65536 (32 ms). The count of the slot that is playing is added to the time at
+// its start; the interrupt that moves to the next slot is held off for the few instructions that read them, or the three would not agree.
+uint16_t profile_hook_now(void)
+{
+    ET2 = 0;
+
+    const uint16_t base   = prof_base;
+    const uint16_t reload = prof_reload;
+    const uint16_t count  = timer_count();
+
+    ET2 = 1;
+
+    return (uint16_t)(base + (uint16_t)(count - reload));
+}
+#endif
+
