@@ -237,28 +237,20 @@ static void paint_one(void)
         }
     }
 
-    // The three channels of the LED: one pointer to each table, walked, instead of the two-dimensional index worked out for every access
-    XDATA uint8_t  *lv = &level[paint_col][paint_row * 3];
-    XDATA uint16_t *du = &duty2[paint_col][paint_row * 3];
-    uint8_t         duty_base = (uint8_t)(paint_row * 3 + LED_DUTY1_BASE);
-    uint8_t         changed_lit = lit[paint_col];
+    // The three channels of the LED. (Tried: pointers that walk the tables and skipping the channels whose level has not changed. Together with the
+    // colour caches above it made the repaint so quick that the columns flickered on the keyboard, with every effect; with either of the two alone it did
+    // not. The cause was not found - the data written is the same - so this stays the plain loop. See docs/design.md 6.1.)
+    for (uint8_t c = 0; c < 3; c++) {
+        const uint8_t i   = (uint8_t)(paint_row * 3 + c);
+        const uint8_t old = level[paint_col][i];
 
-    for (uint8_t c = 0; c < 3; c++, lv++, du++, duty_base++) {
-        const uint8_t v = rgb[c];
-
-        if (*lv == v) {
-            continue; // the same level as before: the duty value is the same too
+        if ((old == 0) != (rgb[c] == 0)) {
+            lit[paint_col] = (uint8_t)(lit[paint_col] + (rgb[c] ? 1 : -1));
         }
 
-        if ((*lv == 0) != (v == 0)) {
-            changed_lit = (uint8_t)(changed_lit + (v ? 1 : -1));
-        }
-
-        *lv = v;
-        *du = (uint16_t)(duty_base + LED_WIDTH(v));
+        level[paint_col][i] = rgb[c];
+        duty2[paint_col][i] = (uint16_t)(LED_DUTY1_BASE + i + LED_WIDTH(rgb[c]));
     }
-
-    lit[paint_col] = changed_lit;
 
     if (++paint_col >= LED_COLS) {
         paint_col = 0;

@@ -62,6 +62,7 @@ Il controllo di recupero Esc+1+2 va all'inizio del `main`, prima di USB e radio.
 - **`core/led_effect.c`:** `led_color_wheel` senza la divisione per 43.
 - **Caps Word** (modifica dell'utente in `led_task`/`paint_one`): il tasto Caps si accende anche con Caps Word, e `led_task` si accorge del suo cambio (prima solo del Caps Lock: il cambio non ridisegnava).
 - **Profilo:** la tabella dei passi parte da 1 (19 voci, non 20: 10 B di XDATA in meno); `PROFILE_STEPS` è l'ultimo passo valido.
+- **Tolto:** la scrittura del framebuffer per puntatore con salto dei canali invariati. Sulla tastiera, insieme alle cache dei colori, faceva sfarfallare le colonne con ogni effetto (nessun contatore se ne accorgeva); con una sola delle due modifiche no (prova con due hex, A e B). La causa non è stata trovata: i valori scritti sono gli stessi, cambia solo la velocità del ridisegno. Resta il ciclo semplice.
 - **Test:** `test_led` controlla Caps Word, gli effetti uniformi (stesso colore su ogni tasto, `duty2` coerente col livello) e che le onde con cache diano gli stessi colori dell'effetto calcolato tasto per tasto.
 - Numeri: flash 54.136/55.808 (52.692/56.320 senza log), XDATA 3.884/4.096; profilo (`LOOP_PROFILE=1 BATTERY_LOG=0`) 56.297/56.320 e XDATA 4.096/4.096 (al limite).
 

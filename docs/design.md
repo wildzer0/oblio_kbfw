@@ -137,9 +137,11 @@ Misurato con la build di profilo (`LOOP_PROFILE=1`, §14): l'interrupt del timer
 | `core/settings.c` | il controllo «i valori delle luci sono cambiati?» ogni 8 ms, non a ogni giro | otto chiamate di hook a giro; il tempo di quiete che segue è di mezzo secondo, pochi ms in più non contano |
 | `core/encoder.c` | se lo stato dei pin non è cambiato, `encoder_poll` non fa nulla | quasi tutti i giri |
 | `core/led.c` | colori **uniformi** (tinta unita, respiro, pulsazione) calcolati una volta per ridisegno e copiati; onde per colonna (orizzontale) e per riga (verticale) calcolate sulla prima riga/primo tasto; effetto radiale calcolato una volta per anello (12 anelli, `led_effect_ring`) | un LED costava il calcolo completo di un colore (ruota + 3 scale); ora, per la maggior parte dei tasti, una copia di 3 byte |
-| `core/led.c` | le scritture nel framebuffer usano puntatori che avanzano, e saltano i canali il cui livello non è cambiato | l'indice a due dimensioni veniva ricalcolato a ogni accesso |
+| `core/led.c` | **provato e tolto**: scritture del framebuffer con puntatori e senza i canali invariati | insieme alle cache dei colori rendeva il ridisegno così rapido che le colonne sfarfallavano sulla tastiera (con ogni effetto); con una sola delle due cose no. I dati scritti sono identici: è una questione di tempi, causa non trovata. Resta il ciclo semplice |
 | `core/led_effect.c` | `led_color_wheel` senza divisione per 43 (confronti e sottrazioni) | la divisione è una chiamata al compilatore, un centinaio di istruzioni, a ogni colore |
 | `core/led.c` | la fase dell'animazione è fotografata all'inizio del ridisegno (`cur_phase`) | un ridisegno non mescola più due fasi se questa avanza a metà |
+
+**Attenzione ai tempi del ridisegno.** Rendere il ridisegno molto più rapido non è gratis: la combinazione «cache dei colori + framebuffer veloce» ha fatto sfarfallare le colonne (bisezione fatta con due hex, ciascuno dei due cambi da solo andava bene). Dopo un'ottimizzazione dei LED, guardare i LED sulla tastiera, non solo i contatori (che restavano a zero).
 
 Regole di pollice per chi continua: (1) in modello *large* ogni `static` è in XDATA e ogni accesso costa; (2) un puntatore generico è 10 volte più caro di uno tipizzato; (3) la moltiplicazione e la divisione a 16 bit sono chiamate al compilatore;
 (4) se un valore non cambia da un giro all'altro, non rifare il lavoro; (5) misura prima (`make sim`, `tools/diag.py --profile`).
@@ -281,7 +283,7 @@ Tre slot Bluetooth (Fn+B/N/M: tocco = scegli, 3 s = accoppia); lo slot è un'imp
 della fase a metà ridisegno ne chiede un altro). Poi `paint_one` prende il colore del tasto: per gli effetti **uniformi** (tinta unita, respiro, pulsazione) il colore è calcolato una volta in `base`; per l'onda
 **orizzontale** il colore di una colonna è calcolato sulla riga 0 e riusato sulle altre (`color[col]`); per la **verticale** sul primo tasto di ogni riga (`base`, che non serve ad altro in quel caso); per il **radiale** una volta
 per anello (`color[anello]`, `color_known` dice quali sono pronti; `led_effect_ring` dà l'anello 1–15 di un tasto: le distanze della tabella sono multipli di 17, quindi `distanza >> 4` è unico); diagonale e altri
-calcolano ogni tasto. Il framebuffer (`level`, `duty2`, `lit`) è scritto con puntatori che avanzano e **solo se il livello è cambiato**.
+calcolano ogni tasto. Il framebuffer (`level`, `duty2`, `lit`) è scritto per intero, canale per canale (la variante con puntatori e salto dei canali invariati è stata tolta: vedi §6.1).
 Il tasto Caps si accende fisso quando l'host ha il Caps Lock (via USB dal report LED, in wireless dal byte 1 dello stato) **o quando Caps Word è attivo** (`keyboard_caps_word()`; `led_task` guarda entrambi per accorgersi del cambio e ridisegnare). La riga dei numeri mostra il **gauge** (Fn+Backspace), lampeggi di modo/slot/pairing e i passi dello sleep.
 Il PWM suona una colonna alla volta: il «pieno» dei LED è la frazione di tempo, non una corrente continua.
 
