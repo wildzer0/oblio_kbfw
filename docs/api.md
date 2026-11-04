@@ -17,7 +17,6 @@
   - [`core/combo.h`](#core-combo-h) — Combos: two or more keys pressed together give one other key (Vial's Combos tab edits them, core/keymap.c stor
   - [`core/diag.h`](#core-diag-h) — Counters for the first runs on the hardware, read over the raw HID interface (VIA command 0xF1, no unlock need
   - [`core/encoder.h`](#core-encoder-h) — Rotary encoders read as two lines in quadrature
-  - [`core/hud.h`](#core-hud-h) — The keyboard HUD protocol: lets a desktop overlay show the keyboard's live state (layers, pressed keys, modifi
   - [`core/keyboard.h`](#core-keyboard-h) — Glue between the matrix events and the logic behind them: layers now, tapping, report and macros as they are a
   - [`core/keycodes.h`](#core-keycodes-h) — 16-bit keycodes, laid out as QMK/Vial does: the Vial desktop app edits the keymap with these numbers, so the r
   - [`core/keymap.h`](#core-keymap-h) — The keymap held in RAM: KEYMAP_LAYERS layers of MATRIX_ROWS x MATRIX_COLS keycodes, plus the two rotation keyc
@@ -655,48 +654,6 @@ bool encoder_next(uint8_t index, bool *clockwise);
 
 Takes one detent that has not been used yet. False when there is none.
 
-### `core/hud.h`
-
-The keyboard HUD protocol: lets a desktop overlay show the keyboard's live state (layers, pressed keys, modifiers, lock LEDs). It rides on the VIA / Vial raw HID interface as command 0xF0 and only ever answers requests: nothing is sent unasked and nothing is stored. The description is in docs/hud-protocol-v2.md; the B68 has 16 columns, so it announces protocol 2.
-
-Every packet is 32 bytes: [0xF0, command, status, sequence, args... / reply...]; multi-byte fields are little-endian. 0x01 GET_INFO    protocol, rows, columns, layers, capability bits, HUD_TOG keycode, keymap version, bytes per row 0x02 GET_STATE   layer mask, default layer, pressed keys (the first 8 columns), mods, one-shots, flags, toggle counter, keymap version 0x03 GET_KEYMAP  args: layer, offset (16 bit, row * columns + column), count (<= 12); reply: the keycodes 0x04 GET_MATRIX  (protocol 2) the whole pressed-key matrix, rows * ceil(columns / 8) bytes
-
-```c
-#define HUD_CMD 0xF0u
-```
-
-#### `HUD_TOGGLE_KEYCODE`
-
-```c
-#define HUD_TOGGLE_KEYCODE 0x7E00u
-```
-
-The keycode of the HUD_TOG key (the first of the board's own keycodes); its presses are counted, not sent to the host.
-
-#### `hud_hook_host_leds`
-
-```c
-uint8_t hud_hook_host_leds(void);
-```
-
-Provided by the board (or a test): the LED report of the host (bit 0 num lock, bit 1 caps lock).
-
-#### `hud_receive`
-
-```c
-bool hud_receive(XDATA uint8_t *data, uint8_t length);
-```
-
-Handles a request in `data` (32 bytes) and turns it into the reply. False if `data` is not a HUD packet.
-
-#### `hud_toggle_pressed`
-
-```c
-void hud_toggle_pressed(void);
-```
-
-The HUD_TOG key went down: the overlay sees the counter change.
-
 ### `core/keyboard.h`
 
 Glue between the matrix events and the logic behind them: layers now, tapping, report and macros as they are added.
@@ -737,7 +694,7 @@ A tap of a keycode, as if a key of the keymap had gone down and up (used by the 
 bool keyboard_caps_word(void);
 ```
 
-True while Caps Word is on (the letters are being shifted until the word ends): the HUD and the diagnostics can show it.
+True while Caps Word is on (the letters are being shifted until the word ends): the lighting shows it on the Caps key.
 
 #### `keyboard_hook_custom`
 
@@ -1531,20 +1488,6 @@ uint8_t layer_get_state(void);
 
 Bit n set = layer n is on (the default layer is not part of it).
 
-#### `layer_oneshot_layer`
-
-```c
-uint8_t layer_oneshot_layer(void);
-```
-
-For a status display: the one-shot layer waiting for a key (LAYER_NONE if none) and the one-shot modifiers armed.
-
-#### `layer_oneshot_mods`
-
-```c
-uint8_t layer_oneshot_mods(void);
-```
-
 #### `layer_lookup`
 
 ```c
@@ -2134,7 +2077,7 @@ Debounced state of one key, as the events have reported it so far.
 uint16_t matrix_row_bits(uint8_t row);
 ```
 
-The debounced state of a whole row: bit `col` is set for a pressed key (the matrix tester of Vial and the HUD show it).
+The debounced state of a whole row: bit `col` is set for a pressed key (the matrix tester of Vial shows it).
 
 #### `matrix_any_pressed`
 
@@ -2545,7 +2488,7 @@ The host has configured the device (or it was reset): drop any request in flight
 void raw_hid_out(uint8_t length);
 ```
 
-From the USB interrupt: a packet of `length` bytes arrived on EP2 OUT. One of another size is not a request of ours and is dropped. The interrupt copies nothing (32 bytes through a slow pointer held the timer interrupt up, and the backlight flickered while the HUD polled): the endpoint is not armed again until the request is answered, so its buffer stays as it is, and the main loop reads it from there.
+From the USB interrupt: a packet of `length` bytes arrived on EP2 OUT. One of another size is not a request of ours and is dropped. The interrupt copies nothing (32 bytes through a slow pointer held the timer interrupt up, and the backlight flickered while an app polled): the endpoint is not armed again until the request is answered, so its buffer stays as it is, and the main loop reads it from there.
 
 #### `raw_hid_task`
 
@@ -3644,13 +3587,15 @@ The B68 itself: pins, the matrix, LEDs, the radio's serial port, sleep, the keyc
 
 ### `board/b68_keys.h`
 
-#### `B68_HUD_TOG`
+#### `B68_UNUSED`
 
 ```c
-#define B68_HUD_TOG 0x7E00u
+#define B68_UNUSED  0x7E00u
 ```
 
 Keycodes specific to the B68: the first QK_KB values, in the order the Vial definition lists them under customKeycodes. They are numbered from 0x7E00 with no gap (check_vial.py enforces it), so removing one from the middle renumbers the ones after it: the four profile keys went when the profiles did.
+
+reserved: it was the HUD toggle. Does nothing, and keeps the numbers of the keycodes after it, which the keymaps saved in flash hold
 
 ```c
 #define B68_FX_PREV 0x7E01u  // lighting effect - / +

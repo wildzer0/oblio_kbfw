@@ -126,12 +126,10 @@ static void test_oneshot_layer(void)
     reset();
     layer_process(OSL(1), true, 0);
     layer_process(OSL(1), false, 0); // tapped
-    CHECK(layer_oneshot_layer() == 1);
     CHECK(layer_lookup(0, 0) == KC_X);
 
     layer_key_pressed(); // the next key is the one it waited for
     CHECK(layer_get_state() == 0);
-    CHECK(layer_oneshot_layer() == LAYER_NONE);
 
     // held with a key under it: lasts until the OSL key is let go
     layer_process(OSL(1), true, 0);
@@ -151,12 +149,10 @@ static void test_oneshot_mods(void)
     layer_process(OSM(MOD_LSFT), true, 0);
     layer_process(OSM(MOD_LSFT), false, 0);
     CHECK(mods == 0x02);
-    CHECK(layer_oneshot_mods() == 0x02);
     layer_key_pressed();
     CHECK(mods == 0x02);
     layer_key_released();
     CHECK(mods == 0);
-    CHECK(layer_oneshot_mods() == 0);
 
     // held with a key under it: off when let go
     layer_process(OSM(MOD_LCTL), true, 0);

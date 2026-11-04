@@ -133,9 +133,9 @@
   },
   "customKeycodes": [
     {
-      "name": "HUD Toggle",
-      "title": "Show or hide the keyboard HUD overlay",
-      "shortName": "HUD"
+      "name": "(unused)",
+      "title": "Reserved, does nothing",
+      "shortName": "---"
     },
     {
       "name": "LED Effect -",

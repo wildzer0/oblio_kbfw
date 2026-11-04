@@ -47,14 +47,13 @@ sull'hardware · **M** = manca · **?** = non so cosa faccia lo stock: da confro
 | Effetti, luminosità, velocità, colore (tab Lighting di Vial, Fn+Q…I) | `core/led`, `led_effect`, `vialrgb` | S (colore da riconfermare) |
 | LED Caps Lock sul tasto Caps | sì | S |
 | Lampi di modo/slot/pairing sulla riga dei numeri | sì | S |
-| Flicker della retroilluminazione | ISR USB senza copia (HUD), luci nel log delle impostazioni (nessun erase a ogni tasto luce), pausa solo attorno agli erase, back‑off | **da confermare** con `diag.py --watch 1` («timer interrupt: longest start delay» sotto ~50 µs) |
+| Flicker della retroilluminazione | ISR USB senza copia (le richieste dell'app), luci nel log delle impostazioni (nessun erase a ogni tasto luce), pausa solo attorno agli erase, back‑off | **da confermare** con `diag.py --watch 1` («timer interrupt: longest start delay» sotto ~50 µs) |
 
 ## Configurazione e strumenti
 
 | Funzione | Oblio | Stato |
 | --- | --- | --- |
 | Vial (keymap, tap dance, combo, override, lighting), VIA | `core/via`, `core/vial` | S per tutto tranne le luci (provate in parte) |
-| HUD (overlay desktop) | `core/hud` | S |
 | Keymap/impostazioni in flash (due copie, log append‑only) | `core/store`, `core/settings` | P (le impostazioni restano) |
 | Recupero Esc+1+2, ISP | `board/recovery` | P (non usato) |
 | Diagnostica (`diag.py`) | contatori, `--radio`, `--watch`, `--daemon` | P |

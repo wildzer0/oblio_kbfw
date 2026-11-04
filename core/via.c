@@ -1,6 +1,5 @@
 #include "via.h"
 #include "diag.h"
-#include "hud.h"
 #include "keymap.h"
 #include "matrix.h"
 #include "vial.h"
@@ -29,7 +28,6 @@ enum {
     id_dynamic_keymap_get_layer_count       = 0x11,
     id_dynamic_keymap_get_buffer            = 0x12,
     id_dynamic_keymap_set_buffer            = 0x13,
-    id_hud                                  = 0xF0, // the keyboard HUD (hud.h)
     id_oblio_diag                           = 0xF1, // counters for the first runs on the hardware (diag.h)
     id_vial_prefix                          = 0xFE,
     id_unhandled                            = 0xFF,
@@ -352,12 +350,6 @@ void via_receive(XDATA uint8_t *data, uint8_t length)
 
         case id_vial_prefix:
             vial_receive(data, length);
-            break;
-
-        case id_hud:
-            if (!hud_receive(data, length)) {
-                data[0] = id_unhandled;
-            }
             break;
 
         case id_oblio_diag:

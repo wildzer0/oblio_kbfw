@@ -138,7 +138,7 @@ I conteggi di istruzioni sono esatti nel simulatore (sottoquadro 433, scansione 
                                                                                      └─ USB              → coda EP1 (core/usb_reports.c)
 ```
 
-- **`matrix`** — debounce **a tempo** (5 ms, come QMK) con un pavimento di 3 campioni concordi; produce eventi di pressione/rilascio con coda. `matrix_row_bits` serve anche all'HUD.
+- **`matrix`** — debounce **a tempo** (5 ms, come QMK) con un pavimento di 3 campioni concordi; produce eventi di pressione/rilascio con coda. `matrix_row_bits` serve al tester della matrice di Vial.
 - **`layer`** — pila di layer attivi sopra un layer di default; il keycode trovato alla pressione è lo stesso usato al rilascio (nessun tasto si blocca se il layer cambia nel mezzo).
   Il Win/Mac cambia il layer di default (0 su Windows, 5 su Mac, con coppie Fn 1 e 4).
 - **`tapping`** — LT/MT/TD (tap dance): finché un tasto è indeciso gli eventi successivi vanno in una piccola coda e vengono riprodotti a decisione presa. Decide il rilascio (tap) o il timeout (hold).
@@ -171,7 +171,7 @@ confinate nell'area scrivibile), `pwm` (18 canali, tre banchi da 6), `power` (po
 | `report`, `usb_reports` | lo stato da dire all'host e la coda dei pacchetti EP1 (un tap = due report in ordine) |
 | `radio`, `link` | il protocollo della BK3632 e lo scheduler dei frame (§11); la modalità (USB / 2.4G / BT), gli slot e l'accoppiamento |
 | `usb_desc`, `usb_device`, `raw_hid` | descrittori come dati; macchina a stati di EP0; il tubo raw HID da 32 byte (l'ISR segna, il main legge e risponde) |
-| `via`, `vial`, `vialrgb`, `hud`, `diag` | i protocolli sul raw HID (§10) |
+| `via`, `vial`, `vialrgb`, `diag` | i protocolli sul raw HID (§10) |
 | `led`, `led_effect` | framebuffer, effetti per tasto, sequenza delle 16 colonne, gauge della batteria sulla riga dei numeri |
 | `store`, `settings` | persistenza (§9) |
 | `sleep` | quando dormire (timeout in secondi, livelli 1/5/10/30 min/mai) |
@@ -223,11 +223,11 @@ il contatore degli start‑of‑frame ogni 250 ms (`usb_device_configured()` = c
 **Raw HID** (`core/raw_hid.c`): una richiesta alla volta. L'ISR segna che un pacchetto è arrivato **senza copiarlo**; il main lo legge dal buffer dell'endpoint, lo elabora e risponde; l'EP2 OUT non è riarmato
 finché non si risponde, quindi non si perde e non si accoda nulla.
 
-**Smistamento** (`core/via.c`, primo byte): comandi VIA `0x01–0x13` (versione, keymap dinamica, macro, bootloader…), `0xF0` **HUD**, `0xF1` **diagnostica**, `0xFE` **Vial** (id, definizione, sblocco, QMK settings, tap dance,
-combo, key override), `0xFF` non gestito. Il Vial protegge con **sblocco** i comandi pericolosi (salto al bootloader, scrittura macro) e il keylogger; HUD e diagnostica sono in sola lettura.
+**Smistamento** (`core/via.c`, primo byte): comandi VIA `0x01–0x13` (versione, keymap dinamica, macro, bootloader…), `0xF1` **diagnostica**, `0xFE` **Vial** (id, definizione, sblocco, QMK settings, tap dance,
+combo, key override), `0xFF` non gestito. Il Vial protegge con **sblocco** i comandi pericolosi (salto al bootloader, scrittura macro) e il keylogger; la diagnostica è in sola lettura.
 `vialrgb` mappa gli effetti dell'app sui nostri (la scheda *Lighting* appare perché la **definizione** dice `"lighting": "vialrgb"`).
 
-**HUD** (`core/hud.c`): protocollo 2 (matrici oltre 8 colonne), solo risposte: `GET_INFO`, `GET_STATE`, `GET_KEYMAP`, `GET_MATRIX`. Descritto in [hud-protocol-v2.md](hud-protocol-v2.md).
+(L'**HUD**, un protocollo `0xF0` per un'app esterna di overlay, è stato tolto il 2026-11-04: nessuno lo usava. Il suo posto, il primo keycode della scheda `0x7E00`, resta riservato e non fa nulla, per non spostare i numeri degli altri tasti salvati nelle keymap.)
 
 **Diagnostica** (`core/diag.c`, `tools/diag.py`): kind 0 = contatori (causa reset, stack, slot LED/scansioni in ritardo, passata più lenta, overflow coda USB, back‑off, erase più lungo, frame radio, ritardo di avvio del timer),
 kind 1 = i 6 byte di stato della radio, kind 4 = il registro della batteria (solo con `BATTERY_LOG=1`). Il pacchetto da 32 byte regge al massimo 14 contatori.
@@ -273,7 +273,7 @@ Il PWM suona una colonna alla volta: il «pieno» dei LED è la frazione di temp
 | `make test` | 27 programmi host + controllo della definizione Vial |
 | `make fw size` | `build/oblio.hex` e budget (flash 56320 B, XDATA 4096 B) |
 | `make check-interrupts` | esattamente 4 vettori, nessun overlay statico |
-| `make sim` | l'hex vero nel simulatore `ucsim-sh68f90` (24 test: avvio, slot, stack, recupero, descrittori, VIA/Vial/HUD, report, ISP); ~45 s |
+| `make sim` | l'hex vero nel simulatore `ucsim-sh68f90` (24 test: avvio, slot, stack, recupero, descrittori, VIA/Vial, report, ISP); ~45 s |
 | `make api` / `make check-api` | rigenera / verifica `docs/api.md` dagli header |
 
 CI (GitHub Actions): test host, build, budget, vettori, simulazione; l'hex è un artifact e il tag `v*` pubblica una Release. Il simulatore mostra l'**ordine** degli eventi e i conteggi di istruzioni, non le durate.
@@ -299,7 +299,7 @@ CI (GitHub Actions): test host, build, budget, vettori, simulazione; l'hex è un
 - Scala della batteria da confermare con un secondo punto; avviso e sleep di protezione da provare.
 - Remote wakeup USB da provare (il significato del bit `WKUP` è dedotto dallo stock).
 - Latenza BLE: misurato che **non** è del firmware (0 rifiuti, stesso tempo tasto→radio del 2.4G); dipende dall'intervallo di connessione deciso da host e radio.
-- Flicker con HUD e al salvataggio: corretti (ISR senza copia; luci nel log) ma da confermare sull'hardware con il contatore del ritardo di avvio del timer.
+- Flicker (con un'app che interroga il raw HID, e al salvataggio): corretti (ISR senza copia; luci nel log).
 - Frame `08` della radio, comandi `04/05/0E` e tasti Fn dello stock: non decodificati (non interessano).
 - Funzioni scritte con test verdi ma non viste sull'hardware: combo, key override, NKRO, Caps Word, Leader, tab Lighting.
 

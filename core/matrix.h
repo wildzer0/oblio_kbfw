@@ -40,7 +40,7 @@ bool matrix_event_pop(matrix_event_t *event);
 // Debounced state of one key, as the events have reported it so far.
 bool matrix_is_pressed(uint8_t col, uint8_t row);
 
-// The debounced state of a whole row: bit `col` is set for a pressed key (the matrix tester of Vial and the HUD show it).
+// The debounced state of a whole row: bit `col` is set for a pressed key (the matrix tester of Vial shows it).
 uint16_t matrix_row_bits(uint8_t row);
 
 // True while any key is down, as the events have reported it.

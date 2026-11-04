@@ -223,12 +223,6 @@ class TestRawHid(UsbCase):
         reply = self.usb.raw_hid([0xFE, 0x00])
         self.assertEqual(reply[:12], [6, 0, 0, 0, 0x46, 0xEC, 0xD0, 0x56, 0x5D, 0xF8, 0x4F, 0xA8])
 
-    def test_hud_info_as_in_the_protocol_document(self):
-        reply = self.usb.raw_hid([0xF0, 0x01, 0x00, 0x05])
-        # f0 01 00 05 | 02 05 10 08 | 08 00 | 00 7e | 0c | VV | 02
-        self.assertEqual(reply[:13], [0xF0, 0x01, 0x00, 0x05, 0x02, 0x05, 0x10, 0x06, 0x08, 0x00, 0x00, 0x7E, 0x0C])
-        self.assertEqual(reply[14], 0x02)
-
     def test_keymap_read_back_through_via(self):
         reply = self.usb.raw_hid([0x04, 0, 0, 0])  # layer 0, row 0, column 0: Esc
         self.assertEqual(reply[4:6], [0x00, 0x29])

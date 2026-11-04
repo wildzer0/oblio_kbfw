@@ -92,16 +92,6 @@ uint8_t layer_get_state(void)
     return layer_state;
 }
 
-uint8_t layer_oneshot_layer(void)
-{
-    return os_layer;
-}
-
-uint8_t layer_oneshot_mods(void)
-{
-    return osm_armed;
-}
-
 uint16_t layer_lookup(uint8_t row, uint8_t col)
 {
     for (uint8_t layer = KEYMAP_LAYERS; layer-- > 0;) {

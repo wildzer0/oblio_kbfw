@@ -9,7 +9,7 @@ for other boards. Everything that does not need a register is plain C that also 
 
 | Directory | What it holds | Tested by |
 | --- | --- | --- |
-| `core/` | hardware-independent logic: matrix debounce, layers, tapping (LT/MT/tap dance), reports, mouse keys, macros, keymap store, settings, VIA/Vial/HUD/diagnostics protocols, USB descriptors and control-endpoint state machine, radio protocol and link logic, backlight effects, sleep timing, encoder decoder, timer-slot sequence | `tests/host/` (`make test`, plain gcc, `-Wall -Wextra -Werror`) |
+| `core/` | hardware-independent logic: matrix debounce, layers, tapping (LT/MT/tap dance), reports, mouse keys, macros, keymap store, settings, VIA/Vial/diagnostics protocols, USB descriptors and control-endpoint state machine, radio protocol and link logic, backlight effects, sleep timing, encoder decoder, timer-slot sequence | `tests/host/` (`make test`, plain gcc, `-Wall -Wextra -Werror`) |
 | `hal/` | the SH68F90A's registers and drivers: GPIO, clock, delays, Timer 2 slot interrupt, USB controller, flash self-programming, PWM, power-down | the simulator (`make sim`) and the hardware |
 | `board/` | what is specific to the B68: pinout, matrix scan, LED PWM channels, radio serial port and pins, mode selector, Win/Mac switch (`os_switch`, which picks between two pairs of layers: 0/1 on Windows and 5/4 on Mac), sleep sequence, the default keymap, the custom keycodes, the Vial definition | `check_vial.py`, the simulator, the hardware |
 | `tools/` | build helpers (Vial definition generator, budget, interrupt and Vial checks) and `diag.py` | `make check` |
@@ -33,7 +33,7 @@ timer the core reads itself.
                                       send_keycode ──► report state (core/report.c) ──► report_hook_send
                                                                                             │
                                          link_wireless() ?  radio queues (core/radio.c)  ◄─┴─►  USB queue (core/usb_reports.c) ──► EP1
- raw HID (EP2) ──► raw_hid ──► via_receive ──► keymap / macros / tap dances / settings / HUD (0xF0) / diagnostics (0xF1, read-only)
+ raw HID (EP2) ──► raw_hid ──► via_receive ──► keymap / macros / tap dances / settings / diagnostics (0xF1, read-only)
 ```
 
 ## Timing: the timer interrupt owns the columns
@@ -84,7 +84,7 @@ duration of the interrupt work, the stack depth with every interrupt busy (91–
 | --- | --- | --- |
 | Logic | `make test` (about 23 programs, plus the Vial definition check) | seconds |
 | Linked firmware | `make check-interrupts`, `make size` | seconds |
-| The real binary on a simulated chip | `make sim` (needs `nix develop`): boot, timer slots, stack, the recovery chord, every USB descriptor, VIA/Vial/HUD over the raw HID pipe, key reports, the ISP command | 30 s |
+| The real binary on a simulated chip | `make sim` (needs `nix develop`): boot, timer slots, stack, the recovery chord, every USB descriptor, VIA/Vial over the raw HID pipe, key reports, the ISP command | 30 s |
 | Hardware | `docs/first-boot.md` | the owner |
 
 The simulator's Timer 2 runs at a virtual pace, so it shows the *order* of events and the state of the chip, not durations.

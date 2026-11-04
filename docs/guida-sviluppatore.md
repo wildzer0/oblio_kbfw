@@ -40,7 +40,7 @@ L'host fa il **polling**: chiede alla tastiera «hai qualcosa?» ogni 1 ms (USB 
 
 ### 1.3 USB in due parole
 Quando colleghi il cavo, l'host chiede al dispositivo di **descriversi** (enumerazione): chi è (VID:PID), quante interfacce ha, che report manda (i **descrittori**, in `core/usb_desc.c`).
-Una nostra tastiera presenta due interfacce: la tastiera e un canale **raw HID** da 32 byte, usato da Vial, dall'HUD e dalla diagnostica per parlare con il firmware.
+Una nostra tastiera presenta due interfacce: la tastiera e un canale **raw HID** da 32 byte, usato da Vial e dalla diagnostica per parlare con il firmware.
 I pacchetti passano per **endpoint**: EP0 per la configurazione, EP1 per i tasti, EP2 per il canale raw.
 
 ### 1.4 Wireless
@@ -118,7 +118,7 @@ Dopo ciascuno: `nix develop --command make test`, poi `make fw size` per vedere 
 4. **Cambia il debounce** (`MATRIX_DEBOUNCE_MS` in `core/matrix.h`) a 1 ms e a 20 ms: i test cosa dicono? Sulla tastiera cosa senti?
 5. **Aggiungi un tasto della scheda** (design.md §17): per esempio uno che stampa la versione. Tocca `b68_keys.h`, `vial.json`, `custom_keys.c`, `keymap_default.c`.
 6. **Aggiungi un effetto** al backlight in `core/led_effect.c` (matematica pura, la parte più divertente).
-7. **Misura**: guarda quanta CPU usa il main (`diag.py`: «slowest main-loop pass») mentre l'HUD è collegato, poi senza.
+7. **Misura**: guarda quanta CPU usa il main (`diag.py`: «slowest main-loop pass») mentre Vial è aperto, poi senza.
 
 ---
 

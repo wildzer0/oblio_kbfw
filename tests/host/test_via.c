@@ -41,7 +41,6 @@ uint16_t keymap_default_override(uint8_t index, uint8_t field)
 
 void vialrgb_hook_save(void) {} // the board writes the keymap; here there is no flash
 
-uint8_t hud_hook_host_leds(void) { return 0; }
 void layer_hook_mods_add(uint8_t m) { (void)m; }
 void layer_hook_mods_del(uint8_t m) { (void)m; }
 
@@ -462,14 +461,12 @@ static void test_tap_dances(void)
     CHECK(buf[0] == 0xFE && buf[1] == 0x7F);
 }
 
-static void test_the_hud_is_reached_through_via(void)
+// A command the firmware does not have (the HUD, which used to be 0xF0, is gone) answers "unhandled"
+static void test_the_removed_hud_command_is_unhandled(void)
 {
     reset();
-    REQUEST(0xF0, 0x01, 0, 0x05); // GET_INFO, sequence 5
-    CHECK(buf[0] == 0xF0 && buf[1] == 0x01 && buf[2] == 0 && buf[3] == 0x05 && buf[4] == 2); // protocol 2: it answered
-
-    REQUEST(0xF0, 0x7F, 0, 0x09); // a command it does not know: status 1
-    CHECK(buf[0] == 0xF0 && buf[2] == 1 && buf[3] == 0x09);
+    REQUEST(0xF0, 0x01, 0, 0x05);
+    CHECK(buf[0] == 0xFF);
 }
 
 static void test_diagnostics_need_no_unlock(void)
@@ -514,7 +511,7 @@ int main(void)
     test_matrix_state();
     test_qmk_settings();
     test_tap_dances();
-    test_the_hud_is_reached_through_via();
+    test_the_removed_hud_command_is_unhandled();
     test_diagnostics_need_no_unlock();
     test_edits_are_seen_by_the_store();
     return tests_result();

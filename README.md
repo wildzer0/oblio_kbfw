@@ -15,7 +15,7 @@ QMK/Vial keyboard offers, without the weight of a generic framework.
 - Per-key RGB backlight with several effects, flicker-free
 - USB, 2.4 GHz and Bluetooth (three pairing slots) from the hardware mode switch
 - Low-power sleep on battery with a configurable inactivity time
-- A live-state API for desktop overlays (the keyboard HUD protocol) and a battery gauge on the number keys
+- A battery gauge on the number keys (and a log of the battery readings, optional)
 
 ## Building
 
@@ -58,7 +58,6 @@ Details on recovery, including the hardware programming header, are in [docs/rec
 - [Architecture and design](docs/design.md) (modules, data flow, timing, persistence) and the [API reference](docs/api.md)
 - [How the firmware is put together](docs/architecture.md) (short version)
 - [Flashing and checking the keyboard](docs/first-boot.md)
-- [Keyboard HUD protocol](docs/hud-protocol-v2.md)
 - [Board and pinout](docs/keyboards/yunzii-b68.md)
 - [BK3632 radio protocol](docs/keyboards/yunzii-b68-radio.md)
 - [Stock firmware analysis](docs/keyboards/yunzii-b68-firmware-stock.md)

@@ -5,7 +5,7 @@
 // Keycodes specific to the B68: the first QK_KB values, in the order the Vial definition lists them under customKeycodes. They are
 // numbered from 0x7E00 with no gap (check_vial.py enforces it), so removing one from the middle renumbers the ones after it: the
 // four profile keys went when the profiles did.
-#define B68_HUD_TOG 0x7E00u
+#define B68_UNUSED  0x7E00u // reserved: it was the HUD toggle. Does nothing, and keeps the numbers of the keycodes after it, which the keymaps saved in flash hold
 #define B68_FX_PREV 0x7E01u // lighting effect - / +
 #define B68_FX_NEXT 0x7E02u
 #define B68_BRI_DN  0x7E03u // brightness - / +

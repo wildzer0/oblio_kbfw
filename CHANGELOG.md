@@ -57,6 +57,14 @@ Il controllo di recupero Esc+1+2 va all'inizio del `main`, prima di USB e radio.
   30 ms (la coda della radio è di 4); la tastiera non va in sleep mentre scrive. Costa ~520 B di flash (54415/55296). È uno strumento di debug: da
   togliere insieme al registro in flash quando la scala della batteria è confermata.
 
+## 2026-11-04 — tolto l'HUD
+
+- L'utente lo ha provato e non gli serve. Via `core/hud.[ch]`, il suo test, il comando `0xF0` in `core/via.c`, `hud_hook_host_leds`, il caso `B68_HUD_TOG`, `docs/hud-protocol-v2.md`, i riferimenti nei documenti; via anche
+  `layer_oneshot_layer()` / `layer_oneshot_mods()` (le usava solo l'HUD).
+- **Il primo keycode della scheda, `0x7E00`, resta come `B68_UNUSED`** (nella definizione Vial: «(unused)»): non fa nulla, ma così gli altri tasti `B68_*` non cambiano numero, e le keymap salvate in flash
+  (e l'impronta dei default) restano valide. Rinumerarli resetterebbe la keymap salvata dell'utente: si può fare in futuro se si accetta di rifare le modifiche.
+- Un comando `0xF0` ora risponde «non gestito» (test in `test_via`). Flash 53879/55808 con il registro batteria (+1,4 KB liberi rispetto a prima), 52443/56320 senza; 27 test host, `make sim` ok (23 test: tolto quello dell'HUD).
+
 ## 2026-11-03 — il registro della batteria torna, opzionale (`BATTERY_LOG`)
 
 - Richiesta dell'utente: la tastiera è rimasta scollegata una notte e un giorno e il gauge segnava ancora 90 % (verosimile: dormendo consuma pochissimo, ma non c'era modo di vederlo). Il registro in flash è reintegrato,

@@ -30,7 +30,7 @@ out (`configured` is only cleared by another `SET_CONFIGURATION` or a bus reset)
 come in 250 ms, the host is gone. Without that the keyboard believed for ever that it was plugged in (and the battery gauge, which only reads on battery, never did).
 
 The USB device enumerates as `258a:dead`, product name "Oblio B68", with a keyboard interface (EP1) and a raw HID interface (usage page 0xFF60, EP2,
-32-byte packets) used by Vial, VIA, the HUD app and the diagnostics. On interface 0 the report IDs are: keyboard 3, system 1, consumer 2,
+32-byte packets) used by Vial, VIA and the diagnostics. On interface 0 the report IDs are: keyboard 3, system 1, consumer 2,
 **mouse 7** (five buttons, X and Y in 16 bits, wheel — as the stock firmware had it) and the ISP feature report 5.
 
 ## 3. What the firmware does
@@ -66,8 +66,8 @@ The USB device enumerates as `258a:dead`, product name "Oblio B68", with a keybo
 - **Vial / VIA over raw HID:** live keymap, macros, tap dances, combos, key overrides, **lighting** (the Lighting tab: six of this keyboard's
   effects, brightness, speed, colour — the app has no per-key painter, see `docs/vial.md`), encoder; Vial unlock = hold Esc+Enter. Definition from `board/vial.json` (generated into the
   firmware by `tools/vial_gen.py`, checked by `tools/check_vial.py`).
-- **HUD protocol v2** (`docs/hud-protocol-v2.md`, command `0xF0`): another app of the user's reads layers, pressed keys and the keymap. `B68_HUD_TOG`
-  (0x7E00) bumps a counter the app watches.
+- **No HUD any more** (removed 2026-11-04: the overlay protocol on `0xF0` was of no use to the owner). The first custom keycode, `0x7E00`, stays reserved (`B68_UNUSED`) and does nothing, so that
+  the keycodes after it keep their numbers in the keymaps saved in flash.
 - **The keymap in flash:** one keyboard (keys, encoders, macros, tap dances, lighting settings) in two copies with a CRC; it survives power-off and
   a power cut during a save. There were four switchable profiles until 2026-11-01: they cost 16 KB of the chip's flash for layouts nobody used, and
   with one keyboard the store moved to the end of the flash and the code got those 12 KB back (43935 → 43528 B used, 56320 B available).
@@ -97,7 +97,7 @@ hal/    SH68F90A registers and drivers: tick (Timer 2), usb, flash, power, clock
 board/  B68 specific: pinout, matrix scan, LED PWM, radio hardware, selector, sleep, default keymap, custom keys, main.c, vial.json
 tools/  vial_gen.py, check_vial.py, check_interrupts.py, budget.py, diag.py
 tests/host/  22 test programs (plain gcc, -Wall -Wextra -Werror)       tests/sim/  simulation of the real hex in a patched ucsim
-docs/   architecture.md, first-boot.md, hud-protocol-v2.md, vial.md (the Vial protocol as the app speaks it), keyboards/ (pin maps, stock firmware
+docs/   architecture.md, first-boot.md, vial.md (the Vial protocol as the app speaks it), keyboards/ (pin maps, stock firmware
        analysis, radio protocol), recovery-icp.md
 ```
 
@@ -150,7 +150,7 @@ durations. It has a guard on instructions per interrupt (backlight subframe < 12
 | Keyboard on USB: typing | **verified by the user**: responsive, no visible latency |
 | Keyboard on USB: backlight | **verified by the user**: stable after the timing fix (it flickered before) |
 | 2.4G and Bluetooth | user reported "everything works normally" without the cable, on a build before the final timing change; **re-check on the current hex** |
-| Vial app, HUD app, the keymap surviving power-off, encoder, tap-hold/macros on the keyboard | **not yet tested** on hardware |
+| Vial app, the keymap surviving power-off, encoder, tap-hold/macros on the keyboard | **not yet tested** on hardware |
 | Win/Mac switch | **verified by the user**: the switch changes side, and the polarity is the one measured on the keyboard (Mac = `P0.5` high) |
 | Sleep | **tested by the user**: it sleeps and wakes, but the LEDs stayed dark until a power cycle (cause found and fixed on 2026-11-01: `led_hw_init()` dropped the backlight permission and `led_app_task()` compared it against its own copy). Re-test pending |
 | Battery gauge | reading and scale **measured** (981 at 4.0378 V); the curve is provisional until a second point (the reading right after taking the charger off, expected ~1015-1020) is taken |
@@ -177,7 +177,7 @@ percentage they carry. The 32-byte packet holds at most **14** counters (nine to
 
 ## 9. Open items, in priority order
 
-1. **Functional test on the keyboard** per `docs/first-boot.md`: Vial app connects and saves a change, HUD app connects, the keymap surviving power-off, the encoder, 2.4G/BT with the
+1. **Functional test on the keyboard** per `docs/first-boot.md`: Vial app connects and saves a change, the keymap surviving power-off, the encoder, 2.4G/BT with the
    current hex, then sleep. Report any failure with `diag.py --watch 1` output.
 2. **Win/Mac switch — done (2026-11-01).** It is **`P0.5`**, an input with a pull-up, low on Mac: measured with a port readout (since removed; one bit
    different between the two positions, no dependence on the columns) and confirmed in the stock dump (the debounce at `0xA9D9`, the state in

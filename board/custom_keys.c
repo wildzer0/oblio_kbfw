@@ -1,7 +1,6 @@
 #include "keyboard.h"
 #include "b68_keys.h"
 #include "battery.h"
-#include "hud.h"
 #include "led.h"
 #include "link.h"
 #include "settings.h"
@@ -25,7 +24,6 @@ void keyboard_hook_custom(uint16_t keycode, bool pressed)
 
     switch (keycode) {
 
-        case B68_HUD_TOG: hud_toggle_pressed(); break; // the overlay sees the counter change; the host sees nothing
         case B68_BATTERY: led_show_battery(battery_percent()); break;
         case B68_FX_PREV: led_effect_prev(); break;
         case B68_FX_NEXT: led_effect_next(); break;

@@ -192,7 +192,7 @@ Il backup è affidabile. **Dump canonico: `backups/dump/r1.bin`** (binario, 6553
 
 ## Build di rilascio (unica)
 
-Esiste un solo layout, `default`, con interfaccia raw HID (VIA, Vial, HUD), `bcdDevice` 0x0200 e retroilluminazione RGB.
+Esiste un solo layout, `default`, con interfaccia raw HID (VIA, Vial), `bcdDevice` 0x0200 e retroilluminazione RGB.
 Per compilare **solo la B68** (senza NuPhy e le altre schede):
 
 ```

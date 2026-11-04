@@ -2,7 +2,6 @@
 #include "usb_reports.h"
 #include "usb.h"
 #include "isp.h"
-#include "hud.h"
 #include "raw_hid.h"
 #include "via.h"
 
@@ -22,12 +21,6 @@ void usb_hook_isp_request(void)
 
 // Bits 0-4: num lock, caps lock, scroll lock, compose, kana (the LED report). The lighting phase shows caps lock with it.
 uint8_t usb_host_leds(void)
-{
-    return host_leds;
-}
-
-// The HUD shows the host's lock LEDs
-uint8_t hud_hook_host_leds(void)
 {
     return host_leds;
 }

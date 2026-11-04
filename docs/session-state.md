@@ -1,6 +1,6 @@
 # Stato della sessione — dove riprendere
 
-Ultimo commit: **vedi `git log`**. Chiusura del 2026-11-02: tutte le prove dell'utente sulla tastiera sono andate bene (USB, HUD, salvataggi senza buio, batteria, remote wakeup, NKRO, combo, key override). Si riprende solo se compare un problema (branch `main`, tutto pushato). Questo file è il punto di ingresso per chi riprende: dice dove siamo, cosa aspetta
+Ultimo commit: **vedi `git log`**. Chiusura del 2026-11-02: tutte le prove dell'utente sulla tastiera sono andate bene (USB, salvataggi senza buio, batteria, remote wakeup, NKRO, combo, key override). Si riprende solo se compare un problema (branch `main`, tutto pushato). Questo file è il punto di ingresso per chi riprende: dice dove siamo, cosa aspetta
 una prova sulla tastiera, cosa è verificato e le trappole già pagate. La storia sta in `CHANGELOG.md`, il quadro tecnico in
 `docs/firmware-report.md`, le regole di lavoro in `CLAUDE.md`.
 
@@ -42,7 +42,6 @@ Il registro in flash, il logger da tastiera e la diagnostica `--blog/--ports/--m
 3. (fatto) diagnostica ridotta a 9 contatori e `--radio` (+ «timer interrupt: longest start delay»).
 5. **Da provare (log della keymap)**: modifica un tasto da Vial: i LED **non** devono spegnersi; `diag.py` mostra «keymap: records in the log» che sale di 1 a modifica e «whole saves ever» che resta fermo; dopo ~70 modifiche un solo buio di ~130 ms. Spegni/riaccendi: le modifiche restano.
 6. **Da provare (SOF a 16 bit)**: slider su USB con il cavo: i LED non devono più spegnersi a intervalli e i tasti devono sempre rispondere.
-4. **Da provare**: con l'app HUD collegata i LED non devono più sfarfallare (guardare il nuovo contatore con `diag.py --watch 1`: dovrebbe restare sotto ~50 µs);
    i tasti luce non devono più spegnere i LED per ~130 ms 2 s dopo (ora solo ogni 36 salvataggi, e quando si salva la keymap da Vial).
 
 ## Da provare sulla tastiera

@@ -11,7 +11,7 @@ It would not exist without these, which were read as references (concepts, proto
 - The B68's stock firmware, analysed for the pinout, the LED driving and the BK3632 radio protocol (see `docs/keyboards/`).
 
 One file is adapted rather than rewritten: `board/vial.json`, the Vial definition of the B68 (matrix size, drawn layout, custom keycode names), comes from
-the B68 port on SMK (GPLv2, by the same author as this repository). Only the `HUD Toggle` entry was changed.
+the B68 port on SMK (GPLv2, by the same author as this repository). Only the entry of the first custom keycode (the HUD toggle of the SMK port, now reserved and unused) was changed.
 
 `tools/ucsim/` (`sh68f90.cc`, `sh68f90cl.h`, `sh68f90-register.patch`) is the SinoWealth SH68F90 CPU variant for SDCC's uCsim simulator, taken from
 the B68 port on SMK (GPLv2, same author as this repository; uCsim itself is GPLv2 by Daniel Drotos and the SDCC project). Changes made for Oblio, marked

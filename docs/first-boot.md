@@ -1,6 +1,6 @@
 # Flashing and checking the keyboard
 
-Oblio has run on the real keyboard and every feature has been tried by the owner (USB, 2.4G and Bluetooth, Vial, the HUD, the backlight, the battery gauge, sleep,
+Oblio has run on the real keyboard and every feature has been tried by the owner (USB, 2.4G and Bluetooth, Vial, the backlight, the battery gauge, sleep,
 remote wakeup). This is how to put a new build on it and how to see that it is healthy. (Until 2026-11-02 the first runs were done in stages that started less of the
 firmware; the staged builds were removed once they were no longer needed - see `CHANGELOG.md`.)
 
@@ -35,7 +35,7 @@ The same command works with Oblio running, because it keeps the id 258a:dead and
 | USB: times the host was declared gone | 0 with the cable in and the PC on |
 | longest sector erase, keymap saves and log | see `docs/design.md` section 9 |
 
-A short functional round: typing over the cable; Fn gives the F-row; the knob changes the volume; the Vial app loads the layout and a change survives unplugging; the HUD app connects;
+A short functional round: typing over the cable; Fn gives the F-row; the knob changes the volume; the Vial app loads the layout and a change survives unplugging;
 the mode switch to 2.4G and to Bluetooth (Fn+B/N/M pick a slot, hold 3 s to pair); Fn+Backspace shows the battery on the number keys; Fn+Tab sleeps on battery and any key wakes.
 
 ## What to send back if something is wrong

@@ -23,7 +23,7 @@ void raw_hid_hook_process(XDATA uint8_t *packet);
 void raw_hid_reset(void);
 
 // From the USB interrupt: a packet of `length` bytes arrived on EP2 OUT. One of another size is not a request of ours and is dropped. The
-// interrupt copies nothing (32 bytes through a slow pointer held the timer interrupt up, and the backlight flickered while the HUD polled): the
+// interrupt copies nothing (32 bytes through a slow pointer held the timer interrupt up, and the backlight flickered while an app polled): the
 // endpoint is not armed again until the request is answered, so its buffer stays as it is, and the main loop reads it from there.
 void raw_hid_out(uint8_t length);
 
