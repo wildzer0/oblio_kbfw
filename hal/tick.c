@@ -40,6 +40,7 @@ static uint16_t prev_len;       // how long that slot was, in counts, from its s
 #if LOOP_PROFILE
 static volatile uint16_t prof_base;   // counts since power-on (mod 65536) at the start of the slot that is playing
 static volatile uint16_t prof_reload; // what the timer was loaded with at the start of that slot
+static volatile uint8_t  prof_seq;    // odd while the interrupt is changing the two above: the reader of the clock tries again if it moved
 #endif
 
 static uint16_t timer_count(void)
@@ -111,8 +112,10 @@ void tick_isr(void) __interrupt(INT_TIMER2)
     ticks += milliseconds;
 
 #if LOOP_PROFILE
+    prof_seq++;
     prof_base   = (uint16_t)(prof_base + (uint16_t)(prev_len + (uint16_t)(entered - prev_reload)));
     prof_reload = reload;
+    prof_seq++;
 #endif
     pending_reload = RELOAD(sched_slot_us(sched_upcoming()));
 
@@ -222,18 +225,35 @@ bool tick_scan_take(uint8_t raw[16])
 
 #if LOOP_PROFILE
 // The clock of the profile: 2 counts to the microsecond, wrapping at 65536 (32 ms). The count of the slot that is playing is added to the time at
-// its start; the interrupt that moves to the next slot is held off for the few instructions that read them, or the three would not agree.
+// its start. The interrupt is NOT held off to read them (that was tried: when the timer had overflowed in the few instructions of the read, the
+// count had started again from the reload value and the time went back by a whole slot - a step of 20 us then measured 32 ms, one time in a hundred).
+// Instead the three are read again if the interrupt ran in between (the sequence number moved), and an overflow whose interrupt has not run yet
+// (the flag TF2) counts the slot that has just ended.
 uint16_t profile_hook_now(void)
 {
-    ET2 = 0;
+    uint8_t  seq;
+    uint16_t base;
+    uint16_t reload;
+    uint16_t count;
+    bool     overflowed;
+    bool     again;
 
-    const uint16_t base   = prof_base;
-    const uint16_t reload = prof_reload;
-    const uint16_t count  = timer_count();
+    do {
+        seq        = prof_seq;
+        base       = prof_base;
+        reload     = prof_reload;
+        overflowed = TF2;
+        count      = timer_count();
+        again      = (seq & 1u) || seq != prof_seq || overflowed != TF2;
+    } while (again);
 
-    ET2 = 1;
+    uint16_t since = (uint16_t)(count - reload);
 
-    return (uint16_t)(base + (uint16_t)(count - reload));
+    if (overflowed) {
+        since = (uint16_t)(since + (uint16_t)(0u - reload)); // plus the slot that ended: from the reload value to the overflow
+    }
+
+    return (uint16_t)(base + since);
 }
 #endif
 

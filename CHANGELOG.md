@@ -57,6 +57,13 @@ Il controllo di recupero Esc+1+2 va all'inizio del `main`, prima di USB e radio.
   30 ms (la coda della radio è di 4); la tastiera non va in sleep mentre scrive. Costa ~520 B di flash (54415/55296). È uno strumento di debug: da
   togliere insieme al registro in flash quando la scala della batteria è confermata.
 
+## 2026-11-05 (sera) — l'orologio del profilo sbagliava: corretto
+
+- Prima misura dell'utente (radio, 76 s): le quote dei passi sommavano al **190 %**, e ogni passo, anche da 12 µs, aveva massimo ~32,4 ms e media gonfiata di ~280 µs. Colpa dell'orologio (`profile_hook_now`): fermava l'interrupt del
+  timer per leggere; se l'overflow cadeva in quei pochi istruzioni il conteggio ripartiva dal valore di reload e il tempo risultava indietro di uno slot, la differenza andava sotto zero e in aritmetica a 16 bit diventava ~32 ms
+  (circa una misura su cento). Ora non si ferma più nulla: si rilegge se l'interrupt è passato nel mezzo (numero di sequenza) e un overflow non ancora servito (flag TF2) conta lo slot appena finito.
+- Dati ancora validi di quella corsa: ~231 giri/s (4,3 ms a giro), CPU degli interrupt **timer 40,4 %**, USB 0,9 %, seriale 0,2 %; `led_task` il passo più lungo (si ridisegna di continuo con l'effetto animato). Da rifare le medie.
+
 ## 2026-11-05 — build di profilo completa (`LOOP_PROFILE`)
 
 - Richiesta dell'utente: vedere i tempi di ogni compito del ciclo principale (minimo, media, massimo; la deviazione standard non serve). Sostituisce il contatore del «passo più lento» con un profilo vero:
