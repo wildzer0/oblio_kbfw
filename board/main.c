@@ -90,6 +90,28 @@ static void init(void)
     EA = 1;
 }
 
+#if LOOP_PROFILE
+// Times a step of the loop in milliseconds of the timer's clock (which includes the interrupts that ran meanwhile) and keeps the slowest one
+static uint8_t worst_ms = 1; // under 2 ms is the clock's own resolution
+static void    step_done(uint8_t id, uint8_t started)
+{
+    const uint8_t took = (uint8_t)(tick_ms_now() - started);
+
+    if (took > worst_ms) {
+        worst_ms = took;
+        diag_set(DIAG_LOOP_WORST, (uint16_t)(((uint16_t)id << 8) | took));
+    }
+}
+#    define STEP(id, call)                    \
+        do {                                  \
+            const uint8_t started_ = tick_ms_now(); \
+            call;                             \
+            step_done(id, started_);          \
+        } while (0)
+#else
+#    define STEP(id, call) call
+#endif
+
 void main(void)
 {
     uint8_t        raw[MATRIX_COLS];
@@ -109,33 +131,33 @@ void main(void)
         }
 
         if (tick_scan_take(raw)) { // the interrupt scanned the matrix
-            matrix_feed(raw, now_ms);
+            STEP(1, matrix_feed(raw, now_ms));
         }
 
         diag_max(DIAG_LOOP_MAX_MS, (uint16_t)(now_ms - last_pass)); // the slowest pass of this loop
         last_pass = now_ms;
 
-        encoder_poll(); // every pass: the knob's lines are read much faster than a scan
+        STEP(2, encoder_poll()); // every pass: the knob's lines are read much faster than a scan
 
         while (matrix_event_pop(&event)) {
-            keyboard_event(&event, now_ms);
+            STEP(3, keyboard_event(&event, now_ms));
         }
 
         const bool any_key_down = matrix_any_pressed(); // once: two passes of the matrix cost a third of a loop
 
-        keyboard_task(now_ms);
-        os_switch_task(now_ms);
-        store_task(now_ms, any_key_down);
-        settings_task(now_ms, any_key_down);
-        usb_wake_task(any_key_down, now_ms);
-        usb_task(now_ms);
-        led_task();
-        led_app_task(now_ms);
-        link_task(now_ms);
-        battery_task(now_ms);
+        STEP(4, keyboard_task(now_ms));
+        STEP(5, os_switch_task(now_ms));
+        STEP(6, store_task(now_ms, any_key_down));
+        STEP(7, settings_task(now_ms, any_key_down));
+        STEP(8, usb_wake_task(any_key_down, now_ms));
+        STEP(9, usb_task(now_ms));
+        STEP(10, led_task());
+        STEP(11, led_app_task(now_ms));
+        STEP(12, link_task(now_ms));
+        STEP(13, battery_task(now_ms));
 #if BATTERY_LOG
-        blog_task(now_ms, radio_hook_on_battery(), battery_reading());
+        STEP(14, blog_task(now_ms, radio_hook_on_battery(), battery_reading()));
 #endif
-        sleep_hw_task(now_ms);
+        STEP(15, sleep_hw_task(now_ms));
     }
 }

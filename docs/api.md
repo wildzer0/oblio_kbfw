@@ -312,6 +312,14 @@ uint16_t tick_count_now(void);
 
 The timer's count right now (the erase in a flash write is the only user: it is the clock that keeps running when the interrupt is off).
 
+#### `tick_ms_now`
+
+```c
+uint8_t tick_ms_now(void);
+```
+
+The milliseconds the timer interrupt has counted, modulo 256: a clock for measuring a step of the main loop (the LOOP_PROFILE build).
+
 #### `tick_alive`
 
 ```c
@@ -542,6 +550,7 @@ typedef enum {
     DIAG_USB_GONE,         // times the keyboard declared the host gone (no start-of-frame in a look at the bus): with the cable in and the PC on this stays 0
     DIAG_STORE_SAVES,      // times the whole keymap has been written to flash, ever (the sequence number in the header of the slot in use: it survives power-off)
     DIAG_STORE_LOG,        // records in the log of the slot in use (the keymap edits written since the last whole save)
+    DIAG_LOOP_WORST,       // LOOP_PROFILE build only: the slowest step of the main loop so far, as (step number << 8) | milliseconds
     DIAG_COUNT
 } diag_id_t;
 ```
@@ -2135,6 +2144,12 @@ The battery log (core/blog.c): the keyboard writes down its battery reading in a
 #    define APP_FLASH_END 0xDA00u  // the application stops here; the log sector follows, then the keymap store at 0xDC00
 #    define BLOG_ADDR     0xDA00u
 #    define APP_FLASH_END 0xDC00u
+```
+
+A build that times each step of the main loop and keeps the slowest (DIAG_LOOP_WORST: which step, how many milliseconds), for finding what makes a pass of the loop long - a long pass starves the backlight (hal/tick.c) and it blinks. It costs a little time in every pass, so it is off by default: `make LOOP_PROFILE=1 fw`.
+
+```c
+#    define LOOP_PROFILE 0
 ```
 
 ### `core/override.h`

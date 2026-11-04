@@ -152,6 +152,11 @@ uint16_t tick_count_now(void)
     return timer_count();
 }
 
+uint8_t tick_ms_now(void)
+{
+    return ticks;
+}
+
 void tick_alive(void)
 {
     alive++;

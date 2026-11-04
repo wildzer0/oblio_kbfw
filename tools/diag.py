@@ -34,6 +34,11 @@ except ImportError:
 VID_PID = "0000258A:0000DEAD"
 RAW_SIZE = 32
 
+# The steps of the main loop that a LOOP_PROFILE build times (board/main.c)
+STEPS = {1: "matrix_feed", 2: "encoder_poll", 3: "keyboard_event", 4: "keyboard_task", 5: "os_switch_task", 6: "store_task", 7: "settings_task",
+         8: "usb_wake_task", 9: "usb_task", 10: "led_task", 11: "led_app_task", 12: "link_task (radio)", 13: "battery_task", 14: "blog_task",
+         15: "sleep_hw_task"}
+
 # The order of the counters in core/diag.h: keep this list in step with it (an old copy prints the wrong labels)
 NAMES = [
     ("reset cause (RSTSTAT)", "{:#04x}"),
@@ -49,6 +54,7 @@ NAMES = [
     ("USB: times the host was declared gone", "{}"),
     ("keymap: whole saves ever (header sequence)", "{}"),
     ("keymap: records in the log", "{}"),
+    ("main loop: slowest step (LOOP_PROFILE build)", lambda v: "-" if v == 0 else "{} took {} ms".format(STEPS.get(v >> 8, "step {}".format(v >> 8)), v & 0xFF)),
 ]
 
 
@@ -113,7 +119,7 @@ def show(values, previous=None):
         if previous is not None and previous[i] == value:
             continue
         name, fmt = NAMES[i] if i < len(NAMES) else ("counter {}".format(i), "{}")
-        print("  {:32} {}".format(name, fmt.format(value)))
+        print("  {:32} {}".format(name, fmt(value) if callable(fmt) else fmt.format(value)))
 
 
 def radio(keyboard):

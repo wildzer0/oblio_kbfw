@@ -57,6 +57,13 @@ Il controllo di recupero Esc+1+2 va all'inizio del `main`, prima di USB e radio.
   30 ms (la coda della radio è di 4); la tastiera non va in sleep mentre scrive. Costa ~520 B di flash (54415/55296). È uno strumento di debug: da
   togliere insieme al registro in flash quando la scala della batteria è confermata.
 
+## 2026-11-04 (sera) — profilo del ciclo principale (`LOOP_PROFILE`)
+
+- Flicker mentre si scrive in modalità radio. I contatori dell'utente: i **back-off** salgono di 1–5 al secondo insieme ai frame radio (30 s di scrittura: da 2 a 33). Il back-off (`hal/tick.c`) mette da parte il
+  backlight per 12 slot se il ciclo principale non fa un giro per 3 scansioni (~6,6 ms), quindi in quei momenti un giro del ciclo dura più di 6 ms (già visto: «slowest main-loop pass» 11 ms). Quale passo, non lo so.
+- Strumento, non correzione: opzione **`LOOP_PROFILE`** (default 0; `make LOOP_PROFILE=1 fw`): `board/main.c` misura in ms ogni passo del ciclo (`STEP(n, ...)`, 15 passi) e tiene il più lento in `DIAG_LOOP_WORST`
+  (passo ≪ 8 | ms); `diag.py` lo stampa col nome del passo. `tick_ms_now()` espone il contatore dei ms. Costa un po' di tempo a ogni giro, per questo è spento. Hex del profilo: `build/oblio-profile.hex`.
+
 ## 2026-11-04 — tolto l'HUD
 
 - L'utente lo ha provato e non gli serve. Via `core/hud.[ch]`, il suo test, il comando `0xF0` in `core/via.c`, `hud_hook_host_leds`, il caso `B68_HUD_TOG`, `docs/hud-protocol-v2.md`, i riferimenti nei documenti; via anche

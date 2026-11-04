@@ -26,6 +26,7 @@ typedef enum {
     DIAG_USB_GONE,         // times the keyboard declared the host gone (no start-of-frame in a look at the bus): with the cable in and the PC on this stays 0
     DIAG_STORE_SAVES,      // times the whole keymap has been written to flash, ever (the sequence number in the header of the slot in use: it survives power-off)
     DIAG_STORE_LOG,        // records in the log of the slot in use (the keymap edits written since the last whole save)
+    DIAG_LOOP_WORST,       // LOOP_PROFILE build only: the slowest step of the main loop so far, as (step number << 8) | milliseconds
     DIAG_COUNT
 } diag_id_t;
 

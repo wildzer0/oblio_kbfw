@@ -5,6 +5,8 @@ B := build
 # Build options (core/options.h has the defaults). `make BATTERY_LOG=0 fw` leaves the battery log out: ~1 KB less code and the flash sector at
 # 0xDA00 back for the application (the code limit goes from 0xDA00 to 0xDC00). The objects are rebuilt when an option changes.
 BATTERY_LOG ?= 1
+# `make LOOP_PROFILE=1 fw` times each step of the main loop (see core/options.h); off by default.
+LOOP_PROFILE ?= 0
 
 HOST_TESTS := $(patsubst %.c,%,$(wildcard tests/host/test_*.c))
 
@@ -15,7 +17,7 @@ XRAM_SIZE  := 4096
 SDCC      ?= sdcc
 SDCCFLAGS := --std-c23 --Werror -mmcs51 --model-large --stack-auto \
              --xram-loc 0x0000 --xram-size $(XRAM_SIZE) --code-size $(CODE_LIMIT) \
-             --opt-code-speed --out-fmt-ihx -DWATCHDOG_ENABLE=1 -DBATTERY_LOG=$(BATTERY_LOG)
+             --opt-code-speed --out-fmt-ihx -DWATCHDOG_ENABLE=1 -DBATTERY_LOG=$(BATTERY_LOG) -DLOOP_PROFILE=$(LOOP_PROFILE)
 # every object depends on every header: coarse, but a changed header can never leave a stale object behind
 HEADERS := $(wildcard core/*.h hal/*.h board/*.h) $(B)/.options
 
@@ -25,7 +27,7 @@ FW_REL := $(patsubst %.c,$(B)/%.rel,$(FW_SRC)) $(B)/vial_data.rel
 # The options the objects were built with: when they change, everything is rebuilt
 $(B)/.options: FORCE
 	@mkdir -p $(B)
-	@echo "BATTERY_LOG=$(BATTERY_LOG)" | cmp -s - $@ || echo "BATTERY_LOG=$(BATTERY_LOG)" > $@
+	@echo "BATTERY_LOG=$(BATTERY_LOG) LOOP_PROFILE=$(LOOP_PROFILE)" | cmp -s - $@ || echo "BATTERY_LOG=$(BATTERY_LOG) LOOP_PROFILE=$(LOOP_PROFILE)" > $@
 
 api:
 	python3 tools/gen_api.py
