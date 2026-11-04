@@ -43,7 +43,7 @@ uint8_t led_effect_index(led_effect_t fx, uint8_t row, uint8_t col, uint8_t phas
 // saturation how far from white it goes (0 is white, 255 the pure colour) and the value how bright. Taking the pure colour from the wheel and
 // mixing it with white costs far less code than six sides of arithmetic: what an LED shows does not tell the difference (the divisions are by
 // 256, which is a shift).
-void led_color_hsv(uint8_t hue, uint8_t saturation, uint8_t value, uint8_t out[3])
+void led_color_hsv(uint8_t hue, uint8_t saturation, uint8_t value, XDATA uint8_t *out)
 {
     if (saturation == 0) { // no colour at all: white, at this brightness
         out[0] = out[1] = out[2] = value;
@@ -64,7 +64,7 @@ void led_color_hsv(uint8_t hue, uint8_t saturation, uint8_t value, uint8_t out[3
 // The wheel of an HSV colour picker: red, yellow, green, cyan, blue, magenta and back to red, in six sides of 43 steps each. It used to run
 // red -> blue -> green, which is a wheel of its own: a colour chosen in the Vial app (whose picker is HSV) came out as another one - orange
 // arrived as purple.
-void led_color_wheel(uint8_t index, uint8_t out[3])
+void led_color_wheel(uint8_t index, XDATA uint8_t *out)
 {
     const uint8_t side = (uint8_t)(index / 43u);               // 0..5, which side of the wheel
     const uint8_t rest = (uint8_t)((index - side * 43u) * 6u); // 0..255, how far along it
@@ -79,12 +79,34 @@ void led_color_wheel(uint8_t index, uint8_t out[3])
     }
 }
 
+// value * brightness / 256. The wheel gives 0 and 255 on most channels of a colour, and for those the answer needs no multiplication
+// (255 * b / 256 is b - 1, for b above 0): a multiplication is a call to the compiler's 16-bit multiply, ~230 instructions, and every LED has three channels.
 static uint8_t scale(uint8_t value, uint8_t brightness)
 {
-    return (uint8_t)(((uint16_t)value * brightness) >> 8);
+    if (value == 0 || brightness == 0) {
+        return 0;
+    }
+
+    if (value == 255u) {
+        return (uint8_t)(brightness - 1u);
+    }
+
+    // shifts and adds instead of the compiler's 16-bit multiply (~230 instructions; this is about 110)
+    uint16_t sum    = 0;
+    uint16_t addend = value;
+
+    for (uint8_t bits = brightness; bits != 0; bits >>= 1) {
+        if (bits & 1u) {
+            sum = (uint16_t)(sum + addend);
+        }
+
+        addend = (uint16_t)(addend << 1);
+    }
+
+    return (uint8_t)(sum >> 8);
 }
 
-bool led_effect_rgb(led_effect_t fx, uint8_t row, uint8_t col, uint8_t phase, uint8_t brightness, uint8_t out[3])
+bool led_effect_rgb(led_effect_t fx, uint8_t row, uint8_t col, uint8_t phase, uint8_t brightness, XDATA uint8_t *out)
 {
     if (fx == FX_SOLID) {
         out[0] = out[1] = out[2] = brightness; // white

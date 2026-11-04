@@ -2,6 +2,7 @@
 
 // Colours of the backlight effects, per key. Pure maths: the framebuffer and the timing are in led.h.
 
+#include "platform.h"
 #include <stdbool.h>
 #include <stdint.h>
 
@@ -23,10 +24,10 @@ typedef enum {
 uint8_t led_effect_index(led_effect_t fx, uint8_t row, uint8_t col, uint8_t phase);
 
 // The colour wheel at full saturation and value: red -> yellow -> green -> cyan -> blue -> magenta, `index` 0-255
-void led_color_wheel(uint8_t index, uint8_t out[3]);
+void led_color_wheel(uint8_t index, XDATA uint8_t *out);
 
 // A colour as the picker of the Vial app gives it: hue 0-255, saturation 0-255 (0 = white) and value 0-255 (the brightness)
-void led_color_hsv(uint8_t hue, uint8_t saturation, uint8_t value, uint8_t out[3]);
+void led_color_hsv(uint8_t hue, uint8_t saturation, uint8_t value, XDATA uint8_t *out);
 
 // The colour of a key, scaled by `brightness`. False when the effect is off (out is then left alone).
-bool led_effect_rgb(led_effect_t fx, uint8_t row, uint8_t col, uint8_t phase, uint8_t brightness, uint8_t out[3]);
+bool led_effect_rgb(led_effect_t fx, uint8_t row, uint8_t col, uint8_t phase, uint8_t brightness, XDATA uint8_t *out);

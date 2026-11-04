@@ -23,7 +23,8 @@
 #define LED_DUTY1_BASE 195u
 
 // 8-bit level -> pulse width in PWM counts: 3.5 per step, 892 at most, so that DUTY2 stays below the 1200-count period
-#define LED_WIDTH(level) ((uint16_t)((uint16_t)(level) * 3u + ((uint16_t)(level) >> 1)))
+// (level * 3 + level / 2, written as shifts and adds: a multiplication here is a call to the compiler's 16-bit multiply, ~230 instructions, three times for every LED painted)
+#define LED_WIDTH(level) ((uint16_t)(((uint16_t)(level) << 1) + (uint16_t)(level) + ((uint16_t)(level) >> 1)))
 
 // Frames (about 8 ms each) per step of the animation, and the lengths of the key flashes, in frames
 #define LED_ANIM_FRAMES       9u

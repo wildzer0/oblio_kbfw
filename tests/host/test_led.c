@@ -232,6 +232,28 @@ static void test_plain_effect_in_a_colour(void)
     CHECK(is(0, 5, mixed[0], mixed[1], mixed[2]));
 }
 
+// The shortcuts in led_effect.c and led.h (no multiplication for 0 and 255, shifts for the width) give exactly what the plain formulas gave
+static void test_the_fast_arithmetic_equals_the_plain_formulas(void)
+{
+    for (unsigned level = 0; level < 256; level++) {
+        CHECK(LED_WIDTH(level) == (uint16_t)(level * 3u + (level >> 1)));
+    }
+
+    for (unsigned brightness = 0; brightness < 256; brightness++) {
+        for (unsigned phase = 0; phase < 256; phase++) {
+            uint8_t wheel[3];
+            uint8_t got[3];
+
+            led_color_wheel((uint8_t)phase, wheel);
+            CHECK(led_effect_rgb(FX_BREATHE, 0, 0, (uint8_t)phase, (uint8_t)brightness, got)); // the whole board in one colour of the wheel
+
+            for (unsigned c = 0; c < 3; c++) {
+                CHECK(got[c] == (uint8_t)((wheel[c] * brightness) >> 8));
+            }
+        }
+    }
+}
+
 static void test_widths_stay_inside_the_pwm_period(void)
 {
     CHECK(LED_WIDTH(0) == 0);
@@ -512,6 +534,7 @@ int main(void)
     test_solid_white_fills_the_board();
     test_off_is_dark();
     test_plain_effect_in_a_colour();
+    test_the_fast_arithmetic_equals_the_plain_formulas();
     test_widths_stay_inside_the_pwm_period();
     test_the_column_sequence_and_frames();
     test_the_animation_steps_every_nine_frames();

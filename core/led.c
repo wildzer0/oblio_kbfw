@@ -142,9 +142,11 @@ static void read_settings(void)
     cur_sat        = saturation();
 }
 
+static XDATA uint8_t rgb[3]; // static, in external RAM: the effect functions take XDATA pointers, which are faster than the generic ones a local array needs
+
 static void paint_one(void)
 {
-    uint8_t rgb[3] = {0, 0, 0};
+    rgb[0] = rgb[1] = rgb[2] = 0;
 
     if (cur_effect == FX_SOLID) { // the colour of the profile: a hue and a saturation, at the brightness of the profile
         led_color_hsv(cur_color, cur_sat, cur_brightness, rgb);

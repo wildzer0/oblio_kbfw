@@ -57,6 +57,17 @@ Il controllo di recupero Esc+1+2 va all'inizio del `main`, prima di USB e radio.
   30 ms (la coda della radio è di 4); la tastiera non va in sleep mentre scrive. Costa ~520 B di flash (54415/55296). È uno strumento di debug: da
   togliere insieme al registro in flash quando la scala della batteria è confermata.
 
+## 2026-11-06 — il ridisegno dei LED costava 1730 istruzioni a LED: ora ~1000
+
+- Le sonde dentro `led_task` (utente, radio, 36 s): **il blocco da 8 LED costa 2959 µs al minimo e 3285 µs di media (43,9 % del tempo)**; il resto di `led_task` e di ogni altro passo è trascurabile.
+  Nel simulatore (contando le istruzioni tra due chiamate di `led_effect_rgb`) un LED costava **~1730 istruzioni**, di cui 6 chiamate a `__mulint` (la moltiplicazione a 16 bit del compilatore, ~230 istruzioni
+  l'una: 3 in `scale()` per la luminosità dei canali e 3 in `LED_WIDTH` per la larghezza del PWM) e ~14 chiamate ai puntatori generici (`__gptrget/put`, ~30 istruzioni) per gli array `out[3]` dei colori.
+  (Una prima lettura nel simulatore, ~1000 istruzioni per 8 LED, era sbagliata: avevo preso un giro parziale.)
+- Correzioni, senza cambiare nessun valore calcolato (test **esaustivo**: `test_the_fast_arithmetic_equals_the_plain_formulas` confronta, per tutte le 256×256 coppie fase/luminosità e tutti i 256 livelli, con le formule semplici):
+  `LED_WIDTH` con shift e somme; `scale()` senza moltiplicazione per 0 e 255 (255·b/256 = b−1) e con shift-add per il resto; i colori passano come `XDATA uint8_t *` (puntatori a 2 byte, accesso diretto)
+  e il vettore `rgb` di `paint_one` è statico in XDATA. **~1000 istruzioni a LED (−42 %), flash −488 B** (53400/55808). Il blocco da 8 LED passa da ~3,3 ms a ~1,4 ms di tempo di orologio.
+- Resta `matrix_feed` (15 %, ~750 µs per scansione): da guardare dopo (`raw` è un puntatore generico, 16 `__gptrget` per scansione, e ogni colonna fa ~190 istruzioni).
+
 ## 2026-11-05 (notte) — profilo con orologio corretto: `led_task` è il 45 % del tempo
 
 - Misura dell'utente (radio, 49 s, orologio corretto; le quote ora tornano: passi ~75 % + interrupt fuori dai passi): **203 giri/s (4,9 ms a giro)**, timer 40,8 % della CPU, USB 0,9 %, seriale 0,2 %.

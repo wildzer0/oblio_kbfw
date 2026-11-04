@@ -1655,10 +1655,10 @@ The PWM channel n of a column has DUTY1 = LED_DUTY1_BASE + n (fixed, staggered l
 #### `LED_WIDTH`
 
 ```c
-#define LED_WIDTH(level) ((uint16_t)((uint16_t)(level) * 3u + ((uint16_t)(level) >> 1)))
+#define LED_WIDTH(level) ((uint16_t)(((uint16_t)(level) << 1) + (uint16_t)(level) + ((uint16_t)(level) >> 1)))
 ```
 
-8-bit level -> pulse width in PWM counts: 3.5 per step, 892 at most, so that DUTY2 stays below the 1200-count period
+8-bit level -> pulse width in PWM counts: 3.5 per step, 892 at most, so that DUTY2 stays below the 1200-count period (level * 3 + level / 2, written as shifts and adds: a multiplication here is a call to the compiler's 16-bit multiply, ~230 instructions, three times for every LED painted)
 
 #### `LED_ANIM_FRAMES`
 
@@ -1862,7 +1862,7 @@ Position of key (row, col) on the colour wheel for an effect, 0-255.
 #### `led_color_wheel`
 
 ```c
-void led_color_wheel(uint8_t index, uint8_t out[3]);
+void led_color_wheel(uint8_t index, XDATA uint8_t *out);
 ```
 
 The colour wheel at full saturation and value: red -> yellow -> green -> cyan -> blue -> magenta, `index` 0-255
@@ -1870,7 +1870,7 @@ The colour wheel at full saturation and value: red -> yellow -> green -> cyan ->
 #### `led_color_hsv`
 
 ```c
-void led_color_hsv(uint8_t hue, uint8_t saturation, uint8_t value, uint8_t out[3]);
+void led_color_hsv(uint8_t hue, uint8_t saturation, uint8_t value, XDATA uint8_t *out);
 ```
 
 A colour as the picker of the Vial app gives it: hue 0-255, saturation 0-255 (0 = white) and value 0-255 (the brightness)
@@ -1878,7 +1878,7 @@ A colour as the picker of the Vial app gives it: hue 0-255, saturation 0-255 (0 
 #### `led_effect_rgb`
 
 ```c
-bool led_effect_rgb(led_effect_t fx, uint8_t row, uint8_t col, uint8_t phase, uint8_t brightness, uint8_t out[3]);
+bool led_effect_rgb(led_effect_t fx, uint8_t row, uint8_t col, uint8_t phase, uint8_t brightness, XDATA uint8_t *out);
 ```
 
 The colour of a key, scaled by `brightness`. False when the effect is off (out is then left alone).
