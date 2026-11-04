@@ -57,6 +57,9 @@ Il controllo di recupero Esc+1+2 va all'inizio del `main`, prima di USB e radio.
   30 ms (la coda della radio è di 4); la tastiera non va in sleep mentre scrive. Costa ~520 B di flash (54415/55296). È uno strumento di debug: da
   togliere insieme al registro in flash quando la scala della batteria è confermata.
 
+## 2026-11-07 (sera) — il flicker era della build di profilo
+Sulla tastiera il flicker delle colonne si vedeva con `oblio-profile.hex` e non con la release (`1f51c85`, provata dall'utente). Un commit di prova (`1c18c00`) aveva tolto la scrittura veloce del framebuffer sulla base di un confronto tra un profilo e due release: annullato. Il profilo non va usato per giudicare i LED.
+
 ## 2026-11-07 — i LED non rifanno lo stesso lavoro 80 volte; Caps Word accende il Caps
 - **`core/led.c`:** il colore degli effetti uniformi (tinta unita, respiro, pulsazione) è calcolato una volta per ridisegno; le onde orizzontale (per colonna), verticale (per riga) e il radiale (per anello, nuovo `led_effect_ring`) riusano i colori già calcolati; le scritture nel framebuffer vanno per puntatore e saltano i canali invariati; la fase è fotografata a inizio ridisegno (`cur_phase`).
 - **`core/led_effect.c`:** `led_color_wheel` senza la divisione per 43.

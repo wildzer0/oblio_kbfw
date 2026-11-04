@@ -144,6 +144,8 @@ Misurato con la build di profilo (`LOOP_PROFILE=1`, §14): l'interrupt del timer
 Regole di pollice per chi continua: (1) in modello *large* ogni `static` è in XDATA e ogni accesso costa; (2) un puntatore generico è 10 volte più caro di uno tipizzato; (3) la moltiplicazione e la divisione a 16 bit sono chiamate al compilatore;
 (4) se un valore non cambia da un giro all'altro, non rifare il lavoro; (5) misura prima (`make sim`, `tools/diag.py --profile`).
 
+**La build di profilo sfarfalla** (colonne dei LED), la release no: provato sulla tastiera con `1f51c85` (release, nessun flicker) e con il profilo (flicker). La misura mette istruzioni nell'interrupt del timer e nel ciclo principale; i contatori (slot in ritardo, back-off) restano a zero. Il profilo serve a **misurare** i tempi, non a guardare i LED: per giudicare i LED si usa la release. (Una bisezione fatta per errore tra un profilo e due release aveva fatto togliere per un momento il framebuffer veloce.)
+
 Il budget è stretto: la build di profilo (che ha la propria statistica in XDATA) usa **4096/4096 B** di XDATA e 56 297/56 320 B di flash (con `BATTERY_LOG=0`); un'aggiunta qui va compensata.
 
 ## 7. La pipeline dei tasti
