@@ -22,6 +22,10 @@ overrides, tab Lighting con colore pieno), NKRO, Caps Word, Leader, mouse dall'e
 
 **Mappa flash**: codice fino a **0xDC00**, keymap con due copie **0xDC00–0xEBFF**, impostazioni **0xEC00** (log append-only), **0xEE00 = marcatore del bootloader, mai toccare**, bootloader stock a 0xF000. `hal/flash.c` rifiuta le scritture fuori da 0xDC00–0xF000; `make size` impone il limite di codice.
 
+## LED vicino al Caps — chiuso (limite dell'hardware)
+
+Il LED è sullo stesso incrocio del rosso del tasto C (vedi `docs/keyboards/yunzii-b68-firmware-stock.md`): segue il rosso del C e non si può comandare da solo. Se un giorno si vuole il Caps Lock come nello stock: forzare il rosso del C a pieno mentre Caps Lock/Caps Word è attivo (una riga in `paint_one`, livello regolabile).
+
 ## Da provare sulla tastiera (2026-11-04)
 
 1. **Canale raw HID**: scollega/ricollega il cavo più volte e dopo ogni volta `py diag.py`; prova Vial. Prima falliva a intermittenza («did not answer», Vial muto, «no Oblio keyboard found»).
