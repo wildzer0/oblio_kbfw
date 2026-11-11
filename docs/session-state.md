@@ -26,7 +26,12 @@ overrides, tab Lighting con colore pieno), NKRO, Caps Word, Leader, mouse dall'e
 
 Il LED è sullo stesso incrocio del rosso del tasto C (vedi `docs/keyboards/yunzii-b68-firmware-stock.md`): segue il rosso del C e non si può comandare da solo. Se un giorno si vuole il Caps Lock come nello stock: forzare il rosso del C a pieno mentre Caps Lock/Caps Word è attivo (una riga in `paint_one`, livello regolabile).
 
-## Utility web di aggiornamento (2026-11-11) — da provare sull'hardware
+## Utility web di aggiornamento (2026-11-11) — provata dall'utente
+
+**Provata sulla tastiera** il 2026-11-11: l'utente ha flashato la 0.9.0 direttamente dalla pagina (https://wildzer0.github.io/oblio_kbfw/). Per pubblicare una versione nuova: [pubblicare-una-release.md](pubblicare-una-release.md).
+Quello che segue è la procedura di prova originale, tenuta per riferimento (la sonda `web/probe.html` resta utile se qualcosa cambia nel browser o nel bootloader).
+
+### (storico) Da provare sull'hardware
 
 Pronta e provata contro un finto bootloader e un finto `navigator.hid` (`make web-test`), **non** con la tastiera. Ordine di prova:
 1. `cd web && python3 -m http.server 8000`, Chrome su `http://localhost:8000/probe.html`: «Cerca la tastiera» (c'è un dispositivo con il report 5?), «Leggi la versione (raw HID)», poi «Invia 75» e «Cerca il bootloader» (VID/PID, report 5 e 6 insieme o separati?). Incolla il registro.

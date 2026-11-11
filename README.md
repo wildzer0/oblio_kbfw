@@ -38,7 +38,8 @@ file, and press *Update*. It shows the version installed in the keyboard and the
 **https://wildzer0.github.io/oblio_kbfw/**
 
 Updating resets the keymap and the settings to their defaults (as the command line below does). The source is in [web/](web/), commented, with no
-dependencies; to run it locally: `cd web && python3 -m http.server 8000`.
+dependencies; to run it locally: `cd web && python3 -m http.server 8000`. Publishing a new version
+(so that it shows up in the updater) is described in [docs/pubblicare-una-release.md](docs/pubblicare-una-release.md) (Italian).
 
 ## Flashing
 
