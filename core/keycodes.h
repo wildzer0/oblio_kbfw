@@ -162,6 +162,19 @@
 #define KC_SLSH 0x38u
 #define KC_CAPS 0x39u
 
+// The numeric keypad (the Windows sequence of the accented letters types its codes there)
+#define KC_NUM_LOCK 0x53u
+#define KC_KP_1     0x59u // 1..9 are consecutive, 0 follows them
+#define KC_KP_2     0x5Au
+#define KC_KP_3     0x5Bu
+#define KC_KP_4     0x5Cu
+#define KC_KP_5     0x5Du
+#define KC_KP_6     0x5Eu
+#define KC_KP_7     0x5Fu
+#define KC_KP_8     0x60u
+#define KC_KP_9     0x61u
+#define KC_KP_0     0x62u
+
 #define KC_F1  0x3Au
 #define KC_F2  0x3Bu
 #define KC_F3  0x3Cu
@@ -226,7 +239,7 @@
 #define KC_MCTL 0xC1u
 #define KC_LPAD 0xC2u
 
-// mouse: sent on their own report (core/mouse.c, core/report.c). QMK's numbers, so Vial knows them and a saved layout keeps them
+// mouse keys: they are no longer handled (the mouse module was taken out), but they keep QMK's numbers: a saved layout holds them and Vial lists them, and they do nothing
 #define KC_MS_UP        0xCDu
 #define KC_MS_DOWN      0xCEu
 #define KC_MS_LEFT      0xCFu
@@ -251,11 +264,7 @@
 #define KC_FIRST_MEDIA  KC_MUTE
 #define KC_LAST_MEDIA   KC_LPAD
 
-#define KC_FIRST_MOUSE   KC_MS_UP
-#define KC_LAST_MOUSE    KC_MS_ACCEL2
-
 #define IS_KEY_KEYCODE(code)      IN_RANGE(code, KC_FIRST_KEY, KC_LAST_KEY)
-#define IS_MOUSE_KEYCODE(code)    IN_RANGE(code, KC_FIRST_MOUSE, KC_LAST_MOUSE)
 #define IS_SYSTEM_KEYCODE(code)   IN_RANGE(code, KC_FIRST_SYSTEM, KC_LAST_SYSTEM)
 #define IS_CONSUMER_KEYCODE(code) IN_RANGE(code, KC_FIRST_MEDIA, KC_LAST_MEDIA)
 #define IS_MODIFIER_KEYCODE(code) IN_RANGE(code, KC_LCTL, KC_RGUI)

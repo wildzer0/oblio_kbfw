@@ -11,7 +11,7 @@ QMK/Vial keyboard offers, without the weight of a generic framework.
 - Up to 8 layers, momentary/toggle/one-shot layer keys, layer-tap and mod-tap with a millisecond-accurate tapping term
 - Macros, tap dance, rotary encoder with a per-layer map
 - One complete keymap in flash (keys, encoder, macros, lighting, tapping term), live-edited from Vial
-- Mouse keys: the encoder can scroll, a key can click (`KC_MS_*`, USB only)
+- Accented letters (à è é ì ò ù, capitals with Shift / Caps Lock / Caps Word) from a one-shot layer, for Windows, macOS and Linux without installing a layout
 - Per-key RGB backlight with several effects, flicker-free
 - USB, 2.4 GHz and Bluetooth (three pairing slots) from the hardware mode switch
 - Low-power sleep on battery with a configurable inactivity time
@@ -26,7 +26,7 @@ nix develop                  # shell with the toolchain, the flashing tool and t
 make test                    # unit tests of the platform-independent logic, run on the host
 make fw size                 # the firmware (build/oblio.hex) and its flash / XDATA budget
 make check                   # the Vial definition and the interrupt vectors of the linked firmware
-make BATTERY_LOG=0 fw        # a build without the battery log (core/options.h has the build options)
+make BATTERY_LOG=1 fw        # a build WITH the battery log (off by default; core/options.h has the build options)
 make sim                     # the real firmware in a simulator of the chip: boot, USB, raw HID, recovery
 ```
 
@@ -57,7 +57,7 @@ Details on recovery, including the hardware programming header, are in [docs/rec
 | Path | Content |
 | --- | --- |
 | `hal/` | register definitions and drivers for the SH68F90A |
-| `core/` | hardware-independent logic (matrix, layers, tapping, reports, mouse, macros, the keymap store), unit-tested on the host |
+| `core/` | hardware-independent logic (matrix, layers, tapping, reports, macros, accents, the keymap store), unit-tested on the host |
 | `board/` | everything specific to the B68: pinout, lighting, radio, sleep |
 | `docs/` | hardware notes, radio protocol, lighting analysis |
 | `tests/` | host unit tests (`tests/host/`) and simulator tests (`tests/sim/`) |

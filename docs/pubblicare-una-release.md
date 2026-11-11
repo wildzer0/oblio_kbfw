@@ -67,7 +67,7 @@ nix develop --command make fw size check
 - `make fw size`: la build e il budget di flash/XDATA (non deve superare i limiti).
 - `make check`: la definizione Vial, i vettori di interrupt, **la versione nell'immagine** (`check-version`: compare una volta sola e coincide con `VERSION`) e **la posizione del codice USB** (`check-usb-layout`: se fallisce, leggi `docs/design.md` §14.2: il codice USB si è spostato e va provato sulla tastiera prima di rilasciare).
 - Se hai toccato `docs/api.md`: `make check-api`.
-- Se vuoi la build senza registro batteria o di profilo: `make BATTERY_LOG=0 fw size`, `make LOOP_PROFILE=1 BATTERY_LOG=0 fw size` (la CI controlla la prima).
+- Se vuoi la build con registro batteria o di profilo: `make BATTERY_LOG=1 fw size`, `make LOOP_PROFILE=1 fw size` (la CI controlla la prima; la build di rilascio è senza registro, dal 0.10.0).
 
 Un avviso utile: `build/oblio.hex` deve essere fatto da un albero **pulito** (tutto committato). Lo script scrive nel firmware se c'erano modifiche non committate
 (`dirty`) e la pagina lo mostra come «+modifiche». Una release deve avere «0.9.1 (abc1234)» senza quel segno: committa prima, poi ricostruisci.

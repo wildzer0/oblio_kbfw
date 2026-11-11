@@ -1,12 +1,11 @@
 #include "keyboard.h"
+#include "accent.h"
 #include "combo.h"
 #include "keymap.h"
-#include "leader.h"
 #include "keycodes.h"
 #include "encoder.h"
 #include "layer.h"
 #include "macro.h"
-#include "mouse.h"
 #include "override.h"
 #include "report.h"
 #include "tapping.h"
@@ -25,10 +24,8 @@ void keyboard_init(void)
     tapping_init();
     macro_init();
     encoder_init();
-    mouse_init();
     combo_init();
     override_init();
-    leader_init();
 }
 
 // The layer engine holds modifiers (one-shot, layer + mods) through the same report as the keys.
@@ -160,10 +157,6 @@ static uint16_t current_now;
 // A keycode going down or up, from a key of the keymap or from a tap dance.
 static void run_keycode(uint16_t keycode, bool pressed)
 {
-    if (leader_process(keycode, pressed, current_now)) {
-        return; // the Leader is collecting: this key is part of a sequence, not typing
-    }
-
     if (IS_QK_CAPS_WORD(keycode)) { // the key of the mode itself: it never reaches the host
         if (pressed) {
             caps_word = !caps_word;
@@ -181,19 +174,6 @@ static void run_keycode(uint16_t keycode, bool pressed)
             layer_key_pressed();
             macro_start((uint8_t)(keycode - QK_MACRO));
         } else {
-            layer_key_released();
-        }
-        return;
-    }
-
-    if (IS_MOUSE_KEYCODE(keycode)) { // a direction, a button, a wheel or the acceleration: the mouse owns it
-        if (pressed) {
-            layer_key_pressed();
-        }
-
-        mouse_process(keycode, pressed, current_now);
-
-        if (!pressed) {
             layer_key_released();
         }
         return;
@@ -280,10 +260,9 @@ void keyboard_task(uint16_t now)
     current_now = now;
     tapping_task(now);
     macro_task(now);
+    accent_task(now);
     encoder_task();
-    mouse_task(now);
     combo_task(now);
-    leader_task(now);
 }
 
 // ---- what tapping.c needs from the rest of the firmware ----
@@ -319,14 +298,26 @@ void tapping_hook_keycode(uint16_t keycode, bool pressed)
     run_keycode(keycode, pressed);
 }
 
-// The action of a Leader sequence: a tap of a keycode, the same way a key of the keymap goes out
-void keyboard_tap(uint16_t keycode)
+// The accented letters' sequence plays through the same road as a key of the keymap (core/accent.h)
+#if !LOOP_PROFILE
+void accent_hook_key(uint16_t keycode, bool down)
 {
-    layer_key_pressed();
-    send_keycode(keycode, true);
-    send_keycode(keycode, false);
-    layer_key_released();
+    send_keycode(keycode, down);
 }
+
+uint8_t accent_hook_mods_get(void)
+{
+    return report_mods();
+}
+
+void accent_hook_mods_set(uint8_t mods)
+{
+    const uint8_t now = report_mods();
+
+    layer_hook_mods_del((uint8_t)(now & ~mods));
+    layer_hook_mods_add((uint8_t)(mods & ~now));
+}
+#endif
 
 // A chord's keys, once it is decided, are pressed and released from here: the same way a key of the keymap goes out
 void combo_hook_send(uint16_t keycode, bool pressed)

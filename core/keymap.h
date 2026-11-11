@@ -147,5 +147,5 @@ uint8_t  keymap_changes(void);
 uint16_t keymap_change_at(uint8_t index);
 bool     keymap_changes_overflow(void);
 void     keymap_changes_clear(void);
-void     keymap_changes_all(void); // makes the next save a whole one
+void     keymap_changes_all(void); // host tests only (not in the firmware) // makes the next save a whole one
 

@@ -83,6 +83,29 @@ static void test_changes_survive(void)
     CHECK(settings.sleep_level == 4 && settings.bt_slot == 2);
 }
 
+// The Linux flag of the accented letters (byte 3 of the record, which held a profile once and was written as 0 ever since): off by default, saved, and an
+// old record or a value out of range reads as "not Linux"
+static void test_the_linux_flag(void)
+{
+    blank();
+    settings_load();
+    CHECK(settings.os_linux == 0);
+    settings_set_os_linux(false); // no change: nothing to save
+    CHECK(!settings_dirty());
+
+    settings_set_os_linux(true);
+    CHECK(settings_dirty() && settings.os_linux == 1);
+    settings_flush();
+    settings.os_linux = 0; // forget
+    settings_load();
+    CHECK(settings.os_linux == 1);
+
+    settings_set_os_linux(false);
+    settings_flush();
+    settings_load();
+    CHECK(settings.os_linux == 0);
+}
+
 static void test_nothing_is_written_when_nothing_changed(void)
 {
     blank();
@@ -253,6 +276,7 @@ int main(void)
 {
     test_blank_flash_gives_the_defaults();
     test_changes_survive();
+    test_the_linux_flag();
     test_nothing_is_written_when_nothing_changed();
     test_out_of_range_values_are_refused();
     test_a_damaged_record_falls_back_to_the_one_before_it();

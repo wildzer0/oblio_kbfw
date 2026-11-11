@@ -2,15 +2,15 @@
 # `make fw` builds the firmware with SDCC, `make size` checks the flash/XDATA budget.
 B := build
 
-# Build options (core/options.h has the defaults). `make BATTERY_LOG=0 fw` leaves the battery log out: ~1 KB less code and the flash sector at
-# 0xDA00 back for the application (the code limit goes from 0xDA00 to 0xDC00). The objects are rebuilt when an option changes.
-BATTERY_LOG ?= 1
+# Build options (core/options.h has the defaults). The battery log is OFF by default: `make BATTERY_LOG=1 fw` builds it (~1.4 KB of code and the flash
+# sector at 0xDA00, so the code limit goes from 0xDC00 down to 0xDA00). The objects are rebuilt when an option changes.
+BATTERY_LOG ?= 0
 # `make LOOP_PROFILE=1 fw` times each step of the main loop (see core/options.h); off by default.
 LOOP_PROFILE ?= 0
 
 HOST_TESTS := $(patsubst %.c,%,$(wildcard tests/host/test_*.c))
 
-# Memory map: application code up to 0xDA00 with the battery log (its sector follows) or 0xDC00 without it (the keymap store starts there), 4 KB of XDATA.
+# Memory map: application code up to 0xDC00 (the keymap store starts there), or 0xDA00 with the battery log (its sector comes before the store), 4 KB of XDATA.
 CODE_LIMIT := $(if $(filter 0,$(BATTERY_LOG)),0xDC00,0xDA00)
 XRAM_SIZE  := 4096
 
@@ -67,8 +67,8 @@ test: $(HOST_TESTS) check-vial
 
 # test_X.c tests core/X.c; the modules it needs besides are listed in LINK_X. The tests are rebuilt every time (they are quick).
 LINK_layer := core/keymap.c
-LINK_keyboard := core/layer.c core/keymap.c core/report.c core/tapping.c core/macro.c core/encoder.c core/mouse.c core/combo.c core/override.c core/leader.c
-LINK_tapping := core/keyboard.c core/layer.c core/keymap.c core/report.c core/macro.c core/encoder.c core/mouse.c core/combo.c core/override.c core/leader.c
+LINK_keyboard := core/accent.c core/layer.c core/keymap.c core/report.c core/tapping.c core/macro.c core/encoder.c core/combo.c core/override.c
+LINK_tapping := core/keyboard.c core/accent.c core/layer.c core/keymap.c core/report.c core/macro.c core/encoder.c core/combo.c core/override.c
 LINK_macro := core/keymap.c
 LINK_radio := core/diag.c core/version.c
 LINK_link := core/radio.c core/settings.c core/diag.c core/version.c
@@ -76,19 +76,18 @@ LINK_led := core/led_effect.c core/keymap.c
 LINK_via := core/vial.c core/vialrgb.c core/keymap.c core/matrix.c core/diag.c core/version.c core/layer.c core/report.c
 LINK_combo :=
 LINK_override :=
-LINK_leader :=
 LINK_diag := core/version.c
 LINK_usb_reports := core/report.c
-LINK_mouse := core/report.c
 LINK_store := core/keymap.c
 
 
+# The host tests build the battery log too (-DBATTERY_LOG=1): the logic is tested whether or not the firmware carries it.
 tests/host/test_%: tests/host/test_%.c core/%.c FORCE
-	$(CC) -std=c11 -Wall -Wextra -Werror -Icore -Itests/host -o $@ $< core/$*.c $(LINK_$*)
+	$(CC) -std=c11 -Wall -Wextra -Werror -DBATTERY_LOG=1 -Icore -Itests/host -o $@ $< core/$*.c $(LINK_$*)
 
 # includes core/usb_device.c itself, to reach its static functions
 tests/host/test_usb_device: tests/host/test_usb_device.c core/usb_desc.c core/diag.c core/version.c FORCE
-	$(CC) -std=c11 -Wall -Wextra -Werror -Icore -Itests/host -o $@ $(filter %.c,$^)
+	$(CC) -std=c11 -Wall -Wextra -Werror -DBATTERY_LOG=1 -Icore -Itests/host -o $@ $(filter %.c,$^)
 
 # core/profile.c exists only in the profile build: its test is built that way
 tests/host/test_profile: tests/host/test_profile.c core/profile.c FORCE
@@ -96,7 +95,7 @@ tests/host/test_profile: tests/host/test_profile.c core/profile.c FORCE
 
 # the default keymap is board data, but plain C: checked against the matrix measured on the board
 tests/host/test_default_keymap: tests/host/test_default_keymap.c board/keymap_default.c core/keymap.c FORCE
-	$(CC) -std=c11 -Wall -Wextra -Werror -Icore -Iboard -Itests/host -o $@ $(filter %.c,$^)
+	$(CC) -std=c11 -Wall -Wextra -Werror -DBATTERY_LOG=1 -Icore -Iboard -Itests/host -o $@ $(filter %.c,$^)
 
 # The Vial definition: board/vial.json compressed, with the keyboard id and the keys held to unlock (Esc + Enter, cells 0,0 and 2,13)
 VIAL_UID    := 0x46ecd0565df84fa8

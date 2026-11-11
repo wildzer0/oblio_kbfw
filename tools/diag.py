@@ -8,7 +8,7 @@ usage: diag.py [--radio] [--version] [--blog] [--profile] [--profile-reset] [--w
   (no option)  print the counters once
   --radio      also print the radio's last status bytes, with the battery reading they carry
   --version    the firmware version (0.9.0 and later): number, commit, whether the tree had uncommitted changes
-  --blog       print the battery log the keyboard keeps in flash (a build with BATTERY_LOG=1, the default): the readings it took, with the cable out too
+  --blog       print the battery log the keyboard keeps in flash (a build made with `make BATTERY_LOG=1`: off by default since 0.10.0): the readings it took, with the cable out too
   --profile    (a LOOP_PROFILE build) how long each step of the main loop takes: runs, shortest, mean, longest and share of the time, the passes by length,
                and the share of the CPU each interrupt takes. --profile-reset starts the measure again (do it, do what you want to measure, then read)
   --watch N    repeat every N seconds, printing only what changed
@@ -175,7 +175,7 @@ def blog(keyboard):
     the first WAKE record after it, compared with the last record before it."""
     first = keyboard.ask(0xF1, 4, 0)
     if first[0] != 0xF1:
-        print("battery log        : this build has no battery log (built with BATTERY_LOG=0)")
+        print("battery log        : this build has no battery log (it is off by default since 0.10.0: build with `make BATTERY_LOG=1`)")
         return
 
     total = first[2]

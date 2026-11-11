@@ -67,7 +67,7 @@ int main(void)
         }
     }
 
-    CHECK(swapped == 3); // the bottom row is Ctrl Win Alt ... Alt Fn: the three that are Win or Alt are swapped, Ctrl is not
+    CHECK(swapped == 2); // the bottom row is Ctrl Win Alt ... (the accents key) Fn: the two that are Win or Alt are swapped, Ctrl is not; the one right of the space bar is OSL(2)
     CHECK(fnkeys == 1);  // the Fn key is the only one that goes somewhere else
     // the Mac Fn layer starts as a copy of the Windows one and is edited in Vial from there
     for (uint8_t row = 0; row < MATRIX_ROWS; row++) {
@@ -79,6 +79,23 @@ int main(void)
     CHECK(keymap_get(0, 4, 1) == KC_LGUI && keymap_get(KEYMAP_MAC_LAYER, 4, 1) == KC_LALT); // the key labelled Win sends Alt on a Mac
     CHECK(keymap_get(0, 4, 2) == KC_LALT && keymap_get(KEYMAP_MAC_LAYER, 4, 2) == KC_LGUI); // the one labelled Alt sends Gui/Cmd
     CHECK(keymap_get_encoder(KEYMAP_MAC_LAYER, 0, true) == KC_VOLU); // the knob is the same on both sides
+
+    // The accented letters: a one-shot layer from the key right of the space bar (the same on both sides of the Win/Mac switch), six keys on the vowels
+    CHECK(keymap_get(0, 4, 8) == OSL(2) && keymap_get(KEYMAP_MAC_LAYER, 4, 8) == OSL(2));
+    CHECK(keymap_get(2, 1, 3) == B68_ACC_EG && keymap_get(2, 1, 4) == B68_ACC_EA && keymap_get(2, 1, 7) == B68_ACC_U);
+    CHECK(keymap_get(2, 1, 8) == B68_ACC_I && keymap_get(2, 1, 9) == B68_ACC_O && keymap_get(2, 2, 1) == B68_ACC_A);
+    CHECK(keymap_get(1, 3, 1) == B68_OS_LNX); // Fn+Z switches the accents to the Linux sequence
+    unsigned accents = 0;
+
+    for (uint8_t row = 0; row < MATRIX_ROWS; row++) {
+        for (uint8_t col = 0; col < MATRIX_COLS; col++) {
+            if (keymap_get(2, row, col) != KC_TRNS && keymap_get(2, row, col) != KC_NO) { // (the cells with no key are KC_NO)
+                accents++;
+            }
+        }
+    }
+
+    CHECK(accents == 6); // and nothing else on that layer: every other key is typed as usual
 
     CHECK(!keymap_set(KEYMAP_LAYERS, 0, 0, KC_A)); // a position that does not exist
     CHECK(keymap_set(3, 0, 0, KC_A) && keymap_get(3, 0, 0) == KC_A);

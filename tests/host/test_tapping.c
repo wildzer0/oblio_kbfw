@@ -3,7 +3,6 @@
 #include "keyboard.h"
 #include "keycodes.h"
 #include "keymap.h"
-#include "leader.h"
 #include "layer.h"
 #include "report.h"
 #include <string.h>
@@ -40,26 +39,6 @@ uint16_t keymap_default_tap_dance(uint8_t index, uint8_t field)
     static const uint16_t td1[TD_FIELDS] = {KC_D, 0, 0, 0, 0};
 
     return index == 0 ? td0[field] : index == 1 ? td1[field] : 0;
-}
-
-// core/leader.c asks the board for its key and its sequences: this keyboard has none, so the Leader does nothing here
-bool leader_hook_is_key(uint16_t keycode)
-{
-    (void)keycode;
-    return false;
-}
-
-leader_match_t leader_hook_match(const uint16_t *keys, uint8_t count, uint16_t *action)
-{
-    (void)keys;
-    (void)count;
-    (void)action;
-    return LEADER_NONE;
-}
-
-void leader_hook_send(uint16_t keycode)
-{
-    (void)keycode;
 }
 
 uint16_t keymap_default_combo(uint8_t index, uint8_t field)

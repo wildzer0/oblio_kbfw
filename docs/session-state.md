@@ -9,14 +9,14 @@ Per chi inizia: **[guida-sviluppatore.md](guida-sviluppatore.md)**. Documentazio
 ## Dove siamo
 
 Il firmware è **completo e usabile**: USB e radio (2.4G e Bluetooth), backlight con effetti, Vial completo (keymap, tap dance, combo, key
-overrides, tab Lighting con colore pieno), NKRO, Caps Word, Leader, mouse dall'encoder, switch Win/Mac su P0.5, gauge della batteria.
+overrides, tab Lighting con colore pieno), NKRO, Caps Word, lettere accentate, switch Win/Mac su P0.5, gauge della batteria. (Mouse da tastiera e Leader **tolti** nel 0.10.0.)
 
 | | |
 | --- | --- |
-| Flash | **54676 / 55808** con il registro batteria; 53232 / 56320 con `BATTERY_LOG=0` |
-| XDATA | **3654 / 4096** (442 B liberi); la build di profilo: 56316/56320 B di flash (4 B liberi!) |
+| Flash | **53110 / 56320** (registro batteria spento, il predefinito dal 0.10.0); 54551 / 55808 con `BATTERY_LOG=1` |
+| XDATA | **3654 / 4096** (442 B liberi); la build di profilo: 54681 / 56320 B di flash |
 | Deposito keymap | **1709 / 2048** (339 B liberi) |
-| Test host | **29 / 29** (`make test`, include il controllo della definizione Vial) |
+| Test host | **28 / 28** (`make test`, include il controllo della definizione Vial) |
 | Simulatore ucsim | **23 / 23** (`make sim`) |
 | Vettori interrupt | 4, nessun overlay statico (`make check-interrupts`) |
 

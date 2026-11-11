@@ -31,13 +31,13 @@ jobs:
         run: nix develop --command make web-test
       - name: Interrupt vectors and overlay
         run: nix develop --command make check-interrupts
-      # The artifact is the default build (with the battery log): it has to be taken BEFORE the build without the log below, which overwrites build/oblio.hex
+      # The artifact is the default build (without the battery log): it has to be taken BEFORE the build with the log below, which overwrites build/oblio.hex
       - uses: actions/upload-artifact@v4
         with:
           name: oblio-hex
           path: build/oblio.hex
-      - name: The same without the battery log (BATTERY_LOG=0)
-        run: nix develop --command make BATTERY_LOG=0 fw size
+      - name: The same with the battery log (BATTERY_LOG=1; the release is built without it, since 0.10.0)
+        run: nix develop --command make BATTERY_LOG=1 fw size
 
   simulation:
     # The real firmware in the simulator of the chip: boot, interrupts, USB enumeration, the raw HID pipe, key reports, the recovery chord.

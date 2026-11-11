@@ -33,10 +33,13 @@ static const ROM vialrgb_effect_t effects[] = {
 
 #define EFFECT_COUNT ((uint8_t)(sizeof effects / sizeof effects[0]))
 
+// Only the host tests call this: the firmware does not carry it (__SDCC is defined by the chip's compiler only)
+#ifndef __SDCC
 void vialrgb_init(void)
 {
     // Nothing to set up: which effect is showing is a setting of the profile, like the brightness and the speed.
 }
+#endif
 
 uint8_t vialrgb_id_of(uint8_t effect)
 {

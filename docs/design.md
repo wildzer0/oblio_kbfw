@@ -65,8 +65,8 @@ e da pochi `core` che hanno un driver proprio nel chip (USB, tick).
 
 | Indirizzi | Contenuto |
 | --- | --- |
-| `0x0000–0xD9FF` | applicazione (limite imposto da `make size`: 55808 B con il registro batteria; 56320 B, fino a `0xDBFF`, con `BATTERY_LOG=0`) |
-| `0xDA00–0xDBFF` | **registro della batteria** (un settore, 128 record da 4 B): solo se `BATTERY_LOG=1` (predefinito), altrimenti codice |
+| `0x0000–0xDBFF` | applicazione (limite imposto da `make size`: 56320 B; 55808 B, fino a `0xD9FF`, con `BATTERY_LOG=1`) |
+| `0xDA00–0xDBFF` | **registro della batteria** (un settore, 128 record da 4 B): solo se `BATTERY_LOG=1` (**spento di default dal 0.10.0**), altrimenti codice |
 | `0xDC00–0xEBFF` | **deposito della keymap**: due copie (A/B) da 4 settori da 512 B; in fondo a ogni copia un **log** di 69 record da 5 B |
 | `0xEC00–0xEDFF` | **log delle impostazioni** (sleep, slot Bluetooth, luci): 36 record da 14 B, append-only |
 | `0xEE00–0xEFFF` | marcatore del bootloader stock: **mai toccato** |
@@ -146,7 +146,7 @@ Regole di pollice per chi continua: (1) in modello *large* ogni `static` è in X
 
 **La build di profilo sfarfalla** (colonne dei LED), la release no: provato sulla tastiera con `1f51c85` (release, nessun flicker) e con il profilo (flicker). La misura mette istruzioni nell'interrupt del timer e nel ciclo principale; i contatori (slot in ritardo, back-off) restano a zero. Il profilo serve a **misurare** i tempi, non a guardare i LED: per giudicare i LED si usa la release. (Una bisezione fatta per errore tra un profilo e due release aveva fatto togliere per un momento il framebuffer veloce.)
 
-Il budget è stretto: la build di profilo (che ha la propria statistica in XDATA) usa **4096/4096 B** di XDATA e 56 297/56 320 B di flash (con `BATTERY_LOG=0`); un'aggiunta qui va compensata.
+Il budget è stretto: la build di profilo (che ha la propria statistica in XDATA) usa circa 3,8 KB di XDATA e 54,7 KB di flash su 56,3 (con `BATTERY_LOG=0`, che ora è il predefinito): dopo che mouse e Leader sono stati tolti c'è margine.
 
 ## 7. La pipeline dei tasti
 
@@ -155,8 +155,8 @@ Il budget è stretto: la build di profilo (che ha la propria statistica in XDATA
                                                                            │
    encoder_poll ───────────────────────────────────────────────────────────┤
                                                                            ▼
-                     keyboard_event ─► (combo) ─► (leader) ─► tapping_intercept ─► layer_key_down ─► tapping_event ─► run_keycode
-                                                                           │               (override, macro, mouse, tasti custom)
+                     keyboard_event ─► (combo) ─► tapping_intercept ─► layer_key_down ─► tapping_event ─► run_keycode
+                                                                           │               (override, macro, tasti custom, accentate)
                                                                            ▼
                               send_keycode ─► report (stato) ─► report_hook_send ─► transport
                                                                                      ├─ link_wireless()  → coda della radio (core/radio.c)
@@ -169,11 +169,23 @@ Il budget è stretto: la build di profilo (che ha la propria statistica in XDATA
 - **`tapping`** — LT/MT/TD (tap dance): finché un tasto è indeciso gli eventi successivi vanno in una piccola coda e vengono riprodotti a decisione presa. Decide il rilascio (tap) o il timeout (hold).
 - **`combo`** — tiene fermi al massimo 50 ms i tasti che sono ingressi di un accordo; 6 accordi da 4 ingressi, corrispondenza esatta, un accordo alla volta.
 - **`override`** — 4 sostituzioni dipendenti dai modificatori (Shift+Backspace = Delete), con livelli, modificatori vietati e soppressi.
-- **`leader`** — sequenze compilate in `board/leader.c`; abbandono dopo 400 ms.
+- (**`leader`** e **`mouse`** sono stati tolti nel 0.10.0: l'utente non li usava e servivano ~1,5 KB di flash. I codici `QK_LEADER`, `B68_UNUSED2` e `KC_MS_*` restano definiti e non fanno nulla: le keymap salvate li contengono, e il descrittore USB e `usb_reports.c` non si toccano, vedi §14.2.)
 - **`macro`** — buffer da 512 B (16 macro), eseguito un passo al millisecondo, senza bloccare.
-- **`mouse`** — tasti `MS_*` (solo USB: la radio non ha un frame mouse).
+- **`accent`** — le lettere accentate (§7.1).
 - **`report`** — tiene lo stato (modificatori, tasti, consumer, sistema) e costruisce i byte: **NKRO a 112 bit** in report protocol, 6 tasti in boot protocol.
 - **`transport`** (`board/transport.c`) decide la strada: radio se `link_wireless()`, altrimenti USB.
+
+### 7.1 Le lettere accentate (`core/accent.[ch]`, `board/custom_keys.c`, layer 2 di `board/keymap_default.c`)
+
+Il tasto a destra della barra spaziatrice è `OSL(2)`: il layer 2 vale **per un solo tasto**. Su di esso, sulle vocali, stanno sei tasti personalizzati (`B68_ACC_*`, da `0x7E11`): à sulla A, è sulla E, é sulla R, ì sulla I, ò sulla O, ù sulla U; tutto il resto è trasparente (qualunque altro tasto si scrive come sempre e chiude il layer). Poiché la tastiera manda solo tasti HID e il sistema dell'utente è in layout EN, **il tasto digita la sequenza che fa scrivere la lettera all'host**, e la sequenza dipende dal sistema:
+- **Windows**: Alt + `0` + le tre cifre decimali del codice Latin-1 sul tastierino (`Alt 0 2 3 2` = è). Il tastierino vuole il Bloc Num **acceso**: se l'host lo ha spento (bit 0 dei LED dell'host) lo si accende prima e lo si rispegne dopo.
+- **macOS**: Option + tasto morto, poi la vocale (con Shift sulla vocale per la maiuscola); grave = Option+`` ` ``, acuto (é) = Option+E.
+- **Linux**: Ctrl+Shift+U, le due cifre esadecimali, spazio.
+Il sistema è: **Mac** se lo switch Win/Mac (P0.5) è su Mac; altrimenti **Linux** se l'impostazione è accesa (`Fn+Z`, `B68_OS_LNX`, salvata nel byte 3 delle impostazioni; il tasto mostra 1 = Windows, 2 = Mac, 3 = Linux sulla riga dei numeri); altrimenti Windows.
+**Maiuscola**: Shift tenuto o a un colpo (`report_mods()`), Caps Word (`keyboard_caps_word()`) o Caps Lock dell'host (bit 1 dei LED: dal report USB o dallo stato della radio, `radio_host_leds()`). Le accentate **non chiudono il Caps Word** (i tasti personalizzati non passano da `caps_word_before`).
+**Perché passi spaziati.** La sequenza è di 10–16 eventi. La coda dei report verso l'host USB tiene 7 stati e quella verso la radio 8, e la radio ne spedisce uno ogni 2–3 ms: un colpo solo ne perderebbe e una cifra mancherebbe. Perciò `accent_task` (chiamato da `keyboard_task`, nessun nuovo STEP) suona **un evento ogni 4 ms** (~60 ms in tutto).
+**Perché la matrice si ferma.** Durante la sequenza `board/main.c` non estrae nuovi eventi (`accent_busy()`): restano nella coda da 16 e partono dopo. Così uno Shift rilasciato a metà non può essere «ripristinato» dalla fine della sequenza e restare incollato. I modificatori in corso vengono messi da parte all'inizio e rimessi alla fine (`accent_hook_mods_get/set`).
+**Prove**: `tests/host/test_accent.c` (la sequenza esatta di ogni lettera, per ogni sistema, con Bloc Num acceso e spento; maiuscole; modificatori; passo di 4 ms; giro dell'orologio) e le prove su `keyboard.c`. Non c'è nella build di profilo (`LOOP_PROFILE`). **Non provato sull'hardware** (Windows, Mac, Linux).
 
 ## 8. Moduli, uno per uno
 
@@ -191,7 +203,7 @@ confinate nell'area scrivibile), `pwm` (18 canali, tre banchi da 6), `power` (po
 | `sched` | la sequenza degli slot e l'orologio in conteggi (puro) |
 | `keycodes` | i keycode QMK/Vial a 16 bit (gli intervalli non si cambiano: li usa l'app) |
 | `keymap` | la keymap in RAM (6 layer, encoder, macro, TD, combo, override, cfg) e i suoi accessori; `keymap_version` sale a ogni modifica **salvabile** |
-| `layer`, `tapping`, `combo`, `override`, `leader`, `macro`, `mouse`, `encoder` | la logica dei tasti (§7) |
+| `layer`, `tapping`, `combo`, `override`, `macro`, `encoder`, `accent` | la logica dei tasti (§7) |
 | `keyboard` | la colla: riceve gli eventi, instrada ai moduli sopra, esegue il keycode, chiama `keyboard_hook_custom` per i tasti della scheda |
 | `report`, `usb_reports` | lo stato da dire all'host e la coda dei pacchetti EP1 (un tap = due report in ordine) |
 | `radio`, `link` | il protocollo della BK3632 e lo scheduler dei frame (§11); la modalità (USB / 2.4G / BT), gli slot e l'accoppiamento |
@@ -204,7 +216,7 @@ confinate nell'area scrivibile), `pwm` (18 canali, tre banchi da 6), `power` (po
 
 **`board/`** — `main` (§5), `matrix_hw` (scansione delle colonne), `led_hw` (PWM + strobe: un sottoquadro = colonna spenta, larghezze caricate, colonna accesa), `led_app` (colla dei LED),
 `radio_hw` (seriale, SEL/ATT), `link_app` (selettore P0.4/P0.3), `os_switch` (P0.5, Win/Mac), `usb_app` (colla USB, ISP, remote wakeup), `sleep_hw` (sequenza di power‑down),
-`store_hw` (hook di flash con la pausa dei LED), `battery` (gauge, avviso, sleep di protezione), `custom_keys` (i tasti `B68_*`), `keymap_default`, `leader`, `recovery`, `isp`,
+`store_hw` (hook di flash con la pausa dei LED), `battery` (gauge, avviso, sleep di protezione), `custom_keys` (i tasti `B68_*`), `keymap_default`, `recovery`, `isp`,
 `diag_hw`, `slots`, `timebase`, `transport`, `vial.json` (definizione che l'app Vial scarica).
 
 ## 9. Persistenza
@@ -224,8 +236,8 @@ Il numero di sequenza dell'intestazione è anche il **contatore persistente dei 
 
 **Registro della batteria** (`core/blog.c`, opzionale). Un settore a `0xDA00` con 128 record da 4 byte (minuti di veglia dall'accensione, lettura, flag con la marcatura `0xA` nel nibble alto). Scrive quando la lettura si muove di 8 conteggi,
 quando il cavo entra o esce, alla prima lettura dopo un'accensione o un **risveglio dallo sleep**, e comunque ogni 5 minuti. Durante lo sleep il chip non ha orologio e non campiona: un record WAKE dice che prima di lui c'è un buco,
-e la scarica di una notte si legge confrontando la sua lettura con l'ultimo record prima dello sleep. Si legge con `py tools\diag.py --blog`. Lo spegne `make BATTERY_LOG=0 fw` (direttiva `BATTERY_LOG`, default in `core/options.h`):
-~1,4 KB di codice in meno e il settore torna all'applicazione (limite di codice da `0xDA00` a `0xDC00`). Un settore con altro dentro (resti di un firmware precedente) viene cancellato al primo uso.
+e la scarica di una notte si legge confrontando la sua lettura con l'ultimo record prima dello sleep. Si legge con `py tools\diag.py --blog`. **Dal 0.10.0 è spento di default** (la sua flash serve alle accentate): lo accende `make BATTERY_LOG=1 fw` (direttiva `BATTERY_LOG`, default in `core/options.h`),
+~1,4 KB di codice in più e il settore tolto all'applicazione (limite di codice da `0xDC00` a `0xDA00`). Un aggiornamento dalla pagina web cancella comunque il registro già scritto. Un settore con altro dentro (resti di un firmware precedente) viene cancellato al primo uso.
 
 **Impostazioni** (`core/settings.c`). Record da 14 B (magic, versione 2, sleep, slot Bluetooth, **effetto, luminosità, velocità, colore**, CRC) in **un solo settore usato come log**: ogni salvataggio
 **appende** al primo slot vuoto e vince l'ultimo record valido. Si cancella solo quando il settore è pieno (ogni 36 salvataggi). Così un salvataggio frequente (i tasti luce) **non cancella nulla** e
@@ -314,8 +326,8 @@ Il PWM suona una colonna alla volta: il «pieno» dei LED è la frazione di temp
 | `make check-usb-layout` | gli indirizzi del codice USB coincidono con quelli provati sulla tastiera (§14.2); fallisce se si spostano |
 | `make check-version` | la versione sta nell'immagine una volta sola e coincide con il file `VERSION` |
 | `make api` / `make check-api` | rigenera / verifica `docs/api.md` dagli header |
-| `make BATTERY_LOG=0 fw` | build senza il registro della batteria (opzione in `core/options.h`) |
-| `make LOOP_PROFILE=1 BATTERY_LOG=0 fw` | **build di profilo**: misura ogni passo del ciclo principale (15 passi: corse, minimo, media, massimo, quota di tempo), la lunghezza dei giri per fasce e la CPU presa da ogni interrupt (timer, USB, seriale della radio). Si legge con `py tools\diag.py --profile`, si riparte con `--profile-reset`. Costa ~2 KB di flash e ~180 B di XDATA e rallenta un po' ogni giro: solo per misurare. Va con `BATTERY_LOG=0` (non ci starebbe) |
+| `make BATTERY_LOG=1 fw` | build **con** il registro della batteria (opzione in `core/options.h`, spento di default) |
+| `make LOOP_PROFILE=1 BATTERY_LOG=0 fw` | **build di profilo**: misura ogni passo del ciclo principale (15 passi: corse, minimo, media, massimo, quota di tempo), la lunghezza dei giri per fasce e la CPU presa da ogni interrupt (timer, USB, seriale della radio). Si legge con `py tools\diag.py --profile`, si riparte con `--profile-reset`. Costa ~2 KB di flash e ~180 B di XDATA e rallenta un po' ogni giro: solo per misurare. Usa il predefinito (`BATTERY_LOG=0`) |
 
 CI (GitHub Actions): test host, build, budget, versione, test dell'utility web, vettori, simulazione; l'hex (la build con il registro batteria) è un artifact e il tag `v*` pubblica una Release e fa ricostruire il sito dell'utility (GitHub Pages, `pages.yml` su `main`). Il simulatore mostra l'**ordine** degli eventi e i conteggi di istruzioni, non le durate.
 
@@ -352,7 +364,7 @@ Il browser vede il bootloader come un dispositivo nuovo (altro VID/PID): serve u
 | Keymap salvata come immagine + log | una modifica da Vial = 5 byte programmati, niente erase, niente buio; ~70× meno cicli di cancellazione | ~1,1 KB di flash in più; un salvataggio a metà di un gruppo può lasciare un gruppo applicato in parte |
 | ISR USB senza copia | non trattiene il timer dei LED | il main legge dal buffer dell'endpoint (che resta fermo finché non si risponde) |
 | Curva Li‑Po e non la retta dello stock | lo stock chiama «pieno» tutto sopra ~3,85 V | scala provvisoria |
-| Nessun mouse via radio | la BK3632 non ha un frame mouse | encoder come rotella solo via cavo |
+| Nessun mouse da tastiera | tolto nel 0.10.0 (non usato; liberava ~850 B). Non c'è comunque un frame mouse sulla radio | l'encoder fa volume, non rotella |
 | Diagnostica sempre presente ma minima | serve per il flicker e per i problemi sul campo | 9+1 contatori, ~0,5 KB |
 
 ## 16. Limiti noti e punti aperti
@@ -362,7 +374,7 @@ Il browser vede il bootloader come un dispositivo nuovo (altro VID/PID): serve u
 - Latenza BLE: misurato che **non** è del firmware (0 rifiuti, stesso tempo tasto→radio del 2.4G); dipende dall'intervallo di connessione deciso da host e radio.
 - Flicker (con un'app che interroga il raw HID, e al salvataggio): corretti (ISR senza copia; luci nel log).
 - Frame `08` della radio, comandi `04/05/0E` e tasti Fn dello stock: non decodificati (non interessano).
-- Funzioni scritte con test verdi ma non viste sull'hardware: combo, key override, NKRO, Caps Word, Leader, tab Lighting.
+- Funzioni scritte con test verdi ma non viste sull'hardware: combo, key override, NKRO, Caps Word, tab Lighting, accentate (0.10.0).
 
 ## 17. Come estendere
 

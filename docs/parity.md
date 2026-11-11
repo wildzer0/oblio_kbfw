@@ -9,12 +9,12 @@ sull'hardware · **M** = manca · **?** = non so cosa faccia lo stock: da confro
 | --- | --- | --- | --- |
 | Matrice 5×16, debounce | sì | `core/matrix`, debounce a tempo 5 ms | P (digitazione ok) |
 | Layer (6), MO/TG/LT/MT/OSM/OSL | SMK sì | `core/layer`, `core/tapping` | S |
-| Tap dance, macro, combo, key override, Leader, Caps Word | SMK/QMK | sì, editabili da Vial | S |
+| Tap dance, macro, combo, key override, Caps Word (el Leader è stato tolto nel 0.10.0) | SMK/QMK | sì, editabili da Vial | S |
 | NKRO (USB 112 bit; radio bitmap) | SMK sì | sì | S (USB), P (2.4G/BLE vedi sotto) |
 | Encoder (volume, mouse wheel con MS_WH) | stock sì | `core/encoder` | S |
 | Tasto dell'encoder = TD(0) mute / play / next | stock: mute | sì | S |
 | Switch Win/Mac (P0.5, layer 0/1 e 5/4) | stock sì | `board/os_switch` | P |
-| Mouse keys | stock: mouse dall'encoder | `core/mouse`, solo USB | S; **M in wireless** (la radio non ha un frame mouse) |
+| Mouse keys | stock: mouse dall'encoder | **tolto nel 0.10.0** (non usato) | — |
 
 ## Wireless
 

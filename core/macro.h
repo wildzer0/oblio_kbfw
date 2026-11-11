@@ -19,7 +19,7 @@ void macro_init(void);
 void macro_start(uint8_t id);
 
 // True while a macro is playing or waiting its turn.
-bool macro_busy(void);
+bool macro_busy(void); // host tests only (not in the firmware)
 
 // Regularly, with the current time in ms: does the next step if the millisecond has changed since the last one.
 void macro_task(uint16_t now);

@@ -151,6 +151,10 @@ In questo progetto vale la regola «niente tentativi alla cieca»: si ragiona, s
 
 ---
 
+## Aggiungere o cambiare un'accentata
+
+Le accentate sono sei tasti personalizzati (`B68_ACC_*` in `board/b68_keys.h`) che chiamano `accent_start(...)` (`board/custom_keys.c`); la tabella sta in `core/accent.c` (`accents[]`: codice Latin-1 minuscolo e maiuscolo, tasto morto del Mac, vocale). Per una lettera nuova: un codice in `board/b68_keys.h` (di seguito all'ultimo, **senza buchi**), la voce corrispondente in `board/vial.json` (stesso ordine), la riga in `accents[]` (e `ACCENT_COUNT`), il tasto nel layer `ACC` di `board/keymap_default.c`, e un controllo in `tests/host/test_accent.c`. Il layer si attiva con `OSL(ACC)` (un colpo solo): il tasto a destra della barra spaziatrice.
+
 ## Pubblicare una release (e aggiornare l'utility web)
 
 La guida completa, con il flusso della CI, i controlli e cosa fare se qualcosa va storto, è **[pubblicare-una-release.md](pubblicare-una-release.md)**. In breve:

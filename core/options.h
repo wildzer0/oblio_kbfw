@@ -4,10 +4,11 @@
 // default for the host tests and for anyone who compiles without the Makefile.
 
 // The battery log (core/blog.c): the keyboard writes down its battery reading in a flash sector of its own, so that the history can be read later
-// with `tools/diag.py --blog`. It costs about 1 KB of code and the flash sector at BLOG_ADDR, which the application then cannot use: the code
-// limit is 0xDA00 with the log and 0xDC00 without it.
+// with `tools/diag.py --blog`. It costs about 1.4 KB of code and the flash sector at BLOG_ADDR, which the application then cannot use: the code
+// limit is 0xDA00 with the log and 0xDC00 without it. OFF by default since 0.10.0 (the room went to the accented letters): `make BATTERY_LOG=1 fw`
+// builds it, for a discharge test.
 #ifndef BATTERY_LOG
-#    define BATTERY_LOG 1
+#    define BATTERY_LOG 0
 #endif
 
 #if BATTERY_LOG

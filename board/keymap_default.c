@@ -25,7 +25,8 @@
 
 #define BASE 0
 #define FN   1
-#define DEFAULT_LAYERS 2
+#define ACC  2 // the accented letters: reached with a one-shot (OSL) from the key right of the space bar
+#define DEFAULT_LAYERS 3
 
 static const ROM uint16_t keymaps[DEFAULT_LAYERS][MATRIX_ROWS][MATRIX_COLS] = {
     // Base layer. The encoder push (top right) is tap dance 0: tap mute, hold play/pause, double tap next track.
@@ -34,7 +35,7 @@ static const ROM uint16_t keymaps[DEFAULT_LAYERS][MATRIX_ROWS][MATRIX_COLS] = {
         KC_TAB,  KC_Q, KC_W, KC_E, KC_R, KC_T, KC_Y, KC_U, KC_I, KC_O, KC_P, KC_LBRC, KC_RBRC, KC_BSLS, KC_DEL,
         KC_CAPS, KC_A, KC_S, KC_D, KC_F, KC_G, KC_H, KC_J, KC_K, KC_L, KC_SCLN, KC_QUOT, KC_ENT, KC_PGUP,
         KC_LSFT, KC_Z, KC_X, KC_C, KC_V, KC_B, KC_N, KC_M, KC_COMM, KC_DOT, KC_SLSH, KC_RSFT, KC_UP, KC_PGDN,
-        KC_LCTL, KC_LGUI, KC_LALT, KC_SPC, KC_RALT, MO(FN), KC_LEFT, KC_DOWN, KC_RGHT
+        KC_LCTL, KC_LGUI, KC_LALT, KC_SPC, OSL(ACC), MO(FN), KC_LEFT, KC_DOWN, KC_RGHT
     ),
     // Fn layer: F1-F12 on the number row, lighting on Q..Y (effect -/+, brightness -/+, speed -/+), plain colour on U I,
     // sleep time on O P, Bluetooth slots on B N M, battery level on Backspace, media on the arrows.
@@ -42,8 +43,17 @@ static const ROM uint16_t keymaps[DEFAULT_LAYERS][MATRIX_ROWS][MATRIX_COLS] = {
         KC_GRV,    KC_F1, KC_F2, KC_F3, KC_F4, KC_F5, KC_F6, KC_F7, KC_F8, KC_F9, KC_F10, KC_F11, KC_F12, B68_BATTERY, KC_TRNS,
         B68_SLEEP, B68_FX_PREV, B68_FX_NEXT, B68_BRI_DN, B68_BRI_UP, B68_SPD_DN, B68_SPD_UP, B68_COL_DN, B68_COL_UP, B68_SLP_DN, B68_SLP_UP, KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS,
         KC_TRNS,   KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS,
-        KC_TRNS,   KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS, B68_LK_1, B68_LK_2, B68_LK_3, KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS, KC_VOLU, KC_TRNS,
+        KC_TRNS,   B68_OS_LNX, KC_TRNS, KC_TRNS, KC_TRNS, B68_LK_1, B68_LK_2, B68_LK_3, KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS, KC_VOLU, KC_TRNS,
         KC_TRNS,   KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS, KC_MPRV, KC_VOLD, KC_MNXT
+    ),
+    // Accented letters: one-shot from the key right of the space bar (OSL), so the layer lasts for ONE key. The six keys are on the vowels (a e r u i o of a
+    // QWERTY board: e grave on E, e acute on R); everything else is transparent, so any other key is typed as usual and ends the layer.
+    [ACC] = LAYOUT_B68(
+        KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS,
+        KC_TRNS, KC_TRNS, KC_TRNS, B68_ACC_EG, B68_ACC_EA, KC_TRNS, KC_TRNS, B68_ACC_U, B68_ACC_I, B68_ACC_O, KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS,
+        KC_TRNS, B68_ACC_A, KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS,
+        KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS,
+        KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS
     ),
 };
 
@@ -51,6 +61,7 @@ static const ROM uint16_t keymaps[DEFAULT_LAYERS][MATRIX_ROWS][MATRIX_COLS] = {
 static const ROM uint16_t encoder_keys[DEFAULT_LAYERS][2] = {
     [BASE] = {KC_VOLD, KC_VOLU},
     [FN]   = {KC_TRNS, KC_TRNS},
+    [ACC]  = {KC_TRNS, KC_TRNS},
 };
 
 // The Win/Mac switch (board/os_switch.c) makes KEYMAP_MAC_LAYER the default layer while it is on "Mac". That layer is the base one with

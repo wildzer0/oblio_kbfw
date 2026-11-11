@@ -46,13 +46,9 @@ uint8_t report_mods(void);
 void report_build_boot(uint8_t out[REPORT_BOOT_SIZE]);
 void report_build_nkro(uint8_t out[REPORT_NKRO_SIZE]);
 
-// ---- the mouse (core/mouse.c fills it, the transport sends it) ----
-// The buttons are a mask (bit 0 = button 1), the movement and the wheel are relative: they are added up until a report carries them and
-// the build clears them (one report must not send the same movement twice).
+// ---- the mouse report ----
+// The USB side still has the mouse report (changing it would move the USB code, docs/design.md 14.2): it is all zeros, nothing fills it.
 #define REPORT_MOUSE_SIZE 6 // buttons, x (2 bytes), y (2 bytes), wheel
-void    report_mouse_button(uint8_t mask, bool pressed);
-void    report_mouse_move(int8_t dx, int8_t dy);
-void    report_mouse_wheel(int8_t delta);
 void    report_build_mouse(uint8_t out[REPORT_MOUSE_SIZE]);
 
 // Consumer and system usages: one at a time. 0 = nothing held.

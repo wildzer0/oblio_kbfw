@@ -13,6 +13,7 @@
   - [`hal/usb.h`](#hal-usb-h) — The USB device controller of the SH68F90A: the chip side of core/usb_device (EP0), core/usb_reports (EP1 IN) a
   - [`hal/watchdog.h`](#hal-watchdog-h) — Writing RSTSTAT kicks the watchdog
 - **Core logic (`core/`)**
+  - [`core/accent.h`](#core-accent-h) — Accented letters (à è é ì ò ù, lower and upper case) for a keyboard that sends HID keys only, whatever the lay
   - [`core/blog.h`](#core-blog-h) — The battery log: the battery reading, written down in **flash** (a sector of its own at BLOG_ADDR) so that it 
   - [`core/charger.h`](#core-charger-h) — The two lines the stock firmware reads to know about the charger (found in the dump, routine at 0xA058, called
   - [`core/combo.h`](#core-combo-h) — Combos: two or more keys pressed together give one other key (Vial's Combos tab edits them, core/keymap.c stor
@@ -22,13 +23,11 @@
   - [`core/keycodes.h`](#core-keycodes-h) — 16-bit keycodes, laid out as QMK/Vial does: the Vial desktop app edits the keymap with these numbers, so the r
   - [`core/keymap.h`](#core-keymap-h) — The keymap held in RAM: KEYMAP_LAYERS layers of MATRIX_ROWS x MATRIX_COLS keycodes, plus the two rotation keyc
   - [`core/layer.h`](#core-layer-h) — Layer engine: a set of active layers on top of a default layer, the layer keycodes (MO, TO, TG, DF, OSL, TT, L
-  - [`core/leader.h`](#core-leader-h) — Leader (QMK's): a key starts a sequence, and the keys pressed after it are not typed - they are matched agains
   - [`core/led.h`](#core-led-h) — The RGB backlight: a framebuffer of 8-bit levels, rendered from the effect of the profile in use, and the sequ
   - [`core/led_effect.h`](#core-led-effect-h) — Colours of the backlight effects, per key
   - [`core/link.h`](#core-link-h) — Which way the keyboard talks to the host: the cable (USB), the 2.4 GHz dongle or Bluetooth
   - [`core/macro.h`](#core-macro-h) — Vial macros: a macro key (M0, M1, ...) types a stored sequence
   - [`core/matrix.h`](#core-matrix-h) — Matrix debounce and key events
-  - [`core/mouse.h`](#core-mouse-h) — Mouse keys (KC_MS_*): a pointing device that no other key of the keyboard needs
   - [`core/options.h`](#core-options-h) — Build options
   - [`core/override.h`](#core-override-h) — Key overrides: a key does something else while the right modifiers are held (Vial's Key Overrides tab edits th
   - [`core/platform.h`](#core-platform-h) — The one place where the 8051 and the host differ for the pure logic: constant tables live in code space on the
@@ -401,6 +400,79 @@ Writing RSTSTAT kicks the watchdog. Compiled in only with -DWATCHDOG_ENABLE, so 
 
 Hardware-independent C, tested on the host with gcc. It reaches the hardware only through `*_hook_*` functions that the board (or a test) provides.
 
+### `core/accent.h`
+
+Accented letters (à è é ì ò ù, lower and upper case) for a keyboard that sends HID keys only, whatever the layout of the host: the key does not carry the letter, it types the sequence that makes the host write it. The sequences, which depend on the operating system: Windows  Alt + the Latin-1 code on the numeric keypad (Alt 0 2 3 2 is è). The keypad needs Num Lock ON: if the host has it off, it is turned on
+
+before and off again after.
+
+macOS    Option + a dead key, then the vowel (Shift on the vowel for the capital): grave is Option+` (à è ì ò ù), acute is Option+E (é). Linux    Ctrl+Shift+U, the two hex digits of the code, space (GTK / IBus / Qt). The sequence is a dozen key events. They are played ONE EVERY ACCENT_STEP_MS, from the main loop (accent_task): the queue of reports towards the USB host holds 7 states and the one towards the radio 8, and the radio sends one every 2-3 ms, so a burst would lose states and a digit would go missing. While the sequence runs the board does not take new key events from the matrix (accent_busy): they wait and are handled after it - a Shift let go in the middle would otherwise be restored by the end of the sequence and stay stuck. The modifiers that are down when the sequence starts are put aside (the sequence needs none of them down) and put back at its end.
+
+Not in the profile build (LOOP_PROFILE): it has a handful of bytes of flash to spare.
+
+```c
+#define ACCENT_COUNT   6u  // à è é ì ò ù, in this order
+#define ACCENT_STEP_MS 4u
+```
+
+#### `accent_os_t`
+
+```c
+typedef enum { ACCENT_OS_WINDOWS, ACCENT_OS_MAC, ACCENT_OS_LINUX } accent_os_t;
+```
+
+#### `accent_start`
+
+```c
+void accent_start(uint16_t now, uint8_t index, bool upper, accent_os_t os, bool num_lock);
+```
+
+Starts the sequence of accent `index` (0..5), upper or lower case, for `os`. `num_lock` is the host's Num Lock (Windows only). Ignored while another one runs.
+
+#### `accent_task`
+
+```c
+void accent_task(uint16_t now);
+```
+
+From the main loop, with the clock in ms: plays the next step when ACCENT_STEP_MS have gone by.
+
+#### `accent_busy`
+
+```c
+bool accent_busy(void);
+```
+
+True while a sequence is being played (and for the step that puts the modifiers back).
+
+#### `accent_hook_key`
+
+```c
+void accent_hook_key(uint16_t keycode, bool down);
+```
+
+Provided by the keyboard module: a key (a HID usage, or a modifier KC_LCTL..KC_RGUI) goes down or up, as if a key of the keymap did it.
+
+#### `accent_hook_mods_get`
+
+```c
+uint8_t accent_hook_mods_get(void);
+```
+
+Provided by the keyboard module: the modifier byte of the report (HID bits), and putting it back to a value.
+
+#### `accent_hook_mods_set`
+
+```c
+void    accent_hook_mods_set(uint8_t mods);
+```
+
+```c
+#    define accent_start(now, index, upper, os, num_lock) ((void)0)
+#    define accent_task(now)                              ((void)0)
+#    define accent_busy()                                 false
+```
+
 ### `core/blog.h`
 
 The battery log: the battery reading, written down in **flash** (a sector of its own at BLOG_ADDR) so that it can be read later and survives the reset that comes when the cable is plugged in - which is exactly when the log is read. It can be left out of the build: BATTERY_LOG=0 (options.h).
@@ -753,14 +825,6 @@ void keyboard_task(uint16_t now);
 
 Regularly, with the current time: lets a key held past the tapping term become a hold.
 
-#### `keyboard_tap`
-
-```c
-void keyboard_tap(uint16_t keycode);
-```
-
-A tap of a keycode, as if a key of the keymap had gone down and up (used by the Leader's sequences).
-
 #### `keyboard_caps_word`
 
 ```c
@@ -980,6 +1044,27 @@ Modifier masks in the QMK encoding: bit 4 moves the modifier to the right hand
 #define KC_DOT  0x37u
 #define KC_SLSH 0x38u
 #define KC_CAPS 0x39u
+```
+
+#### `KC_NUM_LOCK`
+
+```c
+#define KC_NUM_LOCK 0x53u
+```
+
+The numeric keypad (the Windows sequence of the accented letters types its codes there)
+
+```c
+#define KC_KP_1     0x59u  // 1..9 are consecutive, 0 follows them
+#define KC_KP_2     0x5Au
+#define KC_KP_3     0x5Bu
+#define KC_KP_4     0x5Cu
+#define KC_KP_5     0x5Du
+#define KC_KP_6     0x5Eu
+#define KC_KP_7     0x5Fu
+#define KC_KP_8     0x60u
+#define KC_KP_9     0x61u
+#define KC_KP_0     0x62u
 #define KC_F1  0x3Au
 #define KC_F2  0x3Bu
 #define KC_F3  0x3Cu
@@ -1065,7 +1150,7 @@ media and application keys (sent as consumer usages)
 #define KC_MS_UP        0xCDu
 ```
 
-mouse: sent on their own report (core/mouse.c, core/report.c). QMK's numbers, so Vial knows them and a saved layout keeps them
+mouse keys: they are no longer handled (the mouse module was taken out), but they keep QMK's numbers: a saved layout holds them and Vial lists them, and they do nothing
 
 ```c
 #define KC_MS_DOWN      0xCEu
@@ -1089,10 +1174,7 @@ mouse: sent on their own report (core/mouse.c, core/report.c). QMK's numbers, so
 #define KC_LAST_SYSTEM  KC_SYSTEM_WAKE
 #define KC_FIRST_MEDIA  KC_MUTE
 #define KC_LAST_MEDIA   KC_LPAD
-#define KC_FIRST_MOUSE   KC_MS_UP
-#define KC_LAST_MOUSE    KC_MS_ACCEL2
 #define IS_KEY_KEYCODE(code)      IN_RANGE(code, KC_FIRST_KEY, KC_LAST_KEY)
-#define IS_MOUSE_KEYCODE(code)    IN_RANGE(code, KC_FIRST_MOUSE, KC_LAST_MOUSE)
 #define IS_SYSTEM_KEYCODE(code)   IN_RANGE(code, KC_FIRST_SYSTEM, KC_LAST_SYSTEM)
 #define IS_CONSUMER_KEYCODE(code) IN_RANGE(code, KC_FIRST_MEDIA, KC_LAST_MEDIA)
 #define IS_MODIFIER_KEYCODE(code) IN_RANGE(code, KC_LCTL, KC_RGUI)
@@ -1490,7 +1572,7 @@ void     keymap_changes_clear(void);
 void     keymap_changes_all(void);
 ```
 
-makes the next save a whole one
+host tests only (not in the firmware) // makes the next save a whole one
 
 ### `core/layer.h`
 
@@ -1612,77 +1694,6 @@ Every other key calls these around its press and release, so that one-shots get 
 ```c
 void layer_key_released(void);
 ```
-
-### `core/leader.h`
-
-Leader (QMK's): a key starts a sequence, and the keys pressed after it are not typed - they are matched against a table of sequences, and the one that matches acts. QMK keeps that table in the keymap too: it is written at compile time, not edited from Vial. Here it lives in board/leader.c.
-
-The sequence abandons itself on a key that no sequence starts with, or after LEADER_TIMEOUT_MS of silence.
-
-```c
-#define LEADER_KEYS       6
-#define LEADER_TIMEOUT_MS 400u
-```
-
-#### `leader_match_t`
-
-```c
-typedef enum {
-    LEADER_NONE,   // no sequence starts like this
-    LEADER_PREFIX, // a sequence starts like this: wait for more
-    LEADER_MATCH,  // a whole sequence: act
-} leader_match_t;
-```
-
-#### `leader_hook_is_key`
-
-```c
-bool leader_hook_is_key(uint16_t keycode);
-```
-
-Provided by the board: is this the key that arms and disarms the Leader? It is one of the board's own keycodes.
-
-#### `leader_hook_match`
-
-```c
-leader_match_t leader_hook_match(const uint16_t *keys, uint8_t count, uint16_t *action);
-```
-
-Provided by the board: does this run of keycodes match a sequence? A match also gives the keycode to tap.
-
-#### `leader_hook_send`
-
-```c
-void           leader_hook_send(uint16_t keycode);
-```
-
-#### `leader_init`
-
-```c
-void leader_init(void);
-```
-
-#### `leader_active`
-
-```c
-bool leader_active(void);
-```
-
-#### `leader_process`
-
-```c
-bool leader_process(uint16_t keycode, bool pressed, uint16_t now);
-```
-
-A key went down or up. True while the leader is collecting (or is on the key that turns it on): the key must not be typed.
-
-#### `leader_task`
-
-```c
-void leader_task(uint16_t now);
-```
-
-Regularly from the main loop: gives up after the timeout.
 
 ### `core/led.h`
 
@@ -2073,6 +2084,8 @@ bool macro_busy(void);
 
 True while a macro is playing or waiting its turn.
 
+host tests only (not in the firmware)
+
 #### `macro_task`
 
 ```c
@@ -2184,49 +2197,14 @@ True while any key is down, as the events have reported it.
 
 Times a change was held back because the event queue was full. The change is not lost: it is accepted on a later scan, once the queue has room.
 
-### `core/mouse.h`
-
-Mouse keys (KC_MS_*): a pointing device that no other key of the keyboard needs. A direction held down moves the cursor in steps, faster the longer it is held (and faster again with MS_ACCEL1/2 held), a wheel key scrolls, and the buttons 1-5 hold their bit. The report is sent through core/report.c like the keyboard's, so the transport decides where it goes: USB has a mouse interface (REPORT_ID_MOUSE on interface 0, as the stock firmware had), the radio protocol has no mouse frame and drops it.
-
-This is why the encoder can be a scroll wheel: assign MS_WH_UP / MS_WH_DOWN to its two directions in Vial and each detent scrolls once.
-
-```c
-#define MOUSE_REPEAT_MS 8u  // a step every 8 ms while a direction is held (the interval QMK uses)
-#define MOUSE_ACCEL_MS  32u  // the step grows every 32 ms it is held...
-#define MOUSE_STEP_MAX  8u  // ...up to this many units a step
-#define MOUSE_WHEEL_MS  48u  // a wheel key held scrolls every 48 ms (a tapped one scrolls once)
-```
-
-#### `mouse_init`
-
-```c
-void mouse_init(void);
-```
-
-#### `mouse_process`
-
-```c
-bool mouse_process(uint16_t keycode, bool pressed, uint16_t now);
-```
-
-A mouse keycode went down or up. False (and nothing done) for a keycode that is not a mouse one.
-
-#### `mouse_task`
-
-```c
-void mouse_task(uint16_t now);
-```
-
-Regularly from the main loop: the repeats while a direction or a wheel key is held.
-
 ### `core/options.h`
 
 Build options. They come from the compiler's command line (`make BATTERY_LOG=0 fw`, which passes -DBATTERY_LOG=0); this file gives them their default for the host tests and for anyone who compiles without the Makefile.
 
-The battery log (core/blog.c): the keyboard writes down its battery reading in a flash sector of its own, so that the history can be read later with `tools/diag.py --blog`. It costs about 1 KB of code and the flash sector at BLOG_ADDR, which the application then cannot use: the code limit is 0xDA00 with the log and 0xDC00 without it.
+The battery log (core/blog.c): the keyboard writes down its battery reading in a flash sector of its own, so that the history can be read later with `tools/diag.py --blog`. It costs about 1.4 KB of code and the flash sector at BLOG_ADDR, which the application then cannot use: the code limit is 0xDA00 with the log and 0xDC00 without it. OFF by default since 0.10.0 (the room went to the accented letters): `make BATTERY_LOG=1 fw` builds it, for a discharge test.
 
 ```c
-#    define BATTERY_LOG 1
+#    define BATTERY_LOG 0
 #    define APP_FLASH_END 0xDA00u  // the application stops here; the log sector follows, then the keymap store at 0xDC00
 #    define BLOG_ADDR     0xDA00u
 #    define APP_FLASH_END 0xDC00u
@@ -2813,27 +2791,9 @@ void report_build_nkro(uint8_t out[REPORT_NKRO_SIZE]);
 #define REPORT_MOUSE_SIZE 6
 ```
 
----- the mouse (core/mouse.c fills it, the transport sends it) ---- The buttons are a mask (bit 0 = button 1), the movement and the wheel are relative: they are added up until a report carries them and the build clears them (one report must not send the same movement twice).
+---- the mouse report ---- The USB side still has the mouse report (changing it would move the USB code, docs/design.md 14.2): it is all zeros, nothing fills it.
 
 buttons, x (2 bytes), y (2 bytes), wheel
-
-#### `report_mouse_button`
-
-```c
-void    report_mouse_button(uint8_t mask, bool pressed);
-```
-
-#### `report_mouse_move`
-
-```c
-void    report_mouse_move(int8_t dx, int8_t dy);
-```
-
-#### `report_mouse_wheel`
-
-```c
-void    report_mouse_wheel(int8_t delta);
-```
 
 #### `report_build_mouse`
 
@@ -2960,6 +2920,7 @@ The flash is reached through the hooks of store.h (read, erase, program).
 typedef struct {
     uint8_t sleep_level; // index of the inactivity time
     uint8_t bt_slot;     // Bluetooth slot 1-3
+    uint8_t os_linux;    // 1: the accented letters are typed with the Linux sequence (when the switch is not on "Mac"); 0: the Windows one
 } settings_t;
 ```
 
@@ -3013,6 +2974,12 @@ void settings_set_sleep_level(uint8_t level);
 void settings_set_bt_slot(uint8_t slot);
 ```
 
+#### `settings_set_os_linux`
+
+```c
+void settings_set_os_linux(bool linux_on);
+```
+
 #### `settings_task`
 
 ```c
@@ -3034,6 +3001,8 @@ Writes now if something changed.
 ```c
 bool settings_dirty(void);
 ```
+
+host tests only (not in the firmware)
 
 ### `core/sleep.h`
 
@@ -3789,6 +3758,8 @@ The app decides whether to show the tab from the keyboard *definition* (the fiel
 void vialrgb_init(void);
 ```
 
+host tests only (not in the firmware)
+
 #### `vialrgb_id_of`
 
 ```c
@@ -3865,7 +3836,14 @@ reserved: it was the HUD toggle. Does nothing, and keeps the numbers of the keyc
 #define B68_SLEEP   0x7E0Du  // sleeps now, only in the wireless modes
 #define B68_SLP_DN  0x7E0Eu  // inactivity time before sleep: shorter / longer
 #define B68_SLP_UP  0x7E0Fu
-#define B68_LEADER  0x7E10u  // starts a Leader sequence (the sequences are in board/leader.c)
+#define B68_UNUSED2 0x7E10u  // reserved: it was the Leader key. Does nothing, and keeps the numbers of the keycodes after it, which saved keymaps hold
+#define B68_ACC_A   0x7E11u  // accented letters (core/accent.h): a grave, e grave, e acute, i grave, o grave, u grave; capital with Shift, Caps Word or Caps Lock
+#define B68_ACC_EG  0x7E12u
+#define B68_ACC_EA  0x7E13u
+#define B68_ACC_I   0x7E14u
+#define B68_ACC_O   0x7E15u
+#define B68_ACC_U   0x7E16u
+#define B68_OS_LNX  0x7E17u  // switches the accented letters between the Windows and the Linux sequence (the Win/Mac switch selects the Mac one); the key flashes the system
 ```
 
 ### `board/battery.h`

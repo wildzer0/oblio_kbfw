@@ -4,7 +4,7 @@
 #include "keyboard.h"
 #include "keycodes.h"
 #include "keymap.h"
-#include "leader.h"
+#include "accent.h"
 #include "layer.h"
 #include "report.h"
 #include <string.h>
@@ -34,26 +34,6 @@ uint16_t keymap_default_tap_dance(uint8_t index, uint8_t field)
     (void)index;
     (void)field;
     return 0;
-}
-
-// core/leader.c asks the board for its key and its sequences: this keyboard has none, so the Leader does nothing here
-bool leader_hook_is_key(uint16_t keycode)
-{
-    (void)keycode;
-    return false;
-}
-
-leader_match_t leader_hook_match(const uint16_t *keys, uint8_t count, uint16_t *action)
-{
-    (void)keys;
-    (void)count;
-    (void)action;
-    return LEADER_NONE;
-}
-
-void leader_hook_send(uint16_t keycode)
-{
-    (void)keycode;
 }
 
 uint16_t keymap_default_combo(uint8_t index, uint8_t field)
@@ -320,6 +300,35 @@ static void test_caps_word(void)
     key(0, false);
 }
 
+// The accented letters' sequence goes out through the same road as a key of the keymap, and puts the modifiers aside and back (core/accent.h)
+static void test_the_accent_hooks_send_keys_and_move_the_modifiers(void)
+{
+    reset();
+
+    key(3, true); // LCTL held
+    CHECK(accent_hook_mods_get() == 0x01);
+
+    sent_count = 0;
+    accent_hook_mods_set(0); // put aside
+    CHECK(accent_hook_mods_get() == 0 && sent_count >= 1 && sent[sent_count - 1].boot[0] == 0);
+
+    accent_hook_key(KC_KP_1, true); // a keypad key, then a modifier key, as the Windows sequence does
+    CHECK(sent[sent_count - 1].boot[2] == KC_KP_1);
+    accent_hook_key(KC_KP_1, false);
+    CHECK(sent[sent_count - 1].boot[2] == 0);
+
+    accent_hook_key(KC_LALT, true);
+    CHECK(sent[sent_count - 1].boot[0] == 0x04);
+    accent_hook_key(KC_LALT, false);
+    CHECK(sent[sent_count - 1].boot[0] == 0);
+
+    accent_hook_mods_set(0x01); // and back
+    CHECK(accent_hook_mods_get() == 0x01 && sent[sent_count - 1].boot[0] == 0x01);
+
+    key(3, false);
+    CHECK(sent[sent_count - 1].boot[0] == 0);
+}
+
 int main(void)
 {
     test_plain_key();
@@ -333,5 +342,6 @@ int main(void)
     test_macro_key();
     test_encoder_detents_type_their_keys();
     test_caps_word();
+    test_the_accent_hooks_send_keys_and_move_the_modifiers();
     return tests_result();
 }

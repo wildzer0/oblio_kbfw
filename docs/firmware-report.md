@@ -40,7 +40,7 @@ The USB device enumerates as `258a:dead`, product name "Oblio B68", with a keybo
   key of the Mac side going to 6), both fully editable in Vial. The Mac base is a copy of the Windows base with Alt and GUI swapped; its Fn layer
   starts as a copy of the Windows one, and changing it changes nothing on the Windows side. This is what the stock firmware does with its second
   set of keymap tables. Switching does not write to flash: the switch is the source of truth.
-- **Mouse keys** (`core/mouse.c`): the QMK `KC_MS_*` keycodes (0xCD–0xDF, so Vial knows them) move a pointer: a direction held steps every 8 ms and
+- **Mouse keys** — **removed in 0.10.0** (the user did not use them; they freed ~850 B). The text below is kept as history: the QMK `KC_MS_*` keycodes (0xCD–0xDF, so Vial knows them) move a pointer: a direction held steps every 8 ms and
   accelerates, `MS_ACCEL1/2` make the step longer, the wheel scrolls and buttons 1-5 hold their bit. That is what makes the encoder a scroll wheel:
   assign `MS_WH_UP` / `MS_WH_DOWN` to its two directions in Vial. **USB only**: the radio protocol has no mouse frame, so in 2.4G and Bluetooth
   those keycodes do nothing (the report is dropped in `board/transport.c`).
@@ -49,7 +49,7 @@ The USB device enumerates as `258a:dead`, product name "Oblio B68", with a keybo
   report ID takes one. Boot protocol still gets the 8-byte six-key report, so a BIOS works.
 - **Caps Word** (`QK_CAPS_WORD_TOGGLE`, offered by the Vial app because the firmware advertises the feature bit): the letters are shifted until the
   word ends — at the first key that is not a letter, a digit, minus, backspace or delete.
-- **Leader** (`core/leader.c`, the key `B68_LEADER` assignable in Vial): press it, then a sequence of keys, and the sequence acts instead of being
+- **Leader** — **removed in 0.10.0** (not used; ~700 B). History: press it, then a sequence of keys, and the sequence acts instead of being
   typed; 400 ms of silence abandons it. The sequences are written in `board/leader.c` — compile-time, exactly as QMK does it.
 - **Key overrides** (`core/override.c`, Vial's Key Overrides tab): up to 4. A trigger keycode under the modifiers it requires becomes a
   replacement (Shift+Backspace = Delete, say), optionally on a set of layers only, with modifiers that must not be held and modifiers to take

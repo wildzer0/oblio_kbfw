@@ -10,7 +10,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-void vialrgb_init(void);
+void vialrgb_init(void); // host tests only (not in the firmware)
 
 // The effect in use, as one of the ids the Vial app knows, and back. The app's Lighting tab shows the ids the firmware lists, so these are
 // the two functions that decide what it can offer.

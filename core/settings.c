@@ -5,7 +5,7 @@
 #define MAGIC0  'O'
 #define MAGIC1  'S'
 #define VERSION 2u
-#define SIZE    14u // magic 2, version 1, one byte unused, sleep, slot, lighting effect, brightness, speed, colour (2), CRC 2, one byte unused
+#define SIZE    14u // magic 2, version 1, the Linux flag, sleep, slot, lighting effect, brightness, speed, colour (2), CRC 2, one byte unused
 #define CRC_AT  11u // the CRC follows the 11 bytes it covers
 
 #define WATCH_MS     8u // how often the lighting values are compared with the saved ones
@@ -42,6 +42,7 @@ static void defaults(void)
 {
     settings.sleep_level = SETTINGS_SLEEP_DEFAULT;
     settings.bt_slot     = 1;
+    settings.os_linux    = 0;
 }
 
 static uint16_t slot_addr(uint8_t slot)
@@ -91,10 +92,11 @@ void settings_load(void)
             continue;
         }
 
-        // values out of range are put back in range, a record written by another build may hold anything. Byte 3 used to hold the
-        // profile in use: it is ignored now, and written back as 0.
+        // values out of range are put back in range, a record written by another build may hold anything. Byte 3 held the profile in
+        // use once, then nothing (written as 0); now it is the Linux flag.
         settings.sleep_level = (record[4] < SLEEP_LEVELS) ? record[4] : SETTINGS_SLEEP_DEFAULT;
         settings.bt_slot     = (record[5] >= 1 && record[5] <= 3) ? record[5] : 1;
+        settings.os_linux    = (record[3] == 1) ? 1 : 0; // byte 3 held the profile once and was written as 0: that reads as "not Linux"
         led_saved[0]         = record[6];
         led_saved[1]         = record[7];
         led_saved[2]         = record[8];
@@ -136,10 +138,23 @@ void settings_set_bt_slot(uint8_t slot)
     }
 }
 
+void settings_set_os_linux(bool linux_on)
+{
+    const uint8_t value = linux_on ? 1u : 0u;
+
+    if (settings.os_linux != value) {
+        settings.os_linux = value;
+        changed();
+    }
+}
+
+// Only the host tests call this: the firmware does not carry it (__SDCC is defined by the chip's compiler only)
+#ifndef __SDCC
 bool settings_dirty(void)
 {
     return dirty;
 }
+#endif
 
 void settings_flush(void)
 {
@@ -155,6 +170,7 @@ void settings_flush(void)
     record[0] = MAGIC0;
     record[1] = MAGIC1;
     record[2] = VERSION;
+    record[3] = settings.os_linux;
     record[4] = settings.sleep_level;
     record[5] = settings.bt_slot;
 

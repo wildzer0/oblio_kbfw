@@ -314,8 +314,11 @@ void keymap_changes_clear(void)
     changed_overflow = false;
 }
 
+// Only the host tests call this: the firmware does not carry it (__SDCC is defined by the chip's compiler only)
+#ifndef __SDCC
 void keymap_changes_all(void)
 {
     changed_overflow = true;
 }
+#endif
 

@@ -21,4 +21,11 @@
 #define B68_SLEEP   0x7E0Du // sleeps now, only in the wireless modes
 #define B68_SLP_DN  0x7E0Eu // inactivity time before sleep: shorter / longer
 #define B68_SLP_UP  0x7E0Fu
-#define B68_LEADER  0x7E10u // starts a Leader sequence (the sequences are in board/leader.c)
+#define B68_UNUSED2 0x7E10u // reserved: it was the Leader key. Does nothing, and keeps the numbers of the keycodes after it, which saved keymaps hold
+#define B68_ACC_A   0x7E11u // accented letters (core/accent.h): a grave, e grave, e acute, i grave, o grave, u grave; capital with Shift, Caps Word or Caps Lock
+#define B68_ACC_EG  0x7E12u
+#define B68_ACC_EA  0x7E13u
+#define B68_ACC_I   0x7E14u
+#define B68_ACC_O   0x7E15u
+#define B68_ACC_U   0x7E16u
+#define B68_OS_LNX  0x7E17u // switches the accented letters between the Windows and the Linux sequence (the Win/Mac switch selects the Mac one); the key flashes the system

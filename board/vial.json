@@ -208,14 +208,49 @@
       "shortName": "SL-"
     },
     {
-      "name": "Leader",
-      "title": "Start a Leader sequence (the sequences are in board/leader.c)",
-      "shortName": "LEAD"
-    },
-    {
       "name": "Sleep time +",
       "title": "Longer inactivity time before sleep (1, 5, 10, 30 minutes, never); the key flashes the new step",
       "shortName": "SL+"
+    },
+    {
+      "name": "(unused 2)",
+      "title": "Reserved, does nothing (it was the Leader key)",
+      "shortName": "---"
+    },
+    {
+      "name": "A grave",
+      "title": "a with a grave accent (capital with Shift, Caps Word or Caps Lock); types the sequence of the system",
+      "shortName": "a`"
+    },
+    {
+      "name": "E grave",
+      "title": "e with a grave accent (capital with Shift, Caps Word or Caps Lock)",
+      "shortName": "e`"
+    },
+    {
+      "name": "E acute",
+      "title": "e with an acute accent (capital with Shift, Caps Word or Caps Lock)",
+      "shortName": "e'"
+    },
+    {
+      "name": "I grave",
+      "title": "i with a grave accent (capital with Shift, Caps Word or Caps Lock)",
+      "shortName": "i`"
+    },
+    {
+      "name": "O grave",
+      "title": "o with a grave accent (capital with Shift, Caps Word or Caps Lock)",
+      "shortName": "o`"
+    },
+    {
+      "name": "U grave",
+      "title": "u with a grave accent (capital with Shift, Caps Word or Caps Lock)",
+      "shortName": "u`"
+    },
+    {
+      "name": "Accents: Linux",
+      "title": "Switch the accented letters between the Windows and the Linux sequence (the Win/Mac switch selects the Mac one); the key flashes the system: 1 Windows, 2 Mac, 3 Linux",
+      "shortName": "LNX"
     }
   ]
 }

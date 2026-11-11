@@ -5,7 +5,7 @@ Leggi questo file all'inizio di ogni sessione; per riprendere il lavoro da dove 
 
 ## Cos'è
 Firmware nuovo, solo per la Yunzii B68 (SH68F90A + radio BK3632), scritto da zero: stile QMK-Vial ma snello e veloce.
-Vincoli: codice fino a **0xDA00** (55.808 B; 56.320 B senza registro batteria), la keymap in flash da 0xDC00, impostazioni a 0xEC00, 4 KB di XDATA e 223 B di stack interno.
+Vincoli: codice fino a **0xDC00** (56.320 B; 55.808 B con `make BATTERY_LOG=1`: il registro batteria è spento di default dal 0.10.0), la keymap in flash da 0xDC00, impostazioni a 0xEC00, 4 KB di XDATA e 223 B di stack interno.
 Repo: https://github.com/wildzer0/oblio_kbfw (pubblico, `gh` lo dà PUBLIC), cartella `~/dev/oblio_kbfw`, branch `main`. Licenza GPL-2.0-or-later.
 
 ## Origine
@@ -17,17 +17,17 @@ copia-incolla; dove si adatta un file altrui si mantiene la sua licenza e si ele
 
 ## Architettura
 - `hal/`: solo i registri usati (gpio, tick, flash, watchdog, power, PWM, USB, clock).
-- `core/`: C puro testato sull'host con gcc (matrice+debounce, layer, tapping, combo, override, leader, macro, report, store/settings, radio, link, VIA/Vial/diag, USB).
+- `core/`: C puro testato sull'host con gcc (matrice+debounce, layer, tapping, combo, override, macro, accentate, report, store/settings, radio, link, VIA/Vial/diag, USB).
 - `board/`: pin, matrice, LED, radio hw, sleep, selettore modo, switch Win/Mac, batteria, tasti personalizzati.
 - Una sola scheda, niente `#ifdef` per più schede, allocazione statica. Recupero Esc+1+2 nei primissimi istanti del `main`. Bootloader stock a 0xF000 invariato (flash con `sinowisp`).
 - Build: Nix + SDCC + Makefile (un hex). CI: GitHub Actions (test host, riferimento API, build, budget, vettori, simulazione; hex come artifact; Release al tag).
 - Per il perché di ogni scelta: [docs/design.md](docs/design.md); per le funzioni: [docs/api.md](docs/api.md) (generato: `make api`); per iniziare: [docs/guida-sviluppatore.md](docs/guida-sviluppatore.md).
 
 ## Stato al 2026-11-02 (chiusura)
-Il firmware è **completo e provato dall'utente sulla tastiera**: USB e radio (2.4G e Bluetooth), Vial (keymap, tap dance, combo, key override, Lighting), NKRO, Caps Word, Leader, mouse dall'encoder,
+Il firmware è **completo e provato dall'utente sulla tastiera**: USB e radio (2.4G e Bluetooth), Vial (keymap, tap dance, combo, key override, Lighting), NKRO, Caps Word, lettere accentate (0.10.0, da provare), (mouse e Leader tolti),
 switch Win/Mac (P0.5), batteria (lettura ADC a 10 bit dalla radio, curva Li-Po, avviso e sleep di protezione), remote wakeup USB, backlight stabile (USB e salvataggi), keymap salvata come immagine + log.
-Aggiornamento dal browser: `web/` (utility WebHID, vedi docs/design.md §14.1; per pubblicare una versione: [docs/pubblicare-una-release.md](docs/pubblicare-una-release.md); provata dall'utente il 2026-11-11: flash della 0.9.0 dalla pagina riuscito), versione in `VERSION` + `core/version.c`, sito su GitHub Pages dal tag. Ultimi numeri: flash ~54,9/55,8 KB (log batteria incluso), XDATA ~3,7/4 KB, 29 test host, 23 test nel simulatore. Cronologia in [CHANGELOG.md](CHANGELOG.md), punti ancora aperti in [docs/session-state.md](docs/session-state.md)
-(la scala della batteria poggia su un solo punto misurato; le build a gradini sono state tolte; le sequenze del Leader le decide l'utente in `board/leader.c`).
+Aggiornamento dal browser: `web/` (utility WebHID, vedi docs/design.md §14.1; per pubblicare una versione: [docs/pubblicare-una-release.md](docs/pubblicare-una-release.md); provata dall'utente il 2026-11-11: flash della 0.9.0 dalla pagina riuscito), versione in `VERSION` + `core/version.c`, sito su GitHub Pages dal tag. Ultimi numeri: flash ~53,1/56,3 KB (registro batteria spento), XDATA ~3,7/4 KB, 28 test host, 23 test nel simulatore. Cronologia in [CHANGELOG.md](CHANGELOG.md), punti ancora aperti in [docs/session-state.md](docs/session-state.md)
+(la scala della batteria poggia su un solo punto misurato; le build a gradini sono state tolte).
 Se compare un problema: `py tools\diag.py` (contatori, `--radio`) e `docs/session-state.md` → "Trappole già pagate".
 
 ## Come lavora l'utente (preferenze confermate)
@@ -47,5 +47,5 @@ nix develop --command make fw size         # build/oblio.hex e budget flash/XDAT
 nix develop --command make check-interrupts check-api sim web-test   # web-test: utility web (Node + Chrome senza testa)
 sinowisp write --platform sh68f90 --vendor_id 0x258a --product_id 0xdead --format ihex --isp_iface_num 0 -f build/oblio.hex
 ```
-Mappa flash: applicazione fino a 0xDA00 (0xDC00 con `make BATTERY_LOG=0`), registro batteria 0xDA00 (opzionale); keymap (2 copie × 4 settori, con log) 0xDC00–0xEBFF; impostazioni 0xEC00; marcatore del bootloader 0xEE00 (mai toccare); bootloader stock 0xF000.
+Mappa flash: applicazione fino a 0xDC00 (0xDA00 con `make BATTERY_LOG=1`), registro batteria 0xDA00 (opzionale, spento di default); keymap (2 copie × 4 settori, con log) 0xDC00–0xEBFF; impostazioni 0xEC00; marcatore del bootloader 0xEE00 (mai toccare); bootloader stock 0xF000.
 Recupero: Esc+1+2 mentre si inserisce l'USB. Il vecchio repo `~/dev/smk` (branch `port/yunzii-b68`) resta la fonte per hardware e radio; il dump stock è in `~/dev/smk/backups/dump/` (`tools/dis51.py` lo disassembla).

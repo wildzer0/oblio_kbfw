@@ -1,6 +1,7 @@
 // Oblio entry point: clock, pins, recovery check, then the timer interrupt (backlight subframes and matrix scans), and a main loop
 // that debounces the keys, runs the key logic and looks after USB, profiles, settings and the backlight.
 
+#include "accent.h"
 #include "battery.h"
 #include "charger.h"
 #include "blog.h"
@@ -149,7 +150,7 @@ void main(void)
 
         STEP(2, encoder_poll()); // every pass: the knob's lines are read much faster than a scan
 
-        while (matrix_event_pop(&event)) {
+        while (!accent_busy() && matrix_event_pop(&event)) { // an accented letter is being typed: the keys wait (core/accent.h)
             STEP(3, keyboard_event(&event, now_ms));
         }
 

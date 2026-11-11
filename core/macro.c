@@ -64,10 +64,13 @@ void macro_init(void)
     have_last  = false;
 }
 
+// Only the host tests call this: the firmware does not carry it (__SDCC is defined by the chip's compiler only)
+#ifndef __SDCC
 bool macro_busy(void)
 {
     return playing || queued > 0;
 }
+#endif
 
 void macro_start(uint8_t id)
 {

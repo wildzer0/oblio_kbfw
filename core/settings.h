@@ -22,6 +22,7 @@
 typedef struct {
     uint8_t sleep_level; // index of the inactivity time
     uint8_t bt_slot;     // Bluetooth slot 1-3
+    uint8_t os_linux;    // 1: the accented letters are typed with the Linux sequence (when the switch is not on "Mac"); 0: the Windows one
 } settings_t;
 
 extern settings_t settings; // read freely; change through the setters
@@ -39,6 +40,7 @@ void settings_apply_led(void);
 
 void settings_set_sleep_level(uint8_t level);
 void settings_set_bt_slot(uint8_t slot);
+void settings_set_os_linux(bool linux_on);
 
 // Regularly: writes the record after a change, once the quiet time has passed and no key is down. `now` in ms.
 void settings_task(uint16_t now, bool any_key_down);
@@ -46,4 +48,4 @@ void settings_task(uint16_t now, bool any_key_down);
 // Writes now if something changed.
 void settings_flush(void);
 
-bool settings_dirty(void);
+bool settings_dirty(void); // host tests only (not in the firmware)
