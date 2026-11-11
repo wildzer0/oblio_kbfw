@@ -477,6 +477,8 @@ static void test_diagnostics_need_no_unlock(void)
     REQUEST(0xF1, 1);
     CHECK(buf[0] == 0xF1); // the radio's data is read-only: it answers locked too
     REQUEST(0xF1, 2);
+    CHECK(buf[0] == 0xF1 && buf[1] == 2); // the version: read-only too
+    REQUEST(0xF1, 3);
     CHECK(buf[0] == 0xFF); // a kind it does not have: unhandled
 
     unlock();

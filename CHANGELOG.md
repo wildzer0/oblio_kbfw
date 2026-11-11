@@ -57,6 +57,14 @@ Il controllo di recupero Esc+1+2 va all'inizio del `main`, prima di USB e radio.
   30 ms (la coda della radio è di 4); la tastiera non va in sleep mentre scrive. Costa ~520 B di flash (54415/55296). È uno strumento di debug: da
   togliere insieme al registro in flash quando la scala della batteria è confermata.
 
+## 2026-11-11 — la versione del firmware e l'utility web per aggiornarlo dal browser
+- **Versione** (`VERSION` = 0.9.0, `core/version.[ch]`): una struttura in ROM che comincia con `OBLIOFW1` (major, minor, patch, flag, commit, dirty), leggibile dal `.hex` e dalla tastiera (comando `0xF1` tipo 2, `diag.py --version`). `tools/check_version.py` e `make check-version` controllano che compaia una volta e coincida con `VERSION` e con il tag. Non c'è nella build di profilo.
+- **Utility web** (`web/`, commentata a fondo, senza dipendenze): collega la tastiera con WebHID, mostra versione installata e da installare, scelta della release o trascinamento del `.hex`, controlli sull'immagine, aggiornamento con lo stesso protocollo di sinowisp (rilettura obbligatoria prima di ENABLE), IT/EN. Pagina di sonda `web/probe.html`.
+- **CI**: test Node e un aggiornamento completo in Chrome senza testa (`make web-test`); job `pages` che pubblica il sito con tutte le release (`tools/make_site.py`); controllo tag/versione; **l'artifact `oblio-hex` ora è preso prima della build senza registro batteria** (prima il passo `BATTERY_LOG=0` sovrascriveva `build/oblio.hex` e la Release avrebbe pubblicato quella).
+- **Caps Word**: il carattere `_` (`LSFT(KC_MINS)`) mantiene attivo il Caps Word, come il trattino; test in `test_keyboard.c`.
+- Piccole riduzioni di spazio nel profilo (il bit «host USB configurato» del contatore `DIAG_CHARGER`, tolto).
+- **Non provato sull'hardware**: l'aggiornamento dal browser (usare `web/probe.html`, poi un aggiornamento vero).
+
 ## 2026-11-04 — il cavo e la carica come nello stock; il canale raw HID si riarma sempre
 Segnalazione: dopo ore col cavo, il gauge dava ~10 % su USB e ~20 % in radio; poi `diag.py` e Vial non rispondevano più (la tastiera scriveva), «no Oblio keyboard found», a volte «did not answer»; si riprendeva staccando il cavo, ma non in modo deterministico.
 - **Dal dump stock** (`docs/keyboards/yunzii-b68-firmware-stock.md`, sezione «Cavo e carica»): lo stock legge **P4.4** (cavo, alto) e **P7.7** (in carica, basso) con antirimbalzo, mostra la carica col **tasto Esc rosso fisso** e ricostruisce la percentuale (la lettura satura col cavo). Il LED vicino al Caps non è un indicatore di carica: segue il backlight (osservazione dell'utente).

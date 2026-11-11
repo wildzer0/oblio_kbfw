@@ -26,6 +26,14 @@ overrides, tab Lighting con colore pieno), NKRO, Caps Word, Leader, mouse dall'e
 
 Il LED è sullo stesso incrocio del rosso del tasto C (vedi `docs/keyboards/yunzii-b68-firmware-stock.md`): segue il rosso del C e non si può comandare da solo. Se un giorno si vuole il Caps Lock come nello stock: forzare il rosso del C a pieno mentre Caps Lock/Caps Word è attivo (una riga in `paint_one`, livello regolabile).
 
+## Utility web di aggiornamento (2026-11-11) — da provare sull'hardware
+
+Pronta e provata contro un finto bootloader e un finto `navigator.hid` (`make web-test`), **non** con la tastiera. Ordine di prova:
+1. `cd web && python3 -m http.server 8000`, Chrome su `http://localhost:8000/probe.html`: «Cerca la tastiera» (c'è un dispositivo con il report 5?), «Leggi la versione (raw HID)», poi «Invia 75» e «Cerca il bootloader» (VID/PID, report 5 e 6 insieme o separati?). Incolla il registro.
+2. Se il report 5 non si vede: ripiego (comando Vial `0x0B` con sblocco, oppure Esc+1+2 all'inserimento dell'USB e poi la pagina vera).
+3. Aggiornamento vero da `http://localhost:8000/` con un `.hex` trascinato (ricorda: keymap e impostazioni tornano al default). Una volta pubblicato il sito (tag `v0.9.0`, GitHub Pages con sorgente «GitHub Actions»): da `https://wildzer0.github.io/oblio_kbfw/`.
+Punti da confermare: offset dei dati di `receiveFeatureReport` (isp/hid: si toglie il report id se c'è), il secondo click per il bootloader, l'attesa dei 2 s dopo ERASE.
+
 ## Da provare sulla tastiera (2026-11-04)
 
 1. **Canale raw HID**: scollega/ricollega il cavo più volte e dopo ogni volta `py diag.py`; prova Vial. Prima falliva a intermittenza («did not answer», Vial muto, «no Oblio keyboard found»).

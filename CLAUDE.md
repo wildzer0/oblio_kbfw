@@ -6,7 +6,7 @@ Leggi questo file all'inizio di ogni sessione; per riprendere il lavoro da dove 
 ## Cos'è
 Firmware nuovo, solo per la Yunzii B68 (SH68F90A + radio BK3632), scritto da zero: stile QMK-Vial ma snello e veloce.
 Vincoli: codice fino a **0xDA00** (55.808 B; 56.320 B senza registro batteria), la keymap in flash da 0xDC00, impostazioni a 0xEC00, 4 KB di XDATA e 223 B di stack interno.
-Repo: https://github.com/wildzer0/oblio_kbfw (privato), cartella `~/dev/oblio_kbfw`, branch `main`. Licenza GPL-2.0-or-later.
+Repo: https://github.com/wildzer0/oblio_kbfw (pubblico, `gh` lo dà PUBLIC), cartella `~/dev/oblio_kbfw`, branch `main`. Licenza GPL-2.0-or-later.
 
 ## Origine
 Il porting funzionante sta nel repo vecchio `~/dev/smk` (fork SMK di wildzer0, branch `port/yunzii-b68`). È la **fonte di verità** per:
@@ -26,7 +26,7 @@ copia-incolla; dove si adatta un file altrui si mantiene la sua licenza e si ele
 ## Stato al 2026-11-02 (chiusura)
 Il firmware è **completo e provato dall'utente sulla tastiera**: USB e radio (2.4G e Bluetooth), Vial (keymap, tap dance, combo, key override, Lighting), NKRO, Caps Word, Leader, mouse dall'encoder,
 switch Win/Mac (P0.5), batteria (lettura ADC a 10 bit dalla radio, curva Li-Po, avviso e sleep di protezione), remote wakeup USB, backlight stabile (USB e salvataggi), keymap salvata come immagine + log.
-Ultimi numeri: flash ~54,7/55,8 KB (log batteria incluso), XDATA ~3,7/4 KB, 29 test host, 23 test nel simulatore. Cronologia in [CHANGELOG.md](CHANGELOG.md), punti ancora aperti in [docs/session-state.md](docs/session-state.md)
+Aggiornamento dal browser: `web/` (utility WebHID, vedi docs/design.md §14.1), versione in `VERSION` + `core/version.c`, sito su GitHub Pages dal tag. Ultimi numeri: flash ~54,9/55,8 KB (log batteria incluso), XDATA ~3,7/4 KB, 29 test host, 23 test nel simulatore. Cronologia in [CHANGELOG.md](CHANGELOG.md), punti ancora aperti in [docs/session-state.md](docs/session-state.md)
 (la scala della batteria poggia su un solo punto misurato; le build a gradini sono state tolte; le sequenze del Leader le decide l'utente in `board/leader.c`).
 Se compare un problema: `py tools\diag.py` (contatori, `--radio`) e `docs/session-state.md` → "Trappole già pagate".
 
@@ -44,7 +44,7 @@ Se compare un problema: `py tools\diag.py` (contatori, `--radio`) e `docs/sessio
 ```
 nix develop --command make test            # test host (27) + definizione Vial
 nix develop --command make fw size         # build/oblio.hex e budget flash/XDATA
-nix develop --command make check-interrupts check-api sim
+nix develop --command make check-interrupts check-api sim web-test   # web-test: utility web (Node + Chrome senza testa)
 sinowisp write --platform sh68f90 --vendor_id 0x258a --product_id 0xdead --format ihex --isp_iface_num 0 -f build/oblio.hex
 ```
 Mappa flash: applicazione fino a 0xDA00 (0xDC00 con `make BATTERY_LOG=0`), registro batteria 0xDA00 (opzionale); keymap (2 copie × 4 settori, con log) 0xDC00–0xEBFF; impostazioni 0xEC00; marcatore del bootloader 0xEE00 (mai toccare); bootloader stock 0xF000.

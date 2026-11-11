@@ -75,6 +75,7 @@
             gcc           # host tests
             clang-tools   # clang-format
             python3
+            nodejs        # the tests of the web updater (`make web-test`: node --test)
             ucsim-sh68f90 # the simulator for `make sim`
             binutils
             sinowisp.packages."${system}".default # flashing over the USB ISP

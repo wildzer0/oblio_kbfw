@@ -44,6 +44,7 @@
   - [`core/usb_desc.h`](#core-usb-desc-h) — The USB descriptors of the keyboard, as data
   - [`core/usb_device.h`](#core-usb-device-h) — The USB device on endpoint 0: enumeration and the HID class requests
   - [`core/usb_reports.h`](#core-usb-reports-h) — From the report state to the packets on EP1
+  - [`core/version.h`](#core-version-h) — The firmware's version, readable without running it (in the .hex) and while it runs (VIA command 0xF1, kind 2:
   - [`core/via.h`](#core-via-h) — VIA and Vial commands, as the Vial desktop app speaks them over the 32-byte raw HID report
   - [`core/vial.h`](#core-vial-h) — The Vial side of the raw HID protocol: commands behind the 0xFE prefix (keyboard id, definition, encoders, unl
   - [`core/vialrgb.h`](#core-vialrgb-h) — The Lighting tab of the Vial app (docs/vial.md): the app's effect list, brightness, speed and colour, driving 
@@ -601,7 +602,7 @@ typedef enum {
     DIAG_STORE_SAVES,      // times the whole keymap has been written to flash, ever (the sequence number in the header of the slot in use: it survives power-off)
     DIAG_STORE_LOG,        // records in the log of the slot in use (the keymap edits written since the last whole save)
     DIAG_CHARGER,          // bit 0: pin P4.4 is high, 1: pin P7.7 is high (the raw lines of the charger), 2: cable (debounced P4.4), 3: charging (debounced P7.7),
-                           // 4: what the keyboard concludes ("the cable is in"), 5: a USB host has configured it. See core/charger.h
+                           // 4: what the keyboard concludes ("the cable is in"). See core/charger.h
     DIAG_COUNT
 } diag_id_t;
 ```
@@ -652,7 +653,7 @@ uint16_t diag_get(diag_id_t id);
 void diag_receive(XDATA uint8_t *data, uint8_t length);
 ```
 
-VIA command 0xF1: the request is in `data` (32 bytes) and becomes the reply. [0xF1, kind, ...] kind 0: [0xF1, 0, DIAG_COUNT, counter 0 (lo, hi), counter 1, ...] kind 1: the radio: [0xF1, 1, its 6 status bytes] (the battery reading is in bytes 4-5) kind 4 (with BATTERY_LOG): [0xF1, 4, first record] -> [0xF1, 4, count, records of four bytes, as many as fit]: the battery log (blog.h) kind 5..8 (LOOP_PROFILE build): the profile, see profile.h. 5: [0xF1, 5, step] -> step, count, min, max (16 bits each), sum (32); 6: the pass length
+VIA command 0xF1: the request is in `data` (32 bytes) and becomes the reply. [0xF1, kind, ...] kind 0: [0xF1, 0, DIAG_COUNT, counter 0 (lo, hi), counter 1, ...] kind 1: the radio: [0xF1, 1, its 6 status bytes] (the battery reading is in bytes 4-5) kind 2: the firmware version (core/version.h): [0xF1, 2, major, minor, patch, flags, commit as 8 characters (7 and a 0), dirty]; not in the profile build kind 4 (with BATTERY_LOG): [0xF1, 4, first record] -> [0xF1, 4, count, records of four bytes, as many as fit]: the battery log (blog.h) kind 5..8 (LOOP_PROFILE build): the profile, see profile.h. 5: [0xF1, 5, step] -> step, count, min, max (16 bits each), sum (32); 6: the pass length
 
 bands (8 x 16 bits) and the time of the timer, USB and serial interrupts (32 bits each); 7: start again; 8: the milliseconds since the last start
 
@@ -3590,6 +3591,54 @@ uint8_t usb_reports_overflows(void);
 ```
 
 Packets that replaced or pushed out another because the queue was full.
+
+### `core/version.h`
+
+The firmware's version, readable without running it (in the .hex) and while it runs (VIA command 0xF1, kind 2: core/diag.c).
+
+It is one structure in the code flash, `version_info`, that starts with the eight characters "OBLIOFW1". The web updater (web/js/ihex.js) looks for those eight bytes in the image: no fixed address, so the structure can move when the code changes. The magic ends in a format number: a future layout would call itself "OBLIOFW2".
+
+Where the numbers come from (Makefile): the file VERSION in the root of the repository ("major.minor.patch") and the git commit the build was made from (the first seven characters of its hash, and whether the working tree had changes that were not committed). A release is a build of a clean tree, tagged with the same number: the continuous-integration check refuses a tag that disagrees with VERSION.
+
+Left out of the profile build (LOOP_PROFILE=1): that build has a handful of bytes of flash to spare, and it is a measuring tool, not something to install.
+
+The defaults are for the host tests and for anyone compiling without the Makefile; the Makefile passes the real ones to core/version.c only
+
+```c
+#    define FW_MAJOR 0
+#    define FW_MINOR 0
+#    define FW_PATCH 0
+#    define FW_REV "0000000" // seven characters of the commit hash
+#    define FW_DIRTY 0  // 1 when the tree had uncommitted changes to tracked files
+```
+
+#### `VERSION_FLAG_BATTERY_LOG`
+
+```c
+#define VERSION_FLAG_BATTERY_LOG 0x01u
+```
+
+Bits of `flags`: what this build contains that another build of the same version may not
+
+#### `version_info_t`
+
+```c
+typedef struct {
+    char    magic[8]; // "OBLIOFW1", NOT terminated: the web updater searches for these eight bytes
+    uint8_t major;
+    uint8_t minor;
+    uint8_t patch;
+    uint8_t flags;    // VERSION_FLAG_*
+    char    rev[8];   // the commit, seven characters and a terminator
+    uint8_t dirty;    // 1: built from a tree with uncommitted changes
+} version_info_t;     // 21 bytes
+```
+
+#### `version_info`
+
+```c
+extern const ROM version_info_t version_info;
+```
 
 ### `core/via.h`
 

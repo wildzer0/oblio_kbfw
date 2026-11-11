@@ -21,14 +21,21 @@ jobs:
         run: nix develop --command make fw
       - name: Flash/XDATA budget
         run: nix develop --command make size
+      - name: The version is in the image, and a tag says the same number
+        run: |
+          nix develop --command python3 tools/check_version.py build/oblio.hex
+          if [ "${GITHUB_REF_TYPE}" = "tag" ]; then nix develop --command python3 tools/check_version.py build/oblio.hex --tag "${GITHUB_REF_NAME}"; fi
+      - name: Web updater (Node tests + a whole update in headless Chrome)
+        run: nix develop --command make web-test
       - name: Interrupt vectors and overlay
         run: nix develop --command make check-interrupts
-      - name: The same without the battery log (BATTERY_LOG=0)
-        run: nix develop --command make BATTERY_LOG=0 fw size
+      # The artifact is the default build (with the battery log): it has to be taken BEFORE the build without the log below, which overwrites build/oblio.hex
       - uses: actions/upload-artifact@v4
         with:
           name: oblio-hex
           path: build/oblio.hex
+      - name: The same without the battery log (BATTERY_LOG=0)
+        run: nix develop --command make BATTERY_LOG=0 fw size
 
   simulation:
     # The real firmware in the simulator of the chip: boot, interrupts, USB enumeration, the raw HID pipe, key reports, the recovery chord.
@@ -54,3 +61,30 @@ jobs:
       - uses: softprops/action-gh-release@v2
         with:
           files: oblio.hex
+
+  # The web updater (web/) on GitHub Pages, with every published release next to it: the browser cannot download the assets of a Release (no CORS),
+  # so the site carries its own copy of each oblio.hex and a releases.json that lists them (tools/make_site.py). Needs Pages enabled with the source
+  # "GitHub Actions" (Settings > Pages).
+  pages:
+    needs: release
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build the site (web/ + every release)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 tools/make_site.py site
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+      - id: deployment
+        uses: actions/deploy-pages@v4

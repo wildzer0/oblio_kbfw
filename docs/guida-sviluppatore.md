@@ -126,6 +126,7 @@ Dopo ciascuno: `nix develop --command make test`, poi `make fw size` per vedere 
 
 | Strumento | A cosa serve |
 | --- | --- |
+| `make web-test` | l'utility web: test Node e un aggiornamento completo in Chrome senza testa (finta tastiera); vedi `web/` |
 | `make test` | 29 programmi di test sul PC: veloci, sicuri, il primo posto dove provare un'idea |
 | `make sim` | l'hex vero nel simulatore del chip (`tests/sim/oblio_sim.py`): ordine degli eventi e **conteggio esatto di istruzioni**, non le durate |
 | `make fw size` | la flash e la XDATA usate rispetto al limite: ogni funzione ha un costo, controllalo sempre |
@@ -149,6 +150,15 @@ In questo progetto vale la regola «niente tentativi alla cieca»: si ragiona, s
 - **Vial**: la documentazione sul protocollo e sulla definizione JSON; `docs/vial.md` qui riassume cosa usiamo.
 
 ---
+
+## Pubblicare una release (e aggiornare l'utility web)
+
+1. Cambia il numero nel file `VERSION` (`major.minor.patch`), aggiorna `CHANGELOG.md`, commit.
+2. `make test web-test check fw size` in verde (`check` verifica che la versione stia nell'immagine una volta e coincida con `VERSION`).
+3. Tag e push: `git tag vX.Y.Z && git push && git push origin vX.Y.Z`. La CI ricostruisce, rifiuta il tag se non coincide con `VERSION`, pubblica la Release (`oblio.hex`) e ricostruisce il sito Pages (`tools/make_site.py`) con tutte le release.
+4. Prova in locale prima: `python3 tools/make_site.py /tmp/site --local build/oblio.hex v0.9.0 && cd /tmp/site && python3 -m http.server 8000`.
+
+L'utility web è in `web/` (leggi `web/index.html`, poi `web/js/app.js`: ogni file ha in testa il perché). Per capire cosa vede il browser della tastiera c'è `web/probe.html`.
 
 ## Un caso reale: perché il backlight si spegne quando si scrive in memoria
 

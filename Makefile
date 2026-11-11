@@ -24,6 +24,18 @@ HEADERS := $(wildcard core/*.h hal/*.h board/*.h) $(B)/.options
 FW_SRC := $(wildcard core/*.c hal/*.c board/*.c)
 FW_REL := $(patsubst %.c,$(B)/%.rel,$(FW_SRC)) $(B)/vial_data.rel
 
+# The version (core/version.h): the file VERSION ("major.minor.patch") and the git commit. Only core/version.c gets them, so a new commit recompiles that one file
+# and not the whole firmware; the stamp .version makes it notice. A tree with uncommitted changes to tracked files is marked "dirty" in the image.
+FW_VERSION := $(strip $(shell cat VERSION))
+FW_REV     := $(shell git rev-parse --short=7 HEAD 2>/dev/null || echo 0000000)
+FW_DIRTY   := $(shell git diff --quiet HEAD 2>/dev/null && echo 0 || echo 1)
+VERSION_DEFS := -DFW_MAJOR=$(word 1,$(subst ., ,$(FW_VERSION))) -DFW_MINOR=$(word 2,$(subst ., ,$(FW_VERSION))) -DFW_PATCH=$(word 3,$(subst ., ,$(FW_VERSION))) \
+                -DFW_REV='"$(FW_REV)"' -DFW_DIRTY=$(FW_DIRTY)
+
+$(B)/.version: FORCE
+	@mkdir -p $(B)
+	@echo "$(VERSION_DEFS)" | cmp -s - $@ || echo "$(VERSION_DEFS)" > $@
+
 # The options the objects were built with: when they change, everything is rebuilt
 $(B)/.options: FORCE
 	@mkdir -p $(B)
@@ -35,7 +47,7 @@ api:
 check-api:
 	python3 tools/gen_api.py --check
 
-.PHONY: api check-api test fw size clean check check-vial check-interrupts sim FORCE
+.PHONY: api check-api test fw size clean check check-vial check-interrupts check-version web-test sim FORCE
 FORCE:
 .DELETE_ON_ERROR: # a failed build must not leave a half-made file that make takes for up to date
 
@@ -48,14 +60,14 @@ LINK_layer := core/keymap.c
 LINK_keyboard := core/layer.c core/keymap.c core/report.c core/tapping.c core/macro.c core/encoder.c core/mouse.c core/combo.c core/override.c core/leader.c
 LINK_tapping := core/keyboard.c core/layer.c core/keymap.c core/report.c core/macro.c core/encoder.c core/mouse.c core/combo.c core/override.c core/leader.c
 LINK_macro := core/keymap.c
-LINK_radio := core/diag.c
-LINK_link := core/radio.c core/settings.c core/diag.c
+LINK_radio := core/diag.c core/version.c
+LINK_link := core/radio.c core/settings.c core/diag.c core/version.c
 LINK_led := core/led_effect.c core/keymap.c
-LINK_via := core/vial.c core/vialrgb.c core/keymap.c core/matrix.c core/diag.c core/layer.c core/report.c
+LINK_via := core/vial.c core/vialrgb.c core/keymap.c core/matrix.c core/diag.c core/version.c core/layer.c core/report.c
 LINK_combo :=
 LINK_override :=
 LINK_leader :=
-LINK_diag :=
+LINK_diag := core/version.c
 LINK_usb_reports := core/report.c
 LINK_mouse := core/report.c
 LINK_store := core/keymap.c
@@ -65,7 +77,7 @@ tests/host/test_%: tests/host/test_%.c core/%.c FORCE
 	$(CC) -std=c11 -Wall -Wextra -Werror -Icore -Itests/host -o $@ $< core/$*.c $(LINK_$*)
 
 # includes core/usb_device.c itself, to reach its static functions
-tests/host/test_usb_device: tests/host/test_usb_device.c core/usb_desc.c core/diag.c FORCE
+tests/host/test_usb_device: tests/host/test_usb_device.c core/usb_desc.c core/diag.c core/version.c FORCE
 	$(CC) -std=c11 -Wall -Wextra -Werror -Icore -Itests/host -o $@ $(filter %.c,$^)
 
 # core/profile.c exists only in the profile build: its test is built that way
@@ -95,7 +107,16 @@ check-interrupts: $(B)/oblio.hex
 sim: $(B)/oblio.hex
 	python3 tests/sim/test_sim.py
 
-check: check-vial check-interrupts
+# The web updater (web/): its tests in Node (the hex parser, the ISP protocol against a fake bootloader) and a whole update through the page in headless Chrome
+# (tests/web/e2e; skipped when Chrome is not there). The end-to-end test uses the real build/oblio.hex.
+web-test: $(B)/oblio.hex
+	node --test tests/web/*.test.mjs tests/web/e2e/run.mjs
+
+# the version is in the image exactly once and says what the file VERSION says
+check-version: $(B)/oblio.hex
+	python3 tools/check_version.py $(B)/oblio.hex
+
+check: check-vial check-interrupts check-version
 
 check-vial:
 	python3 tools/check_vial.py board/vial.json board/keymap_default.c board/b68_keys.h core/matrix.h "$(VIAL_UNLOCK)"
@@ -105,6 +126,10 @@ fw: $(B)/oblio.hex
 $(B)/%.rel: %.c $(HEADERS)
 	@mkdir -p $(dir $@)
 	$(SDCC) $(SDCCFLAGS) -Icore -Ihal -Iboard -c $< -o $@
+
+$(B)/core/version.rel: core/version.c $(HEADERS) $(B)/.version
+	@mkdir -p $(dir $@)
+	$(SDCC) $(SDCCFLAGS) $(VERSION_DEFS) -Icore -Ihal -Iboard -c $< -o $@
 
 $(B)/oblio.ihx: $(FW_REL)
 	$(SDCC) $(SDCCFLAGS) $(FW_REL) -o $@

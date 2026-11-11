@@ -1,0 +1,73 @@
+/*
+ * style.css  -  l'aspetto dell'utility: semplice, una colonna, tre schede.
+ * I colori sono variabili (--nome) in :root, ridefinite per il tema scuro: per cambiare la tavolozza si cambiano solo quelle.
+ */
+:root {
+  --bg: #f4f5f7;
+  --card: #ffffff;
+  --text: #1c1e21;
+  --muted: #5d6470;
+  --line: #d9dde3;
+  --accent: #2563eb;      /* pulsanti principali */
+  --accent-text: #ffffff;
+  --ok: #15803d;
+  --warn: #b45309;
+  --error: #b91c1c;
+  --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #14161a; --card: #1d2026; --text: #e6e8eb; --muted: #9aa3b0; --line: #333945;
+    --accent: #3b82f6; --ok: #4ade80; --warn: #fbbf24; --error: #f87171;
+  }
+}
+
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--text); font: 16px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; }
+main { max-width: 640px; margin: 0 auto; padding: 1.5rem 1rem 4rem; }
+
+header { margin-bottom: 1.25rem; }
+h1 { margin: .2rem 0 0; font-size: 1.6rem; }
+.subtitle { margin: 0; color: var(--muted); }
+.lang { float: right; }
+.lang button { padding: .2rem .6rem; font-size: .85rem; }
+.lang button[aria-pressed="true"] { background: var(--accent); color: var(--accent-text); border-color: var(--accent); }
+
+.card { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 1rem 1.25rem; margin-bottom: 1rem; }
+.card h2 { margin: 0 0 .5rem; font-size: 1.1rem; }
+.hint { color: var(--muted); font-size: .9rem; margin: .25rem 0 .75rem; }
+
+button { font: inherit; border: 1px solid var(--line); background: var(--card); color: var(--text); border-radius: 6px; padding: .45rem .9rem; cursor: pointer; }
+button:hover:not(:disabled) { border-color: var(--accent); }
+button:disabled { opacity: .5; cursor: not-allowed; }
+button.primary { background: var(--accent); color: var(--accent-text); border-color: var(--accent); font-weight: 600; }
+
+select { width: 100%; font: inherit; padding: .4rem; margin: .25rem 0 .75rem; border-radius: 6px; border: 1px solid var(--line); background: var(--card); color: var(--text); }
+label { display: block; font-size: .9rem; color: var(--muted); }
+label.check { display: flex; gap: .5rem; align-items: flex-start; margin-top: .5rem; }
+
+.drop { display: flex; flex-wrap: wrap; gap: .5rem; align-items: center; justify-content: center; padding: 1.25rem; border: 2px dashed var(--line); border-radius: 8px; color: var(--muted); text-align: center; }
+.drop.over { border-color: var(--accent); color: var(--text); background: color-mix(in srgb, var(--accent) 8%, transparent); }
+.or { font-size: .85rem; }
+
+.status { margin: .5rem 0 0; }
+.status.strong { font-weight: 600; }
+.status.mono { font-family: var(--mono); font-size: .75rem; color: var(--muted); word-break: break-all; }
+.error { color: var(--error); }
+.ok { color: var(--ok); }
+.warn { color: var(--warn); }
+.notice { padding: .75rem 1rem; border: 1px solid var(--error); border-radius: 8px; }
+
+.problems { margin: .5rem 0 0; padding-left: 1.25rem; color: var(--error); font-size: .9rem; }
+
+.steps { list-style: none; margin: 1rem 0 .5rem; padding: 0; }
+.steps li { padding: .15rem 0 .15rem 1.6rem; position: relative; color: var(--muted); }
+.steps li::before { content: "○"; position: absolute; left: 0; }
+.steps li.active { color: var(--text); font-weight: 600; }
+.steps li.active::before { content: "◔"; color: var(--accent); }
+.steps li.done { color: var(--text); }
+.steps li.done::before { content: "●"; color: var(--ok); }
+progress { width: 100%; height: .6rem; }
+
+details { margin-top: 1rem; font-size: .85rem; color: var(--muted); }
+pre { background: var(--bg); border: 1px solid var(--line); border-radius: 6px; padding: .6rem; overflow: auto; max-height: 14rem; font-family: var(--mono); font-size: .75rem; white-space: pre-wrap; }

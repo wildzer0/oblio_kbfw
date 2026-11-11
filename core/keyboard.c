@@ -94,8 +94,9 @@ static void send_keycode(uint16_t keycode, bool pressed)
 
 // ---- Caps Word (QMK's "capitalises until the end of the word") ----
 // While it is on, every letter goes out with Shift, and it ends by itself at the first key that is not part of a word (a space, a symbol, the
-// arrow keys...). Keys that keep it going: the letters themselves, the digits, minus, backspace and delete - so "hello-world" can be typed
-// without touching Shift, and a typo fixed, without it switching off.
+// arrow keys...). Keys that keep it going: the letters themselves, the digits, minus and underscore, backspace and delete - so "hello-world" and
+// "HELLO_WORLD" can be typed without touching Shift, and a typo fixed, without it switching off. The underscore is Shift + minus as one keycode
+// (KC_UNDS = LSFT(KC_MINS)): a key of the keymap that sends it is not the plain minus, so it has to be named here (QMK does the same).
 static bool caps_word_letter(uint16_t keycode)
 {
     return keycode >= KC_A && keycode <= KC_Z;
@@ -104,7 +105,7 @@ static bool caps_word_letter(uint16_t keycode)
 static bool caps_word_keeps(uint16_t keycode)
 {
     return caps_word_letter(keycode) || (keycode >= KC_1 && keycode <= KC_0) || keycode == KC_MINS || keycode == KC_BSPC
-        || keycode == KC_DEL;
+        || keycode == KC_DEL || keycode == LSFT(KC_MINS);
 }
 
 // Before the key goes out: the Shift for a letter, and the end of the word for anything else

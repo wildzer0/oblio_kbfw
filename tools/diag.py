@@ -3,10 +3,11 @@
 
 Linux: /dev/hidraw, no dependencies. Windows and macOS: `pip install hidapi` (the module is called `hid`).
 
-usage: diag.py [--radio] [--blog] [--profile] [--profile-reset] [--watch SECONDS] [--daemon SECONDS [FILE]]
+usage: diag.py [--radio] [--version] [--blog] [--profile] [--profile-reset] [--watch SECONDS] [--daemon SECONDS [FILE]]
 
   (no option)  print the counters once
   --radio      also print the radio's last status bytes, with the battery reading they carry
+  --version    the firmware version (0.9.0 and later): number, commit, whether the tree had uncommitted changes
   --blog       print the battery log the keyboard keeps in flash (a build with BATTERY_LOG=1, the default): the readings it took, with the cable out too
   --profile    (a LOOP_PROFILE build) how long each step of the main loop takes: runs, shortest, mean, longest and share of the time, the passes by length,
                and the share of the CPU each interrupt takes. --profile-reset starts the measure again (do it, do what you want to measure, then read)
@@ -124,12 +125,23 @@ def show(values, previous=None):
         print("  {:32} {}".format(name, fmt(value) if callable(fmt) else fmt.format(value)))
 
 
+def version(keyboard):
+    """The firmware version (VIA 0xF1, kind 2, core/version.h): the same numbers as the structure the web updater finds in the .hex."""
+    reply = keyboard.ask(0xF1, 2)
+    if reply[0] != 0xF1:
+        print("version            : not readable (a firmware older than 0.9.0, or the profile build)")
+        return
+    rev = bytes(reply[6:13]).decode("ascii", "replace")
+    print("version            : {}.{}.{} ({}{}){}".format(reply[2], reply[3], reply[4], rev, ", uncommitted changes" if reply[14] else "",
+                                                         "" if reply[5] & 1 else "   [without the battery log]"))
+
+
 def charger(bits):
     """The lines of the charger (core/charger.h). The polarities come from the stock firmware, not from a measurement: read them in the three states
     (on battery, cable and charging, cable and charged) and compare."""
     print("charger            : P4.4 {} (cable line, high = cable)   P7.7 {} (charge line, low = charging)".format("high" if bits & 1 else "low", "high" if bits & 2 else "low"))
-    print("                     debounced: cable {}, charging {}   |   the keyboard concludes: {}   |   USB host configured: {}".format(
-        "yes" if bits & 4 else "no", "yes" if bits & 8 else "no", "cable in" if bits & 16 else "on battery", "yes" if bits & 32 else "no"))
+    print("                     debounced: cable {}, charging {}   |   the keyboard concludes: {}".format(
+        "yes" if bits & 4 else "no", "yes" if bits & 8 else "no", "cable in" if bits & 16 else "on battery"))
 
 
 def radio(keyboard):
@@ -287,6 +299,8 @@ def main():
         print("  keymap flash wear: about {} erase cycles per sector (flash of this kind is typically good for 10 000 to 100 000)".format(values[11] // 2))
     if want_radio:
         radio(keyboard)
+    if "--version" in args:
+        version(keyboard)
 
     while watch:
         time.sleep(watch)

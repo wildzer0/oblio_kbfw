@@ -235,7 +235,8 @@ class TestRawHid(UsbCase):
         # be readable with no key working to unlock.
         self.assertEqual(self.usb.raw_hid([0xF1, 0])[0], 0xF1)
         self.assertEqual(self.usb.raw_hid([0xF1, 1])[0], 0xF1)
-        self.assertEqual(self.usb.raw_hid([0xF1, 2])[0], 0xFF)
+        self.assertEqual(self.usb.raw_hid([0xF1, 2])[0], 0xF1)  # the version
+        self.assertEqual(self.usb.raw_hid([0xF1, 3])[0], 0xFF)
 
     def test_two_requests_in_a_row(self):
         self.assertEqual(self.usb.raw_hid([0x01])[:3], [0x01, 0x00, 0x09])

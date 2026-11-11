@@ -1,0 +1,97 @@
+<!doctype html>
+<!--
+  Utility web di aggiornamento del firmware Oblio (Yunzii B68).
+
+  Com'è fatta questa cartella (web/)
+  ----------------------------------
+    index.html   questa pagina: SOLO struttura. I testi fissi hanno data-i18n="chiave" e li scrive js/i18n.js (italiano / inglese).
+    style.css    l'aspetto (una colonna, tre schede, tema chiaro/scuro automatico).
+    js/app.js    la logica dell'interfaccia: cosa succede a ogni click e in che ordine (è il file da leggere per primo).
+    js/hid.js    WebHID: trovare la tastiera, leggere la versione, entrare in ISP, il collegamento al bootloader.
+    js/isp.js    il protocollo del bootloader (ERASE, scrittura a pagine, verifica, ENABLE): la traduzione di sinowisp.
+    js/ihex.js   lettura del file .hex, controlli di sicurezza, ricerca della versione dentro l'immagine.
+    js/i18n.js   i testi nelle due lingue.
+    probe.html   pagina di sonda per vedere cosa espone il browser (strumento di diagnosi, non fa parte dell'aggiornamento).
+    releases.json  (generato dalla CI sul sito pubblicato) elenco delle release con file e impronta; in locale può mancare.
+
+  Nessuna dipendenza, nessuna fase di build: si apre con un server qualsiasi. In locale:
+      cd web && python3 -m http.server 8000      poi  http://localhost:8000/
+  (WebHID funziona su https e su localhost, non da file://.)
+-->
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Oblio · firmware</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<main>
+  <header>
+    <div class="lang" role="group" aria-label="Language">
+      <button type="button" id="langIt" data-lang="it">Italiano</button>
+      <button type="button" id="langEn" data-lang="en">English</button>
+    </div>
+    <h1 data-i18n="app.title">Aggiornamento firmware Oblio</h1>
+    <p class="subtitle" data-i18n="app.subtitle">Yunzii B68</p>
+  </header>
+
+  <p id="unsupported" class="notice error" hidden data-i18n="app.unsupported"></p>
+
+  <!-- 1. La tastiera -->
+  <section class="card" id="cardKeyboard">
+    <h2 data-i18n="step1.title">1 · Tastiera</h2>
+    <p class="hint" data-i18n="step1.help"></p>
+    <button type="button" id="btnConnect" class="primary" data-i18n="step1.connect">Collega la tastiera</button>
+    <p id="kbStatus" class="status"></p>
+    <p id="kbVersion" class="status strong"></p>
+  </section>
+
+  <!-- 2. Il firmware da installare -->
+  <section class="card" id="cardFirmware">
+    <h2 data-i18n="step2.title">2 · Firmware</h2>
+    <label for="releaseSelect" data-i18n="fw.release">Release pubblicate</label>
+    <select id="releaseSelect"></select>
+    <p id="releaseError" class="status error" hidden></p>
+
+    <div id="dropZone" class="drop" tabindex="0">
+      <span data-i18n="fw.drop">Trascina qui un file .hex</span>
+      <span class="or" data-i18n="fw.or">oppure</span>
+      <button type="button" id="btnChoose" data-i18n="fw.choose">scegli un file</button>
+      <input type="file" id="fileInput" accept=".hex,.ihx,text/plain" hidden>
+    </div>
+
+    <p id="fwFile" class="status"></p>
+    <p id="fwVersion" class="status strong"></p>
+    <p id="fwSha" class="status mono"></p>
+    <ul id="fwErrors" class="problems"></ul>
+    <label id="forceRow" class="check" hidden><input type="checkbox" id="forceBox"> <span data-i18n="fw.force"></span></label>
+  </section>
+
+  <!-- 3. L'aggiornamento -->
+  <section class="card" id="cardUpdate">
+    <h2 data-i18n="step3.title">3 · Aggiornamento</h2>
+    <p id="compare" class="status strong"></p>
+    <button type="button" id="btnUpdate" class="primary" data-i18n="upd.button" disabled>Aggiorna la tastiera</button>
+    <button type="button" id="btnBootloader" class="primary" data-i18n="upd.selectBootloader" hidden>Seleziona il bootloader</button>
+
+    <p id="message" class="status"></p>
+    <ol id="steps" class="steps" hidden>
+      <li data-step="erase"><span data-i18n="upd.step.erase"></span></li>
+      <li data-step="write"><span data-i18n="upd.step.write"></span></li>
+      <li data-step="verify"><span data-i18n="upd.step.verify"></span></li>
+      <li data-step="enable"><span data-i18n="upd.step.enable"></span></li>
+      <li data-step="wait"><span data-i18n="upd.step.wait"></span></li>
+    </ol>
+    <progress id="bar" max="100" value="0" hidden></progress>
+    <p id="result" class="status strong"></p>
+
+    <details>
+      <summary data-i18n="upd.details">Dettagli tecnici</summary>
+      <pre id="log"></pre>
+    </details>
+  </section>
+</main>
+<script type="module" src="js/app.js"></script>
+</body>
+</html>

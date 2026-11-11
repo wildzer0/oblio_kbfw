@@ -1,0 +1,6 @@
+{
+  "name": "oblio-updater",
+  "private": true,
+  "type": "module",
+  "description": "Utility web per aggiornare il firmware Oblio. Il campo \"type\": \"module\" serve solo a Node (per i test): i file js/*.js sono moduli ES e il browser li carica con <script type=\"module\">."
+}

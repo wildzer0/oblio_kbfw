@@ -9,15 +9,15 @@
 #include "report.h"
 #include <string.h>
 
-// Test keymap, row 0:  A  MO(1)  LSFT(B)  LCTL  OSM(LSFT)  MUTE  SLEEP  OSL(1)  macro 0  CapsWord  -  Backspace  Space
+// Test keymap, row 0:  A  MO(1)  LSFT(B)  LCTL  OSM(LSFT)  MUTE  SLEEP  OSL(1)  macro 0  CapsWord  -  Backspace  Space  _ (LSFT(-))
 //   layer 1:  X  TRNS ...
 uint16_t keymap_default(uint8_t layer, uint8_t row, uint8_t col)
 {
-    static const uint16_t l0[13] = {KC_A,     MO(1),    LSFT(KC_B), KC_LCTL,    OSM(MOD_LSFT),  KC_MUTE,
-                                    KC_SYSTEM_SLEEP, OSL(1), QK_MACRO, QK_CAPS_WORD_TOGGLE, KC_MINS, KC_BSPC, KC_SPC};
+    static const uint16_t l0[14] = {KC_A,     MO(1),    LSFT(KC_B), KC_LCTL,    OSM(MOD_LSFT),  KC_MUTE,
+                                    KC_SYSTEM_SLEEP, OSL(1), QK_MACRO, QK_CAPS_WORD_TOGGLE, KC_MINS, KC_BSPC, KC_SPC, LSFT(KC_MINS)};
 
     if (layer == 0) {
-        return (row == 0 && col < 13) ? l0[col] : KC_NO;
+        return (row == 0 && col < 14) ? l0[col] : KC_NO;
     }
 
     return (layer == 1 && row == 0 && col == 0) ? KC_X : KC_TRANSPARENT;
@@ -285,6 +285,11 @@ static void test_caps_word(void)
     key(10, true); // minus: part of a word, not shifted, still on
     CHECK(sent[sent_count - 1].boot[0] == 0x00 && sent[sent_count - 1].boot[2] == KC_MINS);
     key(10, false);
+    CHECK(keyboard_caps_word());
+
+    key(13, true); // an underscore (Shift + minus as one keycode) is part of a word too, like the minus: still on
+    CHECK(sent[sent_count - 1].boot[0] == 0x02 && sent[sent_count - 1].boot[2] == KC_MINS);
+    key(13, false);
     CHECK(keyboard_caps_word());
 
     key(11, true); // fixing a typo does not end it either

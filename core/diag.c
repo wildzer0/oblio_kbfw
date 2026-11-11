@@ -1,4 +1,5 @@
 #include "diag.h"
+#include "version.h"
 #if LOOP_PROFILE
 #    include "profile.h"
 #endif
@@ -113,6 +114,20 @@ void diag_receive(XDATA uint8_t *data, uint8_t length)
             memcpy(&data[2], status, 6);
         }
 
+#if !LOOP_PROFILE
+    } else if (kind == 2) { // the firmware's version (core/version.h): [major, minor, patch, flags, commit (8 characters, the last is 0), dirty]
+        memset(&data[2], 0, (size_t)(length - 2));
+        data[2] = version_info.major;
+        data[3] = version_info.minor;
+        data[4] = version_info.patch;
+        data[5] = version_info.flags;
+
+        for (uint8_t i = 0; i < 8; i++) {
+            data[6 + i] = (uint8_t)version_info.rev[i];
+        }
+
+        data[14] = version_info.dirty;
+#endif
 #if LOOP_PROFILE
     } else if (kind >= 5 && kind <= 8) {
         diag_profile(data, kind);

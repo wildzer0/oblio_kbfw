@@ -1,0 +1,216 @@
+<!doctype html>
+<!--
+  SONDA WebHID per Oblio  -  Fase 0 dell'utility di aggiornamento.
+
+  A cosa serve
+  ------------
+  Prima di scrivere l'utility vera bisogna sapere COME il browser vede la tastiera, perché alcune cose non si possono dedurre dal codice:
+    1. Chrome espone il "report 5" dell'interfaccia 0 del firmware in funzione (quello che si usa per saltare nel bootloader)?
+       Chrome blocca le collezioni HID che sono tastiere o mouse; il report 5 sta in una collezione "vendor" sulla stessa interfaccia della
+       tastiera boot: se Chrome la nasconde, bisogna usare un'altra strada (vedi docs/design.md, sezione aggiornamento).
+    2. Quali VID/PID ha il bootloader dopo il salto, e come Chrome presenta i suoi report 5 (comandi) e 6 (trasferimento da 2048+1 byte)?
+    3. La lettura della versione via raw HID (comando 0xF1, tipo 2) funziona dal browser?
+
+  Come si usa (serve Chrome, Edge o Opera; la pagina va servita da https o da localhost, non da file://):
+    cd web && python3 -m http.server 8000      e poi aprire  http://localhost:8000/probe.html
+  Ogni pulsante scrive nel riquadro in basso quello che il browser vede. Il pulsante "Copia" mette tutto negli appunti: incollalo in chat.
+
+  Sicurezza: "Invia 75" fa saltare la tastiera nel bootloader (non scrive niente in flash). Se la tastiera sembra morta dopo, scollega e
+  ricollega l'USB tenendo premuti Esc + 1 + 2: il bootloader resta sempre disponibile.
+
+  Questa pagina NON fa parte dell'aggiornamento: si può cancellare quando l'utility è finita (o tenere come strumento di diagnosi).
+-->
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Oblio - sonda WebHID</title>
+<style>
+  body { font: 15px/1.5 system-ui, sans-serif; max-width: 860px; margin: 2rem auto; padding: 0 1rem; color: #222; }
+  button { font: inherit; padding: .45rem .8rem; margin: .2rem .2rem .2rem 0; cursor: pointer; }
+  pre { background: #111; color: #cfe; padding: 1rem; border-radius: 6px; overflow: auto; max-height: 60vh; white-space: pre-wrap; }
+  .row { margin: .6rem 0; }
+  .warn { background: #fff3cd; border: 1px solid #e0c36a; padding: .6rem .8rem; border-radius: 6px; }
+</style>
+</head>
+<body>
+<h1>Sonda WebHID per Oblio</h1>
+<p class="warn">Strumento di prova: elenca ciò che il browser vede della tastiera. Non scrive nella flash.</p>
+
+<div class="row">
+  <strong>1. Tastiera in funzione</strong> (258a:dead)<br>
+  <button id="btnKeyboard">Cerca la tastiera</button>
+  <button id="btnVersion">Leggi la versione (raw HID)</button>
+  <button id="btnEnterIsp">Invia 75: salta nel bootloader</button>
+</div>
+<div class="row">
+  <strong>2. Bootloader</strong> (0603:1020 o 1021; compare dopo il punto 1, o con Esc+1+2 all'inserimento dell'USB)<br>
+  <button id="btnBoot">Cerca il bootloader</button>
+</div>
+<div class="row">
+  <button id="btnList">Elenca i dispositivi già autorizzati</button>
+  <button id="btnCopy">Copia il registro</button>
+  <button id="btnClear">Pulisci</button>
+</div>
+<pre id="log"></pre>
+
+<script>
+"use strict";
+
+// ---------------------------------------------------------------------------------------------------------------------------
+// Costanti: gli identificativi che ci interessano. Se un giorno cambiano (altro PID, altra pagina d'uso) si cambiano SOLO qui.
+// ---------------------------------------------------------------------------------------------------------------------------
+const KEYBOARD = { vendorId: 0x258a, productId: 0xdead };      // firmware Oblio in funzione (core/usb_desc.h)
+const BOOTLOADER = [                                            // bootloader Sinowealth generico (da sinowisp): due PID possibili
+  { vendorId: 0x0603, productId: 0x1020 },
+  { vendorId: 0x0603, productId: 0x1021 },
+];
+const RAW_HID_USAGE_PAGE = 0xff60;   // interfaccia "raw HID" di Vial/VIA: è quella su cui si leggono i comandi 0xF1 (core/via.c)
+const RAW_HID_SIZE = 32;             // byte di dati di ogni pacchetto raw HID (senza report id: l'interfaccia non ne ha)
+const REPORT_ISP = 5;                // feature report dei comandi ISP, sia nel firmware sia nel bootloader
+const CMD_ENTER_ISP = 0x75;          // primo byte dei dati del report 5: "salta nel bootloader" (core/usb_device.c, ISP_COMMAND_ENTER)
+
+const logEl = document.getElementById("log");
+
+// Scrive una riga nel riquadro (e nella console, utile per le prove in locale).
+function log(text) {
+  logEl.textContent += text + "\n";
+  logEl.scrollTop = logEl.scrollHeight;
+  console.log(text);
+}
+
+// "0x258a" -> forma esadecimale a 4 cifre.
+function hex4(n) { return "0x" + n.toString(16).padStart(4, "0"); }
+
+// Un byte array come "75 00 00".
+function bytes(view) {
+  return Array.from(new Uint8Array(view.buffer, view.byteOffset, view.byteLength))
+    .map((b) => b.toString(16).padStart(2, "0")).join(" ");
+}
+
+// ---------------------------------------------------------------------------------------------------------------------------
+// Descrizione di un HIDDevice: è la parte che risponde alle domande 1 e 2. Per ogni "collezione" di primo livello stampa la pagina
+// d'uso e i report che contiene, con i loro id. Se il report 5 compare nell'elenco dei FEATURE, WebHID lo espone.
+// ---------------------------------------------------------------------------------------------------------------------------
+function describe(device) {
+  log(`- ${device.productName || "(senza nome)"}  VID:PID ${hex4(device.vendorId)}:${hex4(device.productId)}  aperto: ${device.opened}`);
+  if (device.collections.length === 0) log("    (nessuna collezione accessibile: Chrome le ha nascoste tutte)");
+
+  for (const [i, c] of device.collections.entries()) {
+    log(`    collezione ${i}: pagina d'uso ${hex4(c.usagePage)} uso ${hex4(c.usage)}  tipo ${c.type}`);
+    for (const kind of ["inputReports", "outputReports", "featureReports"]) {
+      const reports = c[kind] || [];
+      if (reports.length === 0) continue;
+      const ids = reports.map((r) => `${r.reportId ?? 0}(${(r.items || []).reduce((n, it) => n + it.reportSize * it.reportCount, 0)} bit)`);
+      log(`        ${kind}: ${ids.join(", ")}`);
+    }
+  }
+}
+
+// Cerca, tra i dispositivi indicati, quello che ha una collezione con il feature report `reportId`.
+function hasFeatureReport(device, reportId) {
+  return device.collections.some((c) => (c.featureReports || []).some((r) => (r.reportId ?? 0) === reportId));
+}
+
+// ---------------------------------------------------------------------------------------------------------------------------
+// Pulsanti
+// ---------------------------------------------------------------------------------------------------------------------------
+
+// Mostra la finestra di scelta del browser. IMPORTANTE: requestDevice() funziona solo dentro il gestore di un click (gesto
+// dell'utente); per questo ogni ricerca ha il suo pulsante. Il permesso vale per quel VID/PID: il bootloader ne ha un altro, quindi
+// per lui serve una seconda scelta (è il motivo del "doppio click" nell'utility vera).
+async function pick(filters, label) {
+  if (!("hid" in navigator)) { log("Questo browser non ha WebHID: usa Chrome, Edge o Opera."); return []; }
+  try {
+    const devices = await navigator.hid.requestDevice({ filters });
+    log(`== ${label}: scelti ${devices.length} dispositivi`);
+    devices.forEach(describe);
+    return devices;
+  } catch (e) {
+    log(`${label}: ${e.name}: ${e.message}`);
+    return [];
+  }
+}
+
+document.getElementById("btnKeyboard").onclick = async () => {
+  const devices = await pick([KEYBOARD], "tastiera");
+  // La domanda 1: qualcuno di questi dispositivi ha il report 5?
+  const withIsp = devices.filter((d) => hasFeatureReport(d, REPORT_ISP));
+  log(withIsp.length ? `>> il report ${REPORT_ISP} (ISP) è esposto da ${withIsp.length} dispositivo/i: l'ingresso in ISP dal browser è possibile`
+                     : `>> NESSUN dispositivo espone il report ${REPORT_ISP}: servirà il ripiego (Vial 0x0B o Esc+1+2)`);
+};
+
+document.getElementById("btnBoot").onclick = async () => {
+  const devices = await pick(BOOTLOADER, "bootloader");
+  const cmd = devices.filter((d) => hasFeatureReport(d, 5));
+  const xfer = devices.filter((d) => hasFeatureReport(d, 6));
+  log(`>> report 5 (comandi): ${cmd.length} dispositivo/i; report 6 (trasferimento): ${xfer.length} dispositivo/i`);
+  log(cmd.length && xfer.length && cmd[0] === xfer[0] ? ">> sono nello STESSO dispositivo" : ">> sono in dispositivi SEPARATI (come su Windows con sinowisp)");
+};
+
+// Elenca quelli già autorizzati in passato (non apre la finestra: getDevices non richiede un click).
+document.getElementById("btnList").onclick = async () => {
+  const devices = await navigator.hid.getDevices();
+  log(`== dispositivi già autorizzati: ${devices.length}`);
+  devices.forEach(describe);
+};
+
+// Domanda 3: leggere la versione sul canale raw HID. Si apre il dispositivo che ha la collezione 0xFF60, si manda il pacchetto
+// [0xF1, 2, 0...] (comando "diagnostica, tipo 2") con sendReport(0, ...) e si aspetta l'evento inputreport con la risposta.
+document.getElementById("btnVersion").onclick = async () => {
+  const granted = await navigator.hid.getDevices();
+  const raw = granted.find((d) => d.vendorId === KEYBOARD.vendorId && d.productId === KEYBOARD.productId
+                               && d.collections.some((c) => c.usagePage === RAW_HID_USAGE_PAGE));
+  if (!raw) { log("Prima: 'Cerca la tastiera' e scegli il dispositivo con la pagina d'uso 0xff60."); return; }
+
+  try {
+    if (!raw.opened) await raw.open();
+    // Il gestore va montato PRIMA di inviare: la risposta può arrivare subito.
+    const reply = new Promise((resolve, reject) => {
+      const timer = setTimeout(() => { raw.removeEventListener("inputreport", on); reject(new Error("nessuna risposta in 1 s")); }, 1000);
+      function on(event) { clearTimeout(timer); raw.removeEventListener("inputreport", on); resolve(event.data); }
+      raw.addEventListener("inputreport", on);
+    });
+    const packet = new Uint8Array(RAW_HID_SIZE); packet[0] = 0xf1; packet[1] = 2;
+    await raw.sendReport(0, packet);                      // l'interfaccia raw HID non usa report id: si passa 0
+    const data = await reply;
+    log(`risposta (${data.byteLength} byte): ${bytes(data)}`);
+    if (data.getUint8(0) === 0xf1) {
+      const rev = String.fromCharCode(...new Uint8Array(data.buffer, data.byteOffset + 6, 7));
+      log(`>> versione ${data.getUint8(2)}.${data.getUint8(3)}.${data.getUint8(4)}  commit ${rev}  flag ${data.getUint8(5)}  non committato: ${data.getUint8(14)}`);
+    } else {
+      log(">> il firmware non conosce questo comando (versione precedente alla 0.9.0): è normale con un hex vecchio");
+    }
+  } catch (e) {
+    log(`lettura versione: ${e.name}: ${e.message}`);
+  }
+};
+
+// Domanda 1, seconda parte: prova davvero a mandare "75". Se riesce, la tastiera salta nel bootloader e sparisce dal bus: l'errore di
+// disconnessione che segue è ATTESO (sinowisp lo ignora allo stesso modo).
+document.getElementById("btnEnterIsp").onclick = async () => {
+  if (!confirm("La tastiera salterà nel bootloader (non scrive nulla). Se non risponde più: Esc+1+2 mentre inserisci l'USB. Continuare?")) return;
+  const granted = await navigator.hid.getDevices();
+  const target = granted.find((d) => d.vendorId === KEYBOARD.vendorId && d.productId === KEYBOARD.productId && hasFeatureReport(d, REPORT_ISP));
+  if (!target) { log("Nessun dispositivo autorizzato con il report 5: usa prima 'Cerca la tastiera'."); return; }
+
+  try {
+    if (!target.opened) await target.open();
+    // I DATI non includono il report id (WebHID lo passa a parte): 75 00 00 00 00 = cinque byte, come nel descrittore (REPORT_COUNT 5).
+    await target.sendFeatureReport(REPORT_ISP, Uint8Array.from([CMD_ENTER_ISP, 0, 0, 0, 0]));
+    log(">> inviato: la tastiera dovrebbe ora ripresentarsi come bootloader (usa il pulsante 2 dopo ~2 secondi)");
+  } catch (e) {
+    // Una disconnessione dopo l'invio è normale (il dispositivo è sparito); altri errori significano che il browser ha rifiutato.
+    log(`invio: ${e.name}: ${e.message}`);
+  }
+};
+
+document.getElementById("btnClear").onclick = () => { logEl.textContent = ""; };
+document.getElementById("btnCopy").onclick = async () => { await navigator.clipboard.writeText(logEl.textContent); log("(copiato)"); };
+
+// Al caricamento: informazioni sul browser e sui dispositivi già noti.
+log(`Browser: ${navigator.userAgent}`);
+log(`WebHID: ${"hid" in navigator ? "disponibile" : "NON disponibile"}   contesto sicuro: ${window.isSecureContext}`);
+</script>
+</body>
+</html>

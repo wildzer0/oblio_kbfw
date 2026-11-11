@@ -30,9 +30,19 @@ make BATTERY_LOG=0 fw        # a build without the battery log (core/options.h h
 make sim                     # the real firmware in a simulator of the chip: boot, USB, raw HID, recovery
 ```
 
+## Updating the firmware from the browser
+
+The easiest way: the web updater (Chrome, Edge or Opera, because it needs WebHID). Open it, connect the keyboard, pick a release or drop a `.hex`
+file, and press *Update*. It shows the version installed in the keyboard and the one it is about to write.
+
+**https://wildzer0.github.io/oblio_kbfw/**
+
+Updating resets the keymap and the settings to their defaults (as the command line below does). The source is in [web/](web/), commented, with no
+dependencies; to run it locally: `cd web && python3 -m http.server 8000`.
+
 ## Flashing
 
-Flashing uses the chip's USB ISP through [sinowisp](https://github.com/karstx/sinowisp):
+The command line uses the chip's USB ISP through [sinowisp](https://github.com/karstx/sinowisp):
 
 ```
 sinowisp write --platform sh68f90 --vendor_id 0x258a --product_id 0xdead --format ihex --isp_iface_num 0 -f oblio.hex

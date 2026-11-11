@@ -27,7 +27,7 @@ typedef enum {
     DIAG_STORE_SAVES,      // times the whole keymap has been written to flash, ever (the sequence number in the header of the slot in use: it survives power-off)
     DIAG_STORE_LOG,        // records in the log of the slot in use (the keymap edits written since the last whole save)
     DIAG_CHARGER,          // bit 0: pin P4.4 is high, 1: pin P7.7 is high (the raw lines of the charger), 2: cable (debounced P4.4), 3: charging (debounced P7.7),
-                           // 4: what the keyboard concludes ("the cable is in"), 5: a USB host has configured it. See core/charger.h
+                           // 4: what the keyboard concludes ("the cable is in"). See core/charger.h
     DIAG_COUNT
 } diag_id_t;
 
@@ -43,6 +43,7 @@ uint16_t diag_get(diag_id_t id);
 // VIA command 0xF1: the request is in `data` (32 bytes) and becomes the reply. [0xF1, kind, ...]
 //   kind 0: [0xF1, 0, DIAG_COUNT, counter 0 (lo, hi), counter 1, ...]
 //   kind 1: the radio: [0xF1, 1, its 6 status bytes] (the battery reading is in bytes 4-5)
+//   kind 2: the firmware version (core/version.h): [0xF1, 2, major, minor, patch, flags, commit as 8 characters (7 and a 0), dirty]; not in the profile build
 //   kind 4 (with BATTERY_LOG): [0xF1, 4, first record] -> [0xF1, 4, count, records of four bytes, as many as fit]: the battery log (blog.h)
 //   kind 5..8 (LOOP_PROFILE build): the profile, see profile.h. 5: [0xF1, 5, step] -> step, count, min, max (16 bits each), sum (32); 6: the pass length
 //     bands (8 x 16 bits) and the time of the timer, USB and serial interrupts (32 bits each); 7: start again; 8: the milliseconds since the last start

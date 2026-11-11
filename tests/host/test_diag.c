@@ -1,5 +1,6 @@
 #include "check.h"
 #include "diag.h"
+#include "version.h"
 #include <string.h>
 
 static unsigned refreshes;
@@ -90,6 +91,27 @@ static void test_radio_reply(void)
     CHECK(data[8] == 0); // and nothing after them
 }
 
+// kind 2: the version, the same numbers as the structure the web updater finds in the .hex
+static void test_version_reply(void)
+{
+    uint8_t data[32];
+
+    memset(data, 0xAA, sizeof data);
+    data[0] = 0xF1;
+    data[1] = 2;
+    diag_receive(data, 32);
+
+    CHECK(data[0] == 0xF1 && data[1] == 2);
+    CHECK(data[2] == FW_MAJOR && data[3] == FW_MINOR && data[4] == FW_PATCH);
+    CHECK(data[5] == (BATTERY_LOG ? VERSION_FLAG_BATTERY_LOG : 0u));
+    CHECK(memcmp(&data[6], FW_REV, 8) == 0 && data[13] == 0); // seven characters of the commit and the terminator
+    CHECK(data[14] == FW_DIRTY && data[15] == 0 && data[31] == 0); // and the rest of the packet is cleared
+
+    // the structure itself: the magic is the first thing in it, without a terminator
+    CHECK(memcmp(version_info.magic, "OBLIOFW1", 8) == 0);
+    CHECK(sizeof version_info == 21);
+}
+
 #if BATTERY_LOG
 // kind 4: the battery log, from the record asked for
 static void test_battery_log_reply(void)
@@ -122,6 +144,7 @@ int main(void)
     test_counters();
     test_counters_reply();
     test_radio_reply();
+    test_version_reply();
 #if BATTERY_LOG
     test_battery_log_reply();
 #endif
