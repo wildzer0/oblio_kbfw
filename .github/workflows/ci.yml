@@ -25,6 +25,8 @@ jobs:
         run: |
           nix develop --command python3 tools/check_version.py build/oblio.hex
           if [ "${GITHUB_REF_TYPE}" = "tag" ]; then nix develop --command python3 tools/check_version.py build/oblio.hex --tag "${GITHUB_REF_NAME}"; fi
+      - name: The USB code is where the keyboard was tested (link order)
+        run: nix develop --command python3 tools/check_usb_layout.py
       - name: Web updater (Node tests + a whole update in headless Chrome)
         run: nix develop --command make web-test
       - name: Interrupt vectors and overlay

@@ -311,6 +311,7 @@ Il PWM suona una colonna alla volta: il «pieno» dei LED è la frazione di temp
 | `make check-interrupts` | esattamente 4 vettori, nessun overlay statico |
 | `make sim` | l'hex vero nel simulatore `ucsim-sh68f90` (23 test: avvio, slot, stack, recupero, descrittori, VIA/Vial, report, ISP); ~45 s |
 | `make web-test` | l'utility web: test Node (parser hex, protocollo ISP contro un finto bootloader) e un aggiornamento completo dalla pagina in Chrome senza testa (`tests/web/e2e`) |
+| `make check-usb-layout` | gli indirizzi del codice USB coincidono con quelli provati sulla tastiera (§14.2); fallisce se si spostano |
 | `make check-version` | la versione sta nell'immagine una volta sola e coincide con il file `VERSION` |
 | `make api` / `make check-api` | rigenera / verifica `docs/api.md` dagli header |
 | `make BATTERY_LOG=0 fw` | build senza il registro della batteria (opzione in `core/options.h`) |
@@ -327,6 +328,16 @@ Il protocollo (`isp.js`) è **la traduzione di sinowisp** (`karstx/sinowisp`, le
 Il browser vede il bootloader come un dispositivo nuovo (altro VID/PID): serve un **secondo click** («Seleziona il bootloader»), a meno che il permesso sia già stato dato. Su Windows i report 5 e 6 possono essere due dispositivi: `WebHidLink` cerca chi ha ciascuno.
 **Sito** (`tools/make_site.py`, workflow `.github/workflows/pages.yml`, che gira **su `main`** perché l'ambiente `github-pages` accetta solo quel ramo: un tag viene rifiutato; la Release lo avvia con `workflow_dispatch`): `web/` + `releases/<tag>/oblio.hex` per ogni Release + `releases.json` (versione, data, SHA-256, dimensione). Il browser non può scaricare gli asset delle Release di GitHub (niente CORS), ma legge i file dello stesso sito; le Release restano la fonte e il sito si ricostruisce a ogni tag.
 **Prove**: `tests/web/ihex.test.mjs`, `tests/web/isp.test.mjs` (contro `fake_bootloader.mjs`, che imita ERASE, la pagina scritta, la lettura con il vettore rimappato, ENABLE e la sparizione al REBOOT), `tests/web/e2e/` (l'interfaccia vera in Chrome senza testa, con `navigator.hid` finto: tre scenari). **Non provato sull'hardware**: va confermato con `web/probe.html` (WebHID espone il report 5 dell'interfaccia 0? VID/PID del bootloader? report 5 e 6 insieme o separati? offset dei dati di `receiveFeatureReport`) e con un aggiornamento vero.
+
+### 14.2 La posizione del codice USB (una trappola misurata sulla tastiera)
+
+**Sintomo** (2026-11-12, versione 0.9.1): la tastiera non veniva riconosciuta via USB (in 2.4G funzionava), eppure la 0.9.0 sì. Il codice è identico tranne una funzione del Caps Word; il simulatore enumera bene.
+**Misure** (file di prova, tutte provate dall'utente con l'utility web):
+- la 0.9.0 con la logica invariata ma il codice **spostato** come nella 0.9.1 non funziona → non è la logica del Caps Word, è la **posizione**;
+- una serie di 56 file con un riempimento di 1, 2, … 56 byte dopo il modulo `keyboard`: l'USB funziona fino a **S49** e non da **S50**;
+- il codice USB **per primo** nel collegamento (subito dopo l'avvio) funziona; spostando dopo di esso altri 57 o 130 byte di codice (quindi spostando i **dati**, cioè i descrittori) funziona ancora → conta la posizione del **codice USB**, non quella dei descrittori.
+**Causa**: non capita. L'ipotesi è un effetto del chip (flash letta a blocchi, tempi del codice che dipendono dall'allineamento) che il simulatore non modella; a S50 diverse funzioni USB cambiano posizione rispetto ai blocchi da 16/128 byte, ma nessuna è un colpevole evidente.
+**Rimedio**: il `Makefile` collega i moduli USB (`core/usb_desc.c`, `core/usb_device.c`, `core/raw_hid.c`, `core/usb_reports.c`, `hal/usb.c`, `board/usb_app.c`) **per primi**, così la loro posizione dipende solo da loro (e dal codice di avvio) e non da quanto cresce il resto del firmware. `tools/check_usb_layout.py` (`make check-usb-layout`, parte della CI) confronta gli indirizzi dei simboli USB con `tools/usb_layout.txt` (le posizioni provate sulla tastiera) e **fallisce se si spostano**. Se tocchi il codice USB: costruisci, flasha quella build con l'utility web, controlla che l'USB funzioni, e solo allora `python3 tools/check_usb_layout.py --update`. **Non rimettere i file in ordine alfabetico.**
 
 ## 15. Decisioni di design e compromessi
 

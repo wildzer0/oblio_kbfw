@@ -57,6 +57,12 @@ Il controllo di recupero Esc+1+2 va all'inizio del `main`, prima di USB e radio.
   30 ms (la coda della radio è di 4); la tastiera non va in sleep mentre scrive. Costa ~520 B di flash (54415/55296). È uno strumento di debug: da
   togliere insieme al registro in flash quando la scala della batteria è confermata.
 
+## 2026-11-12 — 0.9.2 — l'USB torna a funzionare: il codice USB per primo nel collegamento
+La **0.9.1 non veniva riconosciuta via USB** (in 2.4G sì). Non era il Caps Word: una serie di file di prova provati dall'utente ha mostrato che dipende dalla **posizione del codice USB nella flash** (la 0.9.0 con il codice spostato come nella 0.9.1 falliva; la serie con riempimento di 1–56 byte funziona fino a 49 e non da 50; il codice USB per primo funziona anche con 57 e 130 byte aggiunti dopo). Causa non capita; dettagli in `docs/design.md` §14.2.
+- **Makefile**: i moduli USB sono collegati **per primi** (`USB_SRC`); un commento avverte di non rimetterli in ordine alfabetico.
+- **`tools/check_usb_layout.py`** + `tools/usb_layout.txt` + `make check-usb-layout` (e un passo della CI): falliscono se gli indirizzi dei simboli USB cambiano; istruzioni nel file per aggiornarli dopo una prova sulla tastiera.
+- Include il Caps Word della 0.9.1 (il tasto Shift non chiude la parola, il `_` resta). La 0.9.1 resta pubblicata ma **non va installata**.
+
 ## 2026-11-12 — 0.9.1 — Caps Word: il tasto Shift non chiude più la parola
 Segnalazione: il Caps Word non teneva il carattere `_`. Causa: per scrivere `_` si tiene premuto Shift, e **la pressione di Shift arriva prima del trattino**: era un tasto «che non fa parte di una parola» e chiudeva il Caps Word. La modifica precedente (`LSFT(KC_MINS)`) valeva solo per un tasto della keymap che manda già il trattino con Shift, non per il tasto Shift fisico.
 - `caps_word_keeps()` (`core/keyboard.c`): i tasti **Shift** (sinistro e destro) tengono la parola; un tasto «Shift + altro» (`LSFT(…)`/`RSFT(…)`) è giudicato dall'altro tasto; con Ctrl, Alt o Gui è una scorciatoia e chiude, come prima.

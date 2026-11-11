@@ -65,7 +65,7 @@ nix develop --command make fw size check
 
 - `make test` e `make web-test`: i test sul PC e l'aggiornamento completo dalla pagina (con una finta tastiera).
 - `make fw size`: la build e il budget di flash/XDATA (non deve superare i limiti).
-- `make check`: la definizione Vial, i vettori di interrupt e **la versione nell'immagine** (`check-version`: compare una volta sola e coincide con `VERSION`).
+- `make check`: la definizione Vial, i vettori di interrupt, **la versione nell'immagine** (`check-version`: compare una volta sola e coincide con `VERSION`) e **la posizione del codice USB** (`check-usb-layout`: se fallisce, leggi `docs/design.md` §14.2: il codice USB si è spostato e va provato sulla tastiera prima di rilasciare).
 - Se hai toccato `docs/api.md`: `make check-api`.
 - Se vuoi la build senza registro batteria o di profilo: `make BATTERY_LOG=0 fw size`, `make LOOP_PROFILE=1 BATTERY_LOG=0 fw size` (la CI controlla la prima).
 

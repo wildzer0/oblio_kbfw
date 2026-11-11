@@ -26,6 +26,10 @@ overrides, tab Lighting con colore pieno), NKRO, Caps Word, Leader, mouse dall'e
 
 Il LED è sullo stesso incrocio del rosso del tasto C (vedi `docs/keyboards/yunzii-b68-firmware-stock.md`): segue il rosso del C e non si può comandare da solo. Se un giorno si vuole il Caps Lock come nello stock: forzare il rosso del C a pieno mentre Caps Lock/Caps Word è attivo (una riga in `paint_one`, livello regolabile).
 
+## Trappola pagata il 2026-11-12: la posizione del codice USB
+
+La 0.9.1 non veniva riconosciuta via USB per colpa della **posizione** del codice USB nella flash (non del Caps Word): vedi [design.md §14.2](design.md) per le misure. Cura: i moduli USB sono **collegati per primi** (`Makefile`, `USB_SRC`) e `tools/check_usb_layout.py` fallisce se si spostano. Dopo qualunque modifica al codice USB: provare la build sulla tastiera con l'utility web **prima** di aggiornare `tools/usb_layout.txt`. La versione **0.9.2** porta questa cura insieme al Caps Word che tiene il `_`.
+
 ## Utility web di aggiornamento (2026-11-11) — provata dall'utente
 
 **Provata sulla tastiera** il 2026-11-11: l'utente ha flashato la 0.9.0 direttamente dalla pagina (https://wildzer0.github.io/oblio_kbfw/). Per pubblicare una versione nuova: [pubblicare-una-release.md](pubblicare-una-release.md).

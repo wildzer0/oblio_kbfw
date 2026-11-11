@@ -22,7 +22,17 @@ SDCCFLAGS := --std-c23 --Werror -mmcs51 --model-large --stack-auto \
 HEADERS := $(wildcard core/*.h hal/*.h board/*.h) $(B)/.options
 
 FW_SRC := $(wildcard core/*.c hal/*.c board/*.c)
-FW_REL := $(patsubst %.c,$(B)/%.rel,$(FW_SRC)) $(B)/vial_data.rel
+
+# THE LINK ORDER: THE USB CODE FIRST. Do not "tidy" this into alphabetical order.
+# The linker places the modules one after the other in the order it is given. With the USB modules in the middle (alphabetical order), every change to a
+# module that comes before them moved the USB code, and on the keyboard the USB stopped being recognised for some positions: the 0.9.0 firmware worked, the
+# same code shifted by 50 bytes or more did not (a measured series, docs/design.md 14.2; the host tests and the simulator cannot see it: the model has no
+# flash timing). The cause is not understood; the cure is that the position of the USB code no longer depends on the rest of the firmware: these modules come
+# first, right after the start-up code, so they only move when they change themselves. tools/check_usb_layout.py (make check-usb-layout, and the CI) fails
+# when they move: test on the keyboard first (the web updater), then `python3 tools/check_usb_layout.py --update`.
+USB_SRC   := core/usb_desc.c core/usb_device.c core/raw_hid.c core/usb_reports.c hal/usb.c board/usb_app.c
+OTHER_SRC := $(filter-out $(USB_SRC),$(FW_SRC))
+FW_REL    := $(patsubst %.c,$(B)/%.rel,$(USB_SRC) $(OTHER_SRC)) $(B)/vial_data.rel
 
 # The version (core/version.h): the file VERSION ("major.minor.patch") and the git commit. Only core/version.c gets them, so a new commit recompiles that one file
 # and not the whole firmware; the stamp .version makes it notice. A tree with uncommitted changes to tracked files is marked "dirty" in the image.
@@ -47,7 +57,7 @@ api:
 check-api:
 	python3 tools/gen_api.py --check
 
-.PHONY: api check-api test fw size clean check check-vial check-interrupts check-version web-test sim FORCE
+.PHONY: api check-api test fw size clean check check-vial check-interrupts check-version check-usb-layout web-test sim FORCE
 FORCE:
 .DELETE_ON_ERROR: # a failed build must not leave a half-made file that make takes for up to date
 
@@ -112,11 +122,15 @@ sim: $(B)/oblio.hex
 web-test: $(B)/oblio.hex
 	node --test tests/web/*.test.mjs tests/web/e2e/run.mjs
 
+# the USB code is where it was when the keyboard was last tested (the link order above); see tools/check_usb_layout.py
+check-usb-layout: $(B)/oblio.hex
+	python3 tools/check_usb_layout.py
+
 # the version is in the image exactly once and says what the file VERSION says
 check-version: $(B)/oblio.hex
 	python3 tools/check_version.py $(B)/oblio.hex
 
-check: check-vial check-interrupts check-version
+check: check-vial check-interrupts check-version check-usb-layout
 
 check-vial:
 	python3 tools/check_vial.py board/vial.json board/keymap_default.c board/b68_keys.h core/matrix.h "$(VIAL_UNLOCK)"
