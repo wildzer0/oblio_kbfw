@@ -43,7 +43,9 @@ void diag_hook_refresh(void)
     diag_set(DIAG_USB_OVERFLOW, usb_reports_overflows());
     diag_set(DIAG_STORE_SAVES, store_saves());
     diag_set(DIAG_STORE_LOG, store_log_used());
+#if !LOOP_PROFILE // (the profile build has 16 bytes of flash to spare: it measures time, not the charger)
     diag_set(DIAG_CHARGER, (uint16_t)(charger_hw_pins() | (charger_cable() ? 4u : 0u) | (charger_charging() ? 8u : 0u) | (battery_cable() ? 16u : 0u)));
+#endif
 }
 
 const uint8_t *diag_hook_radio_status(void)

@@ -57,6 +57,12 @@ Il controllo di recupero Esc+1+2 va all'inizio del `main`, prima di USB e radio.
   30 ms (la coda della radio è di 4); la tastiera non va in sleep mentre scrive. Costa ~520 B di flash (54415/55296). È uno strumento di debug: da
   togliere insieme al registro in flash quando la scala della batteria è confermata.
 
+## 2026-11-12 — 0.9.1 — Caps Word: il tasto Shift non chiude più la parola
+Segnalazione: il Caps Word non teneva il carattere `_`. Causa: per scrivere `_` si tiene premuto Shift, e **la pressione di Shift arriva prima del trattino**: era un tasto «che non fa parte di una parola» e chiudeva il Caps Word. La modifica precedente (`LSFT(KC_MINS)`) valeva solo per un tasto della keymap che manda già il trattino con Shift, non per il tasto Shift fisico.
+- `caps_word_keeps()` (`core/keyboard.c`): i tasti **Shift** (sinistro e destro) tengono la parola; un tasto «Shift + altro» (`LSFT(…)`/`RSFT(…)`) è giudicato dall'altro tasto; con Ctrl, Alt o Gui è una scorciatoia e chiude, come prima.
+- Test (`test_keyboard.c`): Shift tenuto con il trattino sotto, e Ctrl+A che chiude (il test con Shift falliva sul codice vecchio, verificato).
+- Nella build di profilo il contatore `DIAG_CHARGER` non si calcola più (restavano 16 B di flash liberi, l'aggiunta li superava); in tutte le altre build è invariato.
+
 ## 2026-11-11 — la versione del firmware e l'utility web per aggiornarlo dal browser
 - **Versione** (`VERSION` = 0.9.0, `core/version.[ch]`): una struttura in ROM che comincia con `OBLIOFW1` (major, minor, patch, flag, commit, dirty), leggibile dal `.hex` e dalla tastiera (comando `0xF1` tipo 2, `diag.py --version`). `tools/check_version.py` e `make check-version` controllano che compaia una volta e coincida con `VERSION` e con il tag. Non c'è nella build di profilo.
 - **Utility web** (`web/`, commentata a fondo, senza dipendenze): collega la tastiera con WebHID, mostra versione installata e da installare, scelta della release o trascinamento del `.hex`, controlli sull'immagine, aggiornamento con lo stesso protocollo di sinowisp (rilettura obbligatoria prima di ENABLE), IT/EN. Pagina di sonda `web/probe.html`.

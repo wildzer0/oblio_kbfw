@@ -9,15 +9,15 @@
 #include "report.h"
 #include <string.h>
 
-// Test keymap, row 0:  A  MO(1)  LSFT(B)  LCTL  OSM(LSFT)  MUTE  SLEEP  OSL(1)  macro 0  CapsWord  -  Backspace  Space  _ (LSFT(-))
+// Test keymap, row 0:  A  MO(1)  LSFT(B)  LCTL  OSM(LSFT)  MUTE  SLEEP  OSL(1)  macro 0  CapsWord  -  Backspace  Space  _ (LSFT(-))  LShift  Ctrl+A
 //   layer 1:  X  TRNS ...
 uint16_t keymap_default(uint8_t layer, uint8_t row, uint8_t col)
 {
-    static const uint16_t l0[14] = {KC_A,     MO(1),    LSFT(KC_B), KC_LCTL,    OSM(MOD_LSFT),  KC_MUTE,
-                                    KC_SYSTEM_SLEEP, OSL(1), QK_MACRO, QK_CAPS_WORD_TOGGLE, KC_MINS, KC_BSPC, KC_SPC, LSFT(KC_MINS)};
+    static const uint16_t l0[16] = {KC_A,     MO(1),    LSFT(KC_B), KC_LCTL,    OSM(MOD_LSFT),  KC_MUTE,
+                                    KC_SYSTEM_SLEEP, OSL(1), QK_MACRO, QK_CAPS_WORD_TOGGLE, KC_MINS, KC_BSPC, KC_SPC, LSFT(KC_MINS), KC_LSFT, LCTL(KC_A)};
 
     if (layer == 0) {
-        return (row == 0 && col < 14) ? l0[col] : KC_NO;
+        return (row == 0 && col < 16) ? l0[col] : KC_NO;
     }
 
     return (layer == 1 && row == 0 && col == 0) ? KC_X : KC_TRANSPARENT;
@@ -292,8 +292,23 @@ static void test_caps_word(void)
     key(13, false);
     CHECK(keyboard_caps_word());
 
+    key(14, true); // the Shift key held for an underscore: it does not end the word either...
+    CHECK(keyboard_caps_word());
+    key(10, true); // ...and the minus under it is the underscore
+    CHECK(sent[sent_count - 1].boot[0] & 0x02 && sent[sent_count - 1].boot[2] == KC_MINS);
+    key(10, false);
+    key(14, false);
+    CHECK(keyboard_caps_word());
+
     key(11, true); // fixing a typo does not end it either
     key(11, false);
+    CHECK(keyboard_caps_word());
+
+    key(15, true); // a shortcut (Ctrl+A) is not part of a word
+    key(15, false);
+    CHECK(!keyboard_caps_word());
+    key(9, true); // switch it on again for the space
+    key(9, false);
     CHECK(keyboard_caps_word());
 
     key(12, true); // a space ends the word

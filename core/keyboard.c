@@ -94,9 +94,9 @@ static void send_keycode(uint16_t keycode, bool pressed)
 
 // ---- Caps Word (QMK's "capitalises until the end of the word") ----
 // While it is on, every letter goes out with Shift, and it ends by itself at the first key that is not part of a word (a space, a symbol, the
-// arrow keys...). Keys that keep it going: the letters themselves, the digits, minus and underscore, backspace and delete - so "hello-world" and
-// "HELLO_WORLD" can be typed without touching Shift, and a typo fixed, without it switching off. The underscore is Shift + minus as one keycode
-// (KC_UNDS = LSFT(KC_MINS)): a key of the keymap that sends it is not the plain minus, so it has to be named here (QMK does the same).
+// arrow keys...). Keys that keep it going: the letters themselves, the digits, minus, backspace and delete, and the Shift keys - so "hello-world" can
+// be typed without touching Shift, "HELLO_WORLD" with the Shift that makes the underscore, and a typo fixed, without it switching off. A key that is
+// Shift + another (LSFT(KC_MINS), the underscore as one keycode) is judged by the other one.
 static bool caps_word_letter(uint16_t keycode)
 {
     return keycode >= KC_A && keycode <= KC_Z;
@@ -104,8 +104,20 @@ static bool caps_word_letter(uint16_t keycode)
 
 static bool caps_word_keeps(uint16_t keycode)
 {
-    return caps_word_letter(keycode) || (keycode >= KC_1 && keycode <= KC_0) || keycode == KC_MINS || keycode == KC_BSPC
-        || keycode == KC_DEL || keycode == LSFT(KC_MINS);
+    if (IS_QK_MODS(keycode)) { // a key with modifiers (LSFT(KC_MINS) is the underscore): with Shift alone the key itself decides, with Ctrl, Alt or Gui it is a shortcut
+        const uint8_t mods = QK_MODS_GET_MODS(keycode);
+
+        if (mods != MOD_LSFT && mods != MOD_RSFT) {
+            return false;
+        }
+
+        keycode = QK_MODS_GET_KEY(keycode);
+    }
+
+    // The Shift keys themselves keep the word going: "HELLO_WORLD" is typed by holding Shift for the underscore, and the press of that Shift reaches here
+    // BEFORE the minus does. Without this the Shift ended the word and the underscore came out of a word that was already over.
+    return caps_word_letter(keycode) || (keycode >= KC_1 && keycode <= KC_0) || keycode == KC_MINS || keycode == KC_BSPC || keycode == KC_DEL
+        || keycode == KC_LSFT || keycode == KC_RSFT;
 }
 
 // Before the key goes out: the Shift for a letter, and the end of the word for anything else
