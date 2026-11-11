@@ -54,6 +54,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+      actions: write # to start pages.yml
     steps:
       - uses: actions/download-artifact@v4
         with:
@@ -61,30 +62,9 @@ jobs:
       - uses: softprops/action-gh-release@v2
         with:
           files: oblio.hex
-
-  # The web updater (web/) on GitHub Pages, with every published release next to it: the browser cannot download the assets of a Release (no CORS),
-  # so the site carries its own copy of each oblio.hex and a releases.json that lists them (tools/make_site.py). Needs Pages enabled with the source
-  # "GitHub Actions" (Settings > Pages).
-  pages:
-    needs: release
-    if: startsWith(github.ref, 'refs/tags/v')
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      pages: write
-      id-token: write
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    steps:
-      - uses: actions/checkout@v4
-      - name: Build the site (web/ + every release)
+      # The site of the web updater lists every release, so it has to be rebuilt now. It cannot be deployed from a tag (the github-pages environment
+      # only accepts the branch main), so this asks the Pages workflow to run ON main.
+      - name: Rebuild the web updater's site (pages.yml, on main)
         env:
           GH_TOKEN: ${{ github.token }}
-        run: python3 tools/make_site.py site
-      - uses: actions/configure-pages@v5
-      - uses: actions/upload-pages-artifact@v3
-        with:
-          path: site
-      - id: deployment
-        uses: actions/deploy-pages@v4
+        run: gh workflow run pages.yml --repo "${GITHUB_REPOSITORY}" --ref main

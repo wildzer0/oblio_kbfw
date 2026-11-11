@@ -1,0 +1,49 @@
+name: Pages
+
+# The web updater (web/) on GitHub Pages, with every published release next to it. The browser cannot download the assets of a GitHub Release (no CORS
+# headers), so the site carries its own copy of each oblio.hex and a releases.json that lists them (tools/make_site.py).
+#
+# It runs ON main, because the github-pages environment only accepts deployments from that branch (a tag is refused):
+#   - when web/ or the site builder change (a push to main);
+#   - when a release has been published (ci.yml's release job starts this workflow with workflow_dispatch);
+#   - by hand, from the Actions tab.
+# Needs Pages enabled with the source "GitHub Actions" (Settings > Pages).
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "web/**"
+      - "tools/make_site.py"
+      - "tools/check_version.py"
+      - ".github/workflows/pages.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+  # `gh release list/download` reads the releases of this repository with the workflow's token
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  pages:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build the site (web/ + every release)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 tools/make_site.py site
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+      - id: deployment
+        uses: actions/deploy-pages@v4

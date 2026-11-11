@@ -155,7 +155,7 @@ In questo progetto vale la regola «niente tentativi alla cieca»: si ragiona, s
 
 1. Cambia il numero nel file `VERSION` (`major.minor.patch`), aggiorna `CHANGELOG.md`, commit.
 2. `make test web-test check fw size` in verde (`check` verifica che la versione stia nell'immagine una volta e coincida con `VERSION`).
-3. Tag e push: `git tag vX.Y.Z && git push && git push origin vX.Y.Z`. La CI ricostruisce, rifiuta il tag se non coincide con `VERSION`, pubblica la Release (`oblio.hex`) e ricostruisce il sito Pages (`tools/make_site.py`) con tutte le release.
+3. Tag e push: `git tag vX.Y.Z && git push && git push origin vX.Y.Z`. La CI ricostruisce, rifiuta il tag se non coincide con `VERSION`, pubblica la Release (`oblio.hex`) e avvia `pages.yml` su `main`, che ricostruisce il sito Pages (`tools/make_site.py`) con tutte le release (il sito si ricostruisce anche a ogni push a `main` che tocca `web/`; non può partire da un tag: l'ambiente `github-pages` accetta solo `main`).
 4. Prova in locale prima: `python3 tools/make_site.py /tmp/site --local build/oblio.hex v0.9.0 && cd /tmp/site && python3 -m http.server 8000`.
 
 L'utility web è in `web/` (leggi `web/index.html`, poi `web/js/app.js`: ogni file ha in testa il perché). Per capire cosa vede il browser della tastiera c'è `web/probe.html`.
